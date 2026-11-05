@@ -6,21 +6,28 @@ use App\Enums\Country;
 use App\Enums\UserStatus;
 use App\Models\User;
 use App\Vanda\Forms\UserForm;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Hash;
+use Vanda\Access\Permissions;
+use Vanda\Access\Role;
 use Vanda\Actions\Button;
 use Vanda\Actions\Link;
 use Vanda\Actions\Variant;
 use Vanda\Attributes\Action;
+use Vanda\Attributes\Can;
 use Vanda\Attributes\Updated;
 use Vanda\Fields\Input;
 use Vanda\Fields\InputType;
+use Vanda\Fields\Password;
+use Vanda\Fields\PermissionsField;
 use Vanda\Fields\Select;
 use Vanda\Layouts\Layout;
+use Vanda\Navigation\Crumb;
 use Vanda\Schema\Expr;
 use Vanda\Schema\Get;
 use Vanda\Screen\Result;
 use Vanda\Screen\Screen;
 
+#[Can('platform.users')]
 final class UserEditScreen extends Screen
 {
     public User $user;
@@ -29,8 +36,8 @@ final class UserEditScreen extends Screen
 
     public function query(User $user): array
     {
-        $this->user = $user;
-        $this->form = UserForm::fromArray($user->only(['name', 'email', 'status', 'country', 'city', 'vat']));
+        $this->user = $user->load('roles');
+        $this->form = UserForm::fromUser($this->user);
 
         return [];
     }
@@ -45,6 +52,15 @@ final class UserEditScreen extends Screen
         return $this->user->exists
             ? 'Создан '.$this->user->created_at?->translatedFormat('j F Y')
             : 'Заполните профиль, чтобы добавить пользователя';
+    }
+
+    public function breadcrumbs(): iterable
+    {
+        return [
+            Crumb::make('Доступ'),
+            Crumb::make('Пользователи')->to(UserListScreen::class),
+            Crumb::make($this->title()),
+        ];
     }
 
     public function commandBar(): iterable
@@ -66,35 +82,47 @@ final class UserEditScreen extends Screen
         $inEu = Expr::field('form.country')->in(['DE', 'FR']);
 
         return [
-            Layout::section('Профиль', 'Основные данные. Email используется для входа и уведомлений.')->schema([
-                Layout::grid([
-                    Input::make('form.name')->label('Имя')->required(),
-                    Input::make('form.email')
-                        ->inputType(InputType::Email)
-                        ->label('Email')
-                        ->required()
-                        ->liveValidation()
-                        ->help('Проверяется на уникальность, пока вы печатаете'),
-                ], columns: 2),
-                Select::make('form.status')->label('Статус')->options(UserStatus::class),
-            ]),
-
-            Layout::section('Адрес', 'Город зависит от страны, VAT ID нужен только компаниям из ЕС.')->schema([
-                Layout::grid([
-                    Select::make('form.country')->label('Страна')->options(Country::class)->placeholder('Не выбрана'),
-                    Select::make('form.city')
-                        ->label('Город')
-                        ->placeholder('Сначала выберите страну')
-                        ->dependsOn('form.country')
-                        ->options(fn (Get $get) => Country::tryFrom((string) $get('form.country'))?->cities() ?? [])
-                        ->help('Список приходит с сервера при смене страны'),
-                ], columns: 2),
-                Input::make('form.vat')
-                    ->label('VAT ID')
-                    ->placeholder('DE 123 456 789')
-                    ->visibleWhen($inEu)
-                    ->requiredWhen($inEu)
-                    ->help('Поле появляется сразу, без запроса к серверу'),
+            Layout::tabs([
+                'Профиль' => [
+                    Layout::section('Профиль', 'Основные данные. Email используется для входа и уведомлений.')->schema([
+                        Layout::grid([
+                            Input::make('form.name')->label('Имя')->required(),
+                            Input::make('form.email')
+                                ->inputType(InputType::Email)
+                                ->label('Email')
+                                ->required()
+                                ->liveValidation()
+                                ->help('Проверяется на уникальность, пока вы печатаете'),
+                        ], columns: 2),
+                        Select::make('form.status')->label('Статус')->options(UserStatus::class),
+                    ]),
+                    Layout::section('Адрес', 'Город зависит от страны, VAT ID нужен только компаниям из ЕС.')->schema([
+                        Layout::grid([
+                            Select::make('form.country')->label('Страна')->options(Country::class)->placeholder('Не выбрана'),
+                            Select::make('form.city')
+                                ->label('Город')
+                                ->placeholder('Сначала выберите страну')
+                                ->dependsOn('form.country')
+                                ->options(fn (Get $get) => Country::tryFrom((string) $get('form.country'))?->cities() ?? [])
+                                ->help('Список приходит с сервера при смене страны'),
+                        ], columns: 2),
+                        Input::make('form.vat')
+                            ->label('VAT ID')
+                            ->placeholder('DE 123 456 789')
+                            ->visibleWhen($inEu)
+                            ->requiredWhen($inEu)
+                            ->help('Поле появляется сразу, без запроса к серверу'),
+                    ]),
+                ],
+                'Доступ' => [
+                    Layout::section('Роли и права', 'Роль задаёт набор прав. Отдельные права можно разрешить или запретить лично.')->schema([
+                        Select::make('form.roles')->label('Роли')->multiple()->options(fn () => Role::query()->orderBy('name')->pluck('name', 'id')),
+                        PermissionsField::make('form.permissions')->label('Права доступа')->inherited($this->user->permissionSources()),
+                    ]),
+                    Layout::section('Пароль', $this->user->exists ? 'Оставьте пустым, чтобы не менять.' : 'Задайте пароль для входа.')->schema([
+                        Password::make('form.password')->label('Новый пароль')->strength(),
+                    ]),
+                ],
             ]),
         ];
     }
@@ -109,15 +137,17 @@ final class UserEditScreen extends Screen
     public function save(): Result
     {
         $data = $this->form->only('name', 'email', 'status', 'country', 'city', 'vat');
+        $data['permissions'] = Permissions::clean($this->form->permissions);
 
         if (! $this->form->country?->inEu()) {
             $data['vat'] = null;
         }
-        if (! $this->user->exists) {
-            $data['password'] = Str::password();
+        if ($this->form->password !== '') {
+            $data['password'] = Hash::make($this->form->password);
         }
 
         $this->user->fill($data)->save();
+        $this->user->replaceRoles($this->form->roles);
 
         return Result::toast('Пользователь сохранён')->redirect(UserListScreen::class);
     }

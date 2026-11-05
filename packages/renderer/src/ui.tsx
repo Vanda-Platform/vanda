@@ -1,16 +1,28 @@
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Bell,
+  Calendar,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   CircleAlert,
   CircleCheck,
+  Copy,
+  Eye,
+  EyeOff,
   FileText,
+  Info,
   LayoutDashboard,
+  LayoutGrid,
   LogIn,
+  LogOut,
   type LucideIcon,
   Mail,
+  Minus,
   Monitor,
   Moon,
   Pencil,
@@ -21,6 +33,7 @@ import {
   Shield,
   Sun,
   Trash2,
+  TriangleAlert,
   User,
   Users,
   X,
@@ -28,17 +41,30 @@ import {
 
 /** Icon names accepted by ->icon() in PHP. */
 const ICONS: Record<string, LucideIcon> = {
+  'arrow-down': ArrowDown,
+  'arrow-up': ArrowUp,
+  sort: ArrowUpDown,
   bell: Bell,
+  calendar: Calendar,
   check: Check,
   'chevron-down': ChevronDown,
   'chevron-left': ChevronLeft,
   'chevron-right': ChevronRight,
+  'chevron-up': ChevronUp,
   alert: CircleAlert,
   success: CircleCheck,
+  copy: Copy,
+  eye: Eye,
+  'eye-off': EyeOff,
   file: FileText,
+  info: Info,
+  warning: TriangleAlert,
   dashboard: LayoutDashboard,
+  grid: LayoutGrid,
   'log-in': LogIn,
+  'log-out': LogOut,
   mail: Mail,
+  minus: Minus,
   monitor: Monitor,
   moon: Moon,
   pencil: Pencil,
@@ -65,6 +91,29 @@ export function Icon({ name, className = 'size-4' }: { name?: string | null; cla
 
 export function cx(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
+}
+
+/** Shared look of text inputs, select triggers and pickers. */
+export const controlClass = cx(
+  'h-9 w-full rounded-lg border border-line-strong bg-surface px-2.5 text-[14px] text-fg shadow-sm transition',
+  'placeholder:text-fg-3 focus:outline-none focus:border-accent focus:ring-3 focus:ring-ring',
+  'disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-fg-3 disabled:shadow-none',
+);
+
+const TONES = ['#12805C', '#2563EB', '#BE185D', '#C2410C', '#0F766E', '#7C3AED'];
+
+/** Initials avatar; the hue comes from the server so it is stable per person. */
+export function Avatar({ initials, hue = 0, size = 'md' }: { initials: string; hue?: number; size?: 'sm' | 'md' }) {
+  const color = TONES[hue % TONES.length];
+  return (
+    <span
+      aria-hidden="true"
+      className={cx('grid shrink-0 place-items-center rounded-full font-semibold', size === 'sm' ? 'size-6 text-[10.5px]' : 'size-8 text-[12px]')}
+      style={{ background: `color-mix(in oklch, ${color} 14%, var(--v-surface))`, color: `color-mix(in oklch, ${color} 72%, var(--v-fg))` }}
+    >
+      {initials}
+    </span>
+  );
 }
 
 const VARIANTS: Record<string, string> = {

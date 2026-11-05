@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Vanda;
 
 use Closure;
+use Vanda\Access\PermissionGroup;
+use Vanda\Access\PermissionRegistry;
 use Vanda\Http\AssetController;
 use Vanda\Navigation\MenuItem;
 use Vanda\Navigation\Shell;
@@ -26,6 +28,37 @@ final class Vanda
     public static function menu(Closure $items): void
     {
         app(Shell::class)->menu($items);
+    }
+
+    /**
+     * Permissions of the panel, shown in role and user forms and usable as Gate abilities:
+     *
+     *     Vanda::permissions(fn () => [PermissionGroup::make('System')->add('platform.users', 'Users')]);
+     *
+     * @param Closure(): iterable<PermissionGroup> $groups
+     */
+    public static function permissions(Closure $groups): void
+    {
+        app(PermissionRegistry::class)->define($groups);
+    }
+
+    /**
+     * Where to go after signing in: config('vanda.home'), else the first menu item.
+     */
+    public static function home(): string
+    {
+        $home = config('vanda.home');
+
+        if (is_string($home) && class_exists($home)) {
+            return self::url($home);
+        }
+        if (is_string($home) && $home !== '') {
+            return url($home);
+        }
+
+        $first = app(Shell::class)->items()[0] ?? null;
+
+        return $first?->getHref() ?? url('/');
     }
 
     /**

@@ -1,14 +1,9 @@
-import { StrictMode } from 'react';
+import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
-import { createStore, StoreContext } from './store';
-import type { Page } from './types';
+import { VandaPage } from './VandaPage';
 import './styles.css';
 
-const data = document.getElementById('vanda-page');
-const root = document.getElementById('vanda-app');
-
-if (data && root) {
+function applyStoredTheme() {
   let theme = 'system';
   try {
     theme = localStorage.getItem('vanda:theme') ?? 'system';
@@ -17,14 +12,15 @@ if (data && root) {
   }
   const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-
-  const store = createStore(JSON.parse(data.textContent ?? '{}') as Page);
-
-  createRoot(root).render(
-    <StrictMode>
-      <StoreContext.Provider value={store}>
-        <App />
-      </StoreContext.Provider>
-    </StrictMode>,
-  );
 }
+
+applyStoredTheme();
+
+// Every screen is the same Inertia component: the page IR decides what is drawn.
+void createInertiaApp({
+  resolve: () => VandaPage,
+  setup({ el, App, props }) {
+    if (el) createRoot(el).render(<App {...props} />);
+  },
+  progress: { color: '#12805C', delay: 120 },
+});

@@ -19,6 +19,9 @@ use Vanda\Support\Signer;
  */
 final class ActionCall
 {
+    /** Signed in place of arguments for bulk actions, whose ids come from the selection. */
+    public const BULK = ['__bulk' => true];
+
     public static function attribute(string $class, string $method): ?Action
     {
         if (! method_exists($class, $method)) {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vanda\Schema;
 
 use Vanda\Fields\Field;
+use Vanda\Layouts\Modal;
 use Vanda\Support\Paths;
 
 /**
@@ -52,6 +53,28 @@ final class Tree
     public function fields(): array
     {
         return array_values(array_filter($this->nodes, static fn (Node $node) => $node instanceof Field));
+    }
+
+    /**
+     * Fields a button validates: inside a modal, only that modal's fields;
+     * anywhere else, every field that is not inside a modal.
+     *
+     * @return list<Field>
+     */
+    public function fieldsInScope(?string $triggerId): array
+    {
+        $modal = null;
+        foreach ($this->ancestors[(string) $triggerId] ?? [] as $ancestor) {
+            if ($ancestor instanceof Modal) {
+                $modal = $ancestor;
+            }
+        }
+
+        return array_values(array_filter($this->fields(), function (Field $field) use ($modal): bool {
+            $modals = array_filter($this->ancestors[(string) $field->getId()] ?? [], static fn (Node $node) => $node instanceof Modal);
+
+            return $modal === null ? $modals === [] : in_array($modal, $modals, true);
+        }));
     }
 
     /**

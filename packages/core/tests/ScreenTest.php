@@ -35,7 +35,7 @@ it('describes the page as IR with stable ids and sources', function () {
 it('renders the HTML shell with the embedded page', function () {
     $this->get('/admin/users')
         ->assertOk()
-        ->assertSee('id="vanda-page"', false)
+        ->assertSee('data-page="app"', false)
         ->assertSee('vanda/assets/vanda.js', false);
 });
 

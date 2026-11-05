@@ -6,6 +6,7 @@ namespace Vanda\Form;
 
 use ReflectionClass;
 use ReflectionProperty;
+use Vanda\Attributes\Secret;
 use Vanda\Attributes\Validate;
 use Vanda\Screen\Screen;
 use Vanda\State\StateCaster;
@@ -57,16 +58,19 @@ abstract class Form
     }
 
     /**
+     * @param bool $withSecrets include #[Secret] properties (Vanda leaves them out of page state)
      * @return array<string, mixed>
      */
-    public function toArray(): array
+    public function toArray(bool $withSecrets = true): array
     {
         $data = [];
 
         foreach (self::properties() as $property) {
-            if ($property->isInitialized($this)) {
-                $data[$property->getName()] = StateCaster::dehydrate($property->getValue($this));
+            if (! $property->isInitialized($this) || (! $withSecrets && $property->getAttributes(Secret::class) !== [])) {
+                continue;
             }
+
+            $data[$property->getName()] = StateCaster::dehydrate($property->getValue($this), $withSecrets);
         }
 
         return $data;

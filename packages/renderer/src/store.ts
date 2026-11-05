@@ -1,9 +1,10 @@
+import { router } from '@inertiajs/react';
 import { createContext, useContext, useSyncExternalStore } from 'react';
 import { evaluate } from './expr';
+import { t } from './i18n';
 import { applyPatches, setPath, walk } from './patch';
 import { act, react } from './transport';
-import { t } from './i18n';
-import type { ActionRef, FieldNode, Page, State, UiNode } from './types';
+import type { ActionRef, FieldNode, Page, UiNode } from './types';
 
 export interface Toast {
   id: number;
@@ -18,23 +19,27 @@ export interface Snapshot {
   pending: ReadonlySet<string>;
   /** Id of the button whose action is running. */
   running: string | null;
+  /** Id of the open Layout::modal(). */
+  modal: string | null;
   toasts: Toast[];
 }
 
 const FLASH_KEY = 'vanda:toast';
-const DISCRETE = new Set(['select', 'switch']);
+const DISCRETE = new Set(['select', 'switch', 'checkbox', 'radio', 'segmented', 'date', 'daterange', 'color', 'range']);
 
 /**
- * Client state of one page: values, errors, pending reactions, toasts.
- * Values change locally first; the server is asked only when a node depends
- * on the changed path, the field is live, or a button is pressed.
+ * Client state of one screen: values, errors, pending reactions, the open modal, toasts.
+ * Values change locally first; the server is asked only when a node depends on the
+ * changed path, the field is live, or a button is pressed.
  */
 export function createStore(initial: Page) {
-  let snapshot: Snapshot = { page: initial, errors: {}, pending: new Set(), running: null, toasts: [] };
+  let snapshot: Snapshot = { page: initial, errors: {}, pending: new Set(), running: null, modal: null, toasts: [] };
   const listeners = new Set<() => void>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let inflight: AbortController | undefined;
   let toastId = 0;
+  /** The page object we pushed into Inertia ourselves; its echo must not reset the store. */
+  let synced: Page | null = initial;
 
   const set = (patch: Partial<Snapshot>) => {
     snapshot = { ...snapshot, ...patch };
@@ -46,15 +51,25 @@ export function createStore(initial: Page) {
   const matches = (pattern: string, path: string) =>
     pattern === path || path.startsWith(`${pattern}.`) || (pattern.endsWith('*') && path.startsWith(pattern.slice(0, -1)));
 
-  const withComputed = (state: State): State =>
-    nodes()
+  /** Fills computed fields (slugs and the like) from the rest of the state. */
+  const withComputed = (page: Page): Page => ({
+    ...page,
+    state: walk([...page.commandBar, ...page.layout])
       .filter((node): node is FieldNode => 'computed' in node && node.computed !== undefined)
-      .reduce((current, field) => setPath(current, field.path, evaluate(field.computed!, current)), state);
+      .reduce((current, field) => setPath(current, field.path, evaluate(field.computed!, current)), page.state),
+  });
+
+  snapshot = { ...snapshot, page: withComputed(initial) };
 
   const pushToast = (message: string, tone = 'success') => {
     const id = ++toastId;
     set({ toasts: [...snapshot.toasts, { id, message, tone }] });
     setTimeout(() => set({ toasts: snapshot.toasts.filter((toast) => toast.id !== id) }), 5000);
+  };
+
+  const insideModal = (nodeId: string, modalId: string) => {
+    const modal = nodes().find((node) => node.type === 'modal' && node.id === modalId);
+    return modal !== undefined && walk(modal.children ?? []).some((node) => node.id === nodeId);
   };
 
   async function runReaction() {
@@ -90,13 +105,24 @@ export function createStore(initial: Page) {
 
     get: () => snapshot,
 
+    /** A new visit from Inertia (same screen re-rendered, e.g. a table sort). */
+    receive(page: Page) {
+      if (page === synced) return;
+      synced = page;
+      clearTimeout(timer);
+      inflight?.abort();
+      set({ page: withComputed(page), errors: {}, pending: new Set(), running: null, modal: null });
+    },
+
     setValue(path: string, value: unknown) {
       const field = nodes().find((node): node is FieldNode => node.path === path);
       const dependents = nodes().filter((node) => node.dependsOn?.some((pattern) => matches(pattern, path)));
       const errors = { ...snapshot.errors };
-      if (!field?.liveValidation) delete errors[path];
+      if (!field?.liveValidation) {
+        for (const key of Object.keys(errors)) if (key === path || key.startsWith(`${path}.`)) delete errors[key];
+      }
 
-      set({ page: { ...snapshot.page, state: withComputed(setPath(snapshot.page.state, path, value)) }, errors });
+      set({ page: withComputed({ ...snapshot.page, state: setPath(snapshot.page.state, path, value) }), errors });
 
       if (dependents.length === 0 && field?.live === undefined) return;
 
@@ -106,38 +132,54 @@ export function createStore(initial: Page) {
       timer = setTimeout(runReaction, delay);
     },
 
-    async runAction(id: string, action: ActionRef) {
+    openModal(id: string | null) {
+      set({ modal: id });
+    },
+
+    /**
+     * Calls an #[Action] through the button with this node id. Bulk actions pass the selected row ids.
+     */
+    async runAction(id: string, action: ActionRef, ids?: string[]): Promise<boolean> {
       clearTimeout(timer);
       inflight?.abort();
       set({ running: id, pending: new Set() });
 
       try {
-        const { status, data } = await act(snapshot.page, action);
+        const { status, data } = await act(snapshot.page, id, action, ids);
 
         if (status === 422) {
           set({ errors: data.errors ?? {}, running: null, page: { ...snapshot.page, snapshot: data.snapshot ?? snapshot.page.snapshot } });
           pushToast(t('checkFields'), 'danger');
           const first = Object.keys(data.errors ?? {})[0];
-          if (first) document.querySelector<HTMLElement>(`[data-vanda-path="${CSS.escape(first)}"] input, [data-vanda-path="${CSS.escape(first)}"] button`)?.focus();
-          return;
+          if (first) document.querySelector<HTMLElement>(`[data-vanda-path="${CSS.escape(first)}"] :is(input, button, textarea)`)?.focus();
+          return false;
         }
 
         if (data.redirect) {
           if (data.toast) sessionStorage.setItem(FLASH_KEY, JSON.stringify(data.toast));
-          window.location.assign(data.redirect);
-          return;
+          set({ running: null });
+          router.visit(data.redirect);
+          return true;
         }
 
         if (data.toast) pushToast(data.toast.message, data.toast.tone);
-        set({
-          running: null,
-          errors: {},
-          page: data.page ?? { ...snapshot.page, snapshot: data.snapshot ?? snapshot.page.snapshot },
-        });
+
+        const modal = data.openModal ?? (snapshot.modal && insideModal(id, snapshot.modal) ? null : snapshot.modal);
+
+        if (data.page) {
+          synced = data.page;
+          router.replaceProp('page', data.page);
+          set({ running: null, errors: {}, page: withComputed(data.page), modal });
+        } else {
+          set({ running: null, errors: {}, modal, page: { ...snapshot.page, snapshot: data.snapshot ?? snapshot.page.snapshot } });
+        }
+
+        return true;
       } catch (error) {
         set({ running: null });
         pushToast(t('requestFailed'), 'danger');
         console.error(error);
+        return false;
       }
     },
 
@@ -173,4 +215,14 @@ export function useSnapshot<T>(select: (snapshot: Snapshot) => T): T {
 
 export function nodeAttributes(node: UiNode): Record<string, string | undefined> {
   return { 'data-vanda-node': node.id, 'data-vanda-type': node.type, 'data-vanda-source': node.source };
+}
+
+/** Same-origin URLs navigate through Inertia; anything else is a normal link. */
+export function isInternal(href: string | undefined): href is string {
+  if (!href) return false;
+  try {
+    return new URL(href, window.location.href).origin === window.location.origin;
+  } catch {
+    return false;
+  }
 }

@@ -188,6 +188,15 @@ abstract class Field extends Node
     }
 
     /**
+     * Cleans the value that came from the browser before it is applied to state.
+     * Structured fields (Repeater, KeyValue, permissions) drop unknown keys here.
+     */
+    public function sanitize(mixed $value): mixed
+    {
+        return $value;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected function properties(SchemaContext $context): array

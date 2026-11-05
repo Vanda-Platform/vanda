@@ -20,16 +20,19 @@ final class StateCaster
 {
     public const UNSUPPORTED = "\0unsupported";
 
-    public static function dehydrate(mixed $value): mixed
+    /**
+     * @param bool $secrets include Form properties marked #[Secret]
+     */
+    public static function dehydrate(mixed $value, bool $secrets = false): mixed
     {
         return match (true) {
             $value === null, is_scalar($value) => $value,
-            $value instanceof Form => $value->toArray(),
+            $value instanceof Form => $value->toArray($secrets),
             $value instanceof Model => ['__model' => $value::class, 'key' => $value->exists ? $value->getKey() : null],
             $value instanceof BackedEnum => $value->value,
             $value instanceof DateTimeInterface => Carbon::instance($value)->toIso8601String(),
-            $value instanceof Collection => array_map(self::dehydrate(...), $value->all()),
-            is_array($value) => array_map(self::dehydrate(...), $value),
+            $value instanceof Collection => array_map(static fn ($item) => self::dehydrate($item, $secrets), $value->all()),
+            is_array($value) => array_map(static fn ($item) => self::dehydrate($item, $secrets), $value),
             default => self::UNSUPPORTED,
         };
     }

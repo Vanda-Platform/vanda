@@ -5,24 +5,47 @@ declare(strict_types=1);
 namespace Vanda\Layouts;
 
 use Closure;
+use Illuminate\Contracts\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Vanda\Schema\SchemaContext;
+use Vanda\Actions\Button;
 use Vanda\Schema\Node;
+use Vanda\Schema\SchemaContext;
 
 /**
- * Rows of data with typed columns:
+ * Rows of data with typed columns. Give it a query and it handles search,
+ * sorting and pagination from the URL (?q=…&sort=-created_at&page=2):
  *
  *     Layout::table()
- *         ->rows(fn () => User::query()->latest()->paginate(25))
- *         ->columns([TD::make('name', 'Name'), TD::make('email', 'Email')->muted()])
+ *         ->query(fn () => User::query())
+ *         ->searchable(['name', 'email'])
+ *         ->paginate(25)
+ *         ->columns([TD::make('name', 'Name')->sortable(), TD::make('email', 'Email')])
+ *         ->bulkActions([Button::make('Delete')->danger()->action($this->deleteMany(...))])
+ *
+ * Or pass ready data with ->rows([...]).
  */
 final class Table extends Node
 {
     /** @var iterable<mixed>|Closure */
     private iterable|Closure $rows = [];
 
+    private ?Closure $query = null;
+
+    /** @var list<string> */
+    private array $searchable = [];
+
+    private ?string $searchPlaceholder = null;
+
+    private int $perPage = 25;
+
+    /** @var array{0: string, 1: 'asc'|'desc'}|null */
+    private ?array $defaultSort = null;
+
     /** @var list<TD> */
     private array $columns = [];
+
+    /** @var list<Button> */
+    private array $bulkActions = [];
 
     private ?Closure $rowLink = null;
 
@@ -52,11 +75,61 @@ final class Table extends Node
     }
 
     /**
+     * @param Closure(): EloquentBuilder $query
+     */
+    public function query(Closure $query): self
+    {
+        $this->query = $query;
+
+        return $this;
+    }
+
+    /**
+     * @param list<string> $columns database columns searched with LIKE
+     */
+    public function searchable(array $columns, ?string $placeholder = null): self
+    {
+        $this->searchable = array_values($columns);
+        $this->searchPlaceholder = $placeholder;
+
+        return $this;
+    }
+
+    public function paginate(int $perPage): self
+    {
+        $this->perPage = $perPage;
+
+        return $this;
+    }
+
+    /**
+     * @param 'asc'|'desc' $direction
+     */
+    public function defaultSort(string $column, string $direction = 'asc'): self
+    {
+        $this->defaultSort = [$column, $direction];
+
+        return $this;
+    }
+
+    /**
      * @param list<TD> $columns
      */
     public function columns(array $columns): self
     {
         $this->columns = array_values($columns);
+
+        return $this;
+    }
+
+    /**
+     * Buttons for selected rows. Their actions receive `array $ids`.
+     *
+     * @param list<Button> $buttons
+     */
+    public function bulkActions(array $buttons): self
+    {
+        $this->bulkActions = array_map(static fn (Button $button) => $button->asBulk(), array_values($buttons));
 
         return $this;
     }
@@ -80,7 +153,7 @@ final class Table extends Node
 
     protected function properties(SchemaContext $context): array
     {
-        $data = $this->rows instanceof Closure ? ($this->rows)() : $this->rows;
+        [$data, $sort, $search] = $this->load();
         $pagination = null;
 
         if ($data instanceof LengthAwarePaginator) {
@@ -109,11 +182,60 @@ final class Table extends Node
             ], static fn ($value) => $value !== null);
         }
 
+        $bulk = [];
+        foreach ($this->bulkActions as $index => $button) {
+            if ($button->isVisible()) {
+                $bulk[] = $button->id($this->id.'.bulk.'.$index)->toSchema($context);
+            }
+        }
+
         return [
             'columns' => array_map(static fn (TD $column) => $column->header(), $this->columns),
             'rows' => $rows,
             'pagination' => $pagination,
+            'sort' => $sort,
+            'search' => $this->searchable === [] ? null : ['value' => $search, 'placeholder' => $this->searchPlaceholder],
+            'bulk' => $bulk,
             'emptyText' => $this->emptyText,
         ];
+    }
+
+    /**
+     * @return array{0: iterable<mixed>, 1: ?string, 2: string}
+     */
+    private function load(): array
+    {
+        if ($this->query === null) {
+            return [$this->rows instanceof Closure ? ($this->rows)() : $this->rows, null, ''];
+        }
+
+        $query = ($this->query)();
+        $search = trim((string) request()->query('q', ''));
+
+        if ($search !== '' && $this->searchable !== []) {
+            $query->where(function ($where) use ($search): void {
+                foreach ($this->searchable as $column) {
+                    $where->orWhere($column, 'like', '%'.addcslashes($search, '%_\\').'%');
+                }
+            });
+        }
+
+        $sort = (string) request()->query('sort', '');
+        $column = ltrim($sort, '-');
+        $sortable = array_map(
+            static fn (TD $td) => $td->name(),
+            array_filter($this->columns, static fn (TD $td) => $td->isSortable()),
+        );
+
+        if ($column !== '' && in_array($column, $sortable, true)) {
+            $query->orderBy($column, str_starts_with($sort, '-') ? 'desc' : 'asc');
+        } elseif ($this->defaultSort !== null) {
+            $query->orderBy(...$this->defaultSort);
+            $sort = '';
+        } else {
+            $sort = '';
+        }
+
+        return [$query->paginate($this->perPage)->withQueryString(), $sort === '' ? null : $sort, $search];
     }
 }

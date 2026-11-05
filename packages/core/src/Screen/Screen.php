@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vanda\Screen;
 
+use Vanda\Navigation\Crumb;
 use Vanda\Schema\Node;
 
 /**
@@ -45,6 +46,24 @@ abstract class Screen
     public function commandBar(): iterable
     {
         return [];
+    }
+
+    /**
+     * Path to this screen. Empty = derived from the active menu item and the title.
+     *
+     * @return iterable<Crumb>
+     */
+    public function breadcrumbs(): iterable
+    {
+        return [];
+    }
+
+    /**
+     * The panel with the sidebar, or a bare card for sign-in style pages.
+     */
+    public function chrome(): Chrome
+    {
+        return Chrome::Panel;
     }
 
     /**

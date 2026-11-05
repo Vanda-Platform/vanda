@@ -35,7 +35,11 @@ php artisan vanda:inspect /admin/users/1/edit        # add --json for the raw IR
 - **No magic.** No `__call`, no string references to methods. Every option is a typed method; variants are enums (`Variant`, `Tone`, `InputType`).
 - **Actions** are screen methods with `#[Action]`; buttons point to them with first-class callables: `->action($this->save(...))`. Never expose a method any other way.
 - **State** lives in public typed screen properties. It travels as signed JSON (`Snapshot`), never PHP `serialize`. Models and `#[Locked]` properties are never writable from the browser.
-- **Browser input is whitelisted**: only paths of editable fields present on the screen are applied (`ScreenRuntime::applyClientState`).
+- **Browser input is whitelisted**: only paths of editable fields present on the screen are applied (`ScreenRuntime::applyClientState`), after `Field::sanitize()` for structured values.
+- **Access**: `#[Can]` on a screen class or an action method; buttons, modal toggles and menu items that lead to forbidden things are hidden automatically, and the server checks again on every request.
+- **Secrets** (`#[Secret]` on a Form property) are accepted from the browser but never written to page state or the snapshot.
+- **Validation scope**: a button inside `Layout::modal()` validates only that modal's fields; any other button validates everything outside modals.
+- **Navigation** goes through Inertia (`router.visit`, `<Link>`); reactions and actions stay on Vanda's JSON protocol in `transport.ts`.
 - **A new node type** needs three things in one change: the PHP class (extends `Vanda\Schema\Node`), a renderer component registered in `packages/renderer/src/nodes/NodeView.tsx`, and a test that checks its IR.
 - **Expressions** (`Expr`) are evaluated in PHP and TS. Change both evaluators and add a case to `packages/schema/fixtures/expressions.json`; both test suites read it.
 - **Errors explain the fix.** Throw `VandaException` with a message that says what is wrong, where, and what to write instead.

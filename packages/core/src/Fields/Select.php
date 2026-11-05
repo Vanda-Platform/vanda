@@ -4,17 +4,11 @@ declare(strict_types=1);
 
 namespace Vanda\Fields;
 
-use BackedEnum;
-use Closure;
-use Illuminate\Contracts\Support\Arrayable;
-use Vanda\Schema\Get;
+use Vanda\Fields\Concerns\HasOptions;
 use Vanda\Schema\SchemaContext;
 
 /**
- * Pick one value (or several with ->multiple()) from a list of options.
- *
- * Options may be an array [value => label], a list of ['value' => …, 'label' => …],
- * a BackedEnum class, or a closure receiving the current state:
+ * Pick one value, or several with ->multiple():
  *
  *     Select::make('form.city')
  *         ->dependsOn('form.country')
@@ -22,8 +16,7 @@ use Vanda\Schema\SchemaContext;
  */
 final class Select extends Field
 {
-    /** @var iterable<mixed>|Closure|class-string<BackedEnum> */
-    private iterable|Closure|string $options = [];
+    use HasOptions;
 
     private bool $multiple = false;
 
@@ -34,16 +27,7 @@ final class Select extends Field
         return 'select';
     }
 
-    /**
-     * @param iterable<mixed>|Closure(Get): iterable<mixed>|class-string<BackedEnum> $options
-     */
-    public function options(iterable|Closure|string $options): static
-    {
-        $this->options = $options;
-
-        return $this;
-    }
-
+    /** The value becomes a list; chosen items are shown as removable tags. */
     public function multiple(bool $multiple = true): static
     {
         $this->multiple = $multiple;
@@ -51,46 +35,12 @@ final class Select extends Field
         return $this;
     }
 
+    /** Adds a search box to the list of options. */
     public function searchable(bool $searchable = true): static
     {
         $this->searchable = $searchable;
 
         return $this;
-    }
-
-    /**
-     * @return list<array{value: int|string, label: string}>
-     */
-    public function resolveOptions(Get $get): array
-    {
-        $options = $this->options;
-
-        if ($options instanceof Closure) {
-            $options = $options($get);
-        }
-
-        if (is_string($options) && enum_exists($options)) {
-            return array_map(
-                static fn (BackedEnum $case) => [
-                    'value' => $case->value,
-                    'label' => method_exists($case, 'label') ? $case->label() : $case->name,
-                ],
-                $options::cases(),
-            );
-        }
-
-        if ($options instanceof Arrayable) {
-            $options = $options->toArray();
-        }
-
-        $resolved = [];
-        foreach ($options as $value => $label) {
-            $resolved[] = is_array($label) && array_key_exists('value', $label)
-                ? ['value' => $label['value'], 'label' => (string) ($label['label'] ?? $label['value'])]
-                : ['value' => $value, 'label' => (string) $label];
-        }
-
-        return $resolved;
     }
 
     protected function fieldProperties(SchemaContext $context): array

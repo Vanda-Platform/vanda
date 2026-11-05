@@ -38,4 +38,36 @@ final class Layout
     {
         return Table::make();
     }
+
+    /**
+     * @param array<string, list<Node>> $tabs title => nodes
+     */
+    public static function tabs(array $tabs): Tabs
+    {
+        return Tabs::make($tabs);
+    }
+
+    /**
+     * A dialog opened by ModalToggle::make(...)->modal($id).
+     */
+    public static function modal(string $id, string $title): Modal
+    {
+        return Modal::make($id, $title);
+    }
+
+    /**
+     * @param list<Sight> $sights
+     */
+    public static function legend(mixed $record, array $sights): Legend
+    {
+        return Legend::make($record, $sights);
+    }
+
+    /**
+     * @param list<Metric> $metrics
+     */
+    public static function metrics(array $metrics): Metrics
+    {
+        return Metrics::make($metrics);
+    }
 }

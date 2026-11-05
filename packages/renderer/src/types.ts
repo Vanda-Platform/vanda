@@ -41,6 +41,7 @@ export interface ActionRef {
   name: string;
   args?: Record<string, unknown>;
   token: string;
+  bulk?: boolean;
 }
 
 export type UiNode = BaseNode;
@@ -54,12 +55,19 @@ export interface MenuItem {
   active?: boolean;
 }
 
+export interface Crumb {
+  label: string;
+  href?: string;
+}
+
 export interface Page {
   schema: 'vanda/v1';
   screen: string;
   url: string;
+  chrome?: 'panel' | 'card';
   title: string | null;
   description: string | null;
+  breadcrumbs?: Crumb[];
   commandBar: UiNode[];
   layout: UiNode[];
   state: State;
@@ -68,7 +76,7 @@ export interface Page {
     name: string;
     brand: string;
     menu: MenuItem[];
-    user: { name: string; email: string } | null;
+    user: { name: string; email: string; logout?: string } | null;
   };
 }
 
@@ -87,6 +95,7 @@ export interface ReactResponse {
 export interface ActionResponse {
   toast?: { message: string; tone: string };
   redirect?: string;
+  openModal?: string;
   page?: Page;
   snapshot?: string;
   errors?: Record<string, string[]>;

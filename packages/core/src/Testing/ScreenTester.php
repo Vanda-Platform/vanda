@@ -58,15 +58,37 @@ final class ScreenTester
     }
 
     /**
-     * Call an #[Action] method as a button would.
+     * Call an #[Action] method as a button would. Pass the button id as $from
+     * to validate the way that button does (e.g. only its modal's fields).
      *
      * @param array<string, mixed> $arguments
      */
-    public function call(string $action, array $arguments = []): self
+    public function call(string $action, array $arguments = [], ?string $from = null): self
     {
         $arguments = ActionCall::normalizeArguments($arguments);
         $token = ActionCall::sign($this->screen, $action, $arguments);
-        [$status, $body] = $this->runtime()->act($action, $arguments, $token, $this->page['state']);
+
+        return $this->apply($this->runtime()->act($action, $arguments, $token, $this->page['state'], $from));
+    }
+
+    /**
+     * Call a Table::bulkActions() action for the selected row ids.
+     *
+     * @param list<int|string> $ids
+     */
+    public function callBulk(string $action, array $ids): self
+    {
+        $token = ActionCall::sign($this->screen, $action, ActionCall::BULK);
+
+        return $this->apply($this->runtime()->act($action, ['ids' => $ids], $token, $this->page['state'], null, bulk: true));
+    }
+
+    /**
+     * @param array{0: int, 1: array<string, mixed>} $response
+     */
+    private function apply(array $response): self
+    {
+        [$status, $body] = $response;
 
         $this->lastResult = $body;
         $this->errors = $status === 422 ? $body['errors'] : [];
@@ -166,6 +188,14 @@ final class ScreenTester
         }
 
         return $this;
+    }
+
+    /**
+     * @return array<string, mixed>|null body of the last action response
+     */
+    public function lastResult(): ?array
+    {
+        return $this->lastResult;
     }
 
     public function assertRedirect(?string $url = null): self

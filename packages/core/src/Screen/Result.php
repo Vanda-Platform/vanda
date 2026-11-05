@@ -23,6 +23,8 @@ final class Result
 
     private bool $refresh = true;
 
+    private ?string $openModal = null;
+
     private function __construct() {}
 
     public static function toast(string $message, Tone $tone = Tone::Success): self
@@ -72,16 +74,27 @@ final class Result
         return $this;
     }
 
+    /**
+     * Open a Layout::modal() by id after the screen refreshes, e.g. from a "load" action
+     * that filled the modal's form.
+     */
+    public function openModal(string $id): self
+    {
+        $this->openModal = $id;
+
+        return $this;
+    }
+
     public function shouldRefresh(): bool
     {
         return $this->refresh && $this->redirect === null;
     }
 
     /**
-     * @return array{toast?: array{message: string, tone: string}, redirect?: string}
+     * @return array{toast?: array{message: string, tone: string}, redirect?: string, openModal?: string}
      */
     public function toArray(): array
     {
-        return array_filter(['toast' => $this->toast, 'redirect' => $this->redirect]);
+        return array_filter(['toast' => $this->toast, 'redirect' => $this->redirect, 'openModal' => $this->openModal]);
     }
 }

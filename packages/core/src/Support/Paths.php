@@ -50,7 +50,7 @@ final class Paths
             $a = $before[$key] ?? null;
             $b = $after[$key] ?? null;
 
-            if (is_array($a) && is_array($b) && ! array_is_list($a) && ! array_is_list($b)) {
+            if (is_array($a) && is_array($b) && self::isNestable($a) && self::isNestable($b)) {
                 array_push($changed, ...self::diff($a, $b, $path));
             } elseif ($a !== $b) {
                 $changed[] = $path;
@@ -58,6 +58,27 @@ final class Paths
         }
 
         return $changed;
+    }
+
+    /**
+     * Objects are compared field by field; lists and maps whose keys contain dots
+     * (permission maps like {"platform.users": true}) are compared as one value.
+     *
+     * @param array<array-key, mixed> $value
+     */
+    private static function isNestable(array $value): bool
+    {
+        if ($value === [] || array_is_list($value)) {
+            return false;
+        }
+
+        foreach (array_keys($value) as $key) {
+            if (str_contains((string) $key, '.')) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** "form.city" → "/state/form/city" (JSON Pointer). */

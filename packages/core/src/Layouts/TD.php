@@ -21,6 +21,8 @@ final class TD
 
     private bool $muted = false;
 
+    private bool $sortable = false;
+
     private function __construct(
         private readonly string $name,
         private readonly string $label,
@@ -69,6 +71,22 @@ final class TD
         return $this;
     }
 
+    /**
+     * Header becomes a sort toggle (?sort=name / ?sort=-name). Works with
+     * Table::query(); the column name must be a database column.
+     */
+    public function sortable(bool $sortable = true): self
+    {
+        $this->sortable = $sortable;
+
+        return $this;
+    }
+
+    public function isSortable(): bool
+    {
+        return $this->sortable;
+    }
+
     public function name(): string
     {
         return $this->name;
@@ -85,6 +103,7 @@ final class TD
             'align' => $this->align === 'left' ? null : $this->align,
             'width' => $this->width,
             'muted' => $this->muted ?: null,
+            'sortable' => $this->sortable ?: null,
         ], static fn ($value) => $value !== null);
     }
 

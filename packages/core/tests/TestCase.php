@@ -8,22 +8,30 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
+use Vanda\Access\PermissionGroup;
+use Vanda\Navigation\MenuItem;
 use Vanda\Schema\Node;
+use Vanda\Tests\Fixtures\SecuredScreen;
+use Vanda\Tests\Fixtures\ShowcaseScreen;
+use Vanda\Tests\Fixtures\User;
 use Vanda\Tests\Fixtures\UserEditScreen;
 use Vanda\Tests\Fixtures\UserListScreen;
+use Vanda\Vanda;
 use Vanda\VandaServiceProvider;
 
 abstract class TestCase extends Orchestra
 {
     protected function getPackageProviders($app): array
     {
-        return [VandaServiceProvider::class];
+        return [\Inertia\ServiceProvider::class, VandaServiceProvider::class];
     }
 
     protected function defineEnvironment($app): void
     {
         $app['config']->set('database.default', 'testing');
         $app['config']->set('vanda.dev', true);
+        $app['config']->set('vanda.migrations', false);
+        $app['config']->set('auth.providers.users.model', User::class);
     }
 
     protected function defineDatabaseMigrations(): void
@@ -32,11 +40,15 @@ abstract class TestCase extends Orchestra
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->string('password')->nullable();
+            $table->rememberToken();
             $table->string('country')->nullable();
             $table->unsignedInteger('city')->nullable();
             $table->string('vat')->nullable();
             $table->timestamps();
         });
+
+        (require __DIR__.'/../database/migrations/2026_11_05_000001_create_vanda_access_tables.php')->up();
     }
 
     protected function defineRoutes($router): void
@@ -45,6 +57,11 @@ abstract class TestCase extends Orchestra
             Route::screen('users', UserListScreen::class)->name('users');
             Route::screen('users/create', UserEditScreen::class)->name('users.create');
             Route::screen('users/{user}/edit', UserEditScreen::class)->name('users.edit');
+            Route::screen('showcase', ShowcaseScreen::class)->name('showcase');
+        });
+
+        Route::vanda('panel', function (): void {
+            Route::screen('secured', SecuredScreen::class)->name('secured');
         });
     }
 
@@ -52,5 +69,15 @@ abstract class TestCase extends Orchestra
     {
         parent::setUp();
         Node::$captureSource = true;
+
+        Vanda::permissions(fn () => [
+            PermissionGroup::make('System')
+                ->add('platform.users', 'Users')
+                ->add('platform.users.delete', 'Delete users'),
+        ]);
+        Vanda::menu(fn () => [
+            MenuItem::make('Secured')->to(SecuredScreen::class),
+            MenuItem::make('Showcase')->to(ShowcaseScreen::class),
+        ]);
     }
 }

@@ -20,6 +20,30 @@ const messages = {
     close: 'Close',
     menu: 'Main menu',
     breadcrumbs: 'Breadcrumbs',
+    logout: 'Sign out',
+    selected: 'Selected: {count}',
+    clearSelection: 'Clear selection',
+    selectAll: 'Select all on this page',
+    selectRow: 'Select row',
+    searchTable: 'Search',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
+    weak: 'Weak',
+    fair: 'Fair',
+    strong: 'Strong',
+    add: 'Add',
+    remove: 'Remove',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    inherit: 'Inherit',
+    allow: 'Allow',
+    deny: 'Deny',
+    fromRoles: 'Roles: {roles}',
+    notGranted: 'Not granted',
+    copy: 'Copy',
+    from: 'from',
+    to: 'to',
+    hasErrors: 'Has errors',
   },
   ru: {
     cancel: 'Отмена',
@@ -42,12 +66,39 @@ const messages = {
     close: 'Закрыть',
     menu: 'Основное меню',
     breadcrumbs: 'Хлебные крошки',
+    logout: 'Выйти',
+    selected: 'Выбрано: {count}',
+    clearSelection: 'Снять выделение',
+    selectAll: 'Выбрать все на странице',
+    selectRow: 'Выбрать строку',
+    searchTable: 'Поиск',
+    showPassword: 'Показать пароль',
+    hidePassword: 'Скрыть пароль',
+    weak: 'Слабый',
+    fair: 'Средний',
+    strong: 'Надёжный',
+    add: 'Добавить',
+    remove: 'Удалить',
+    moveUp: 'Поднять',
+    moveDown: 'Опустить',
+    inherit: 'Как в ролях',
+    allow: 'Да',
+    deny: 'Нет',
+    fromRoles: 'Роли: {roles}',
+    notGranted: 'Не выдано',
+    copy: 'Скопировать',
+    from: 'от',
+    to: 'до',
+    hasErrors: 'Есть ошибки',
   },
 } as const;
 
 type Key = keyof (typeof messages)['en'];
 
+export function lang(): 'ru' | 'en' {
+  return document.documentElement.lang.startsWith('ru') ? 'ru' : 'en';
+}
+
 export function t(key: Key, params: Record<string, string | number> = {}): string {
-  const lang = document.documentElement.lang.startsWith('ru') ? 'ru' : 'en';
-  return Object.entries(params).reduce<string>((text, [name, value]) => text.replace(`{${name}}`, String(value)), messages[lang][key]);
+  return Object.entries(params).reduce<string>((text, [name, value]) => text.replace(`{${name}}`, String(value)), messages[lang()][key]);
 }

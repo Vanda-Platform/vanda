@@ -6,8 +6,9 @@ namespace Vanda\Http;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Vanda\Screen\ScreenRuntime;
 
 /**
@@ -16,7 +17,7 @@ use Vanda\Screen\ScreenRuntime;
  */
 final class ScreenController
 {
-    public function __invoke(Request $request): Response|JsonResponse
+    public function __invoke(Request $request): SymfonyResponse
     {
         $route = $request->route();
         $screen = $route->defaults['_vanda_screen'];
@@ -28,7 +29,7 @@ final class ScreenController
 
             return $request->header('X-Vanda') === 'true'
                 ? new JsonResponse($page)
-                : response()->view('vanda::app', ['page' => $page]);
+                : Inertia::render('vanda', ['page' => $page])->toResponse($request);
         }
 
         $payload = $request->json()->all();
@@ -42,6 +43,8 @@ final class ScreenController
                 (array) ($payload['args'] ?? []),
                 (string) ($payload['token'] ?? ''),
                 $client,
+                isset($payload['node']) ? (string) $payload['node'] : null,
+                (bool) ($payload['bulk'] ?? false),
             ))),
             default => abort(400, 'Unknown Vanda request type. Expected "react" or "action".'),
         };

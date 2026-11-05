@@ -6,6 +6,7 @@ namespace Vanda\Actions;
 
 use Closure;
 use ReflectionFunction;
+use Vanda\Access\Authorizer;
 use Vanda\Schema\Node;
 use Vanda\Schema\SchemaContext;
 use Vanda\Screen\ActionCall;
@@ -35,6 +36,10 @@ final class Button extends Node
 
     /** @var array{title: string, text: ?string, confirm: ?string, danger: bool}|null */
     private ?array $confirm = null;
+
+    private bool $bulk = false;
+
+    private bool $block = false;
 
     public function __construct(private readonly string $label) {}
 
@@ -69,6 +74,9 @@ final class Button extends Node
         if (! ActionCall::isAction($target::class, $name)) {
             throw VandaException::actionNotMarked($target::class, $name);
         }
+        if (! Authorizer::allowsAction($target, $name, $arguments)) {
+            $this->hidden = true;
+        }
 
         $this->screen = $target::class;
         $this->action = $name;
@@ -80,6 +88,18 @@ final class Button extends Node
     public function getAction(): ?string
     {
         return $this->action;
+    }
+
+    /**
+     * @internal Called by Table::bulkActions(): the action receives `array $ids`
+     * of the selected rows, so it must authorize every record itself.
+     */
+    public function asBulk(): self
+    {
+        $this->bulk = true;
+        $this->arguments = [];
+
+        return $this;
     }
 
     public function variant(Variant $variant): self
@@ -102,6 +122,14 @@ final class Button extends Node
     public function danger(): self
     {
         return $this->variant(Variant::Danger);
+    }
+
+    /** Stretch to the full width of its container. */
+    public function block(bool $block = true): self
+    {
+        $this->block = $block;
+
+        return $this;
     }
 
     /** Icon name from the renderer's icon set, e.g. "save", "trash", "log-in". */
@@ -143,12 +171,14 @@ final class Button extends Node
             'variant' => $this->variant->value,
             'icon' => $this->icon,
             'hotkey' => $this->hotkey,
+            'block' => $this->block,
             'confirm' => $this->confirm === null ? null : array_filter($this->confirm),
-            'action' => $this->action === null ? null : [
+            'action' => $this->action === null ? null : array_filter([
                 'name' => $this->action,
                 'args' => $this->arguments === [] ? null : $this->arguments,
-                'token' => ActionCall::sign((string) $this->screen, $this->action, $this->arguments),
-            ],
+                'bulk' => $this->bulk,
+                'token' => ActionCall::sign((string) $this->screen, $this->action, $this->bulk ? ActionCall::BULK : $this->arguments),
+            ]),
         ];
     }
 }

@@ -63,7 +63,7 @@ final class ScreenState
     /**
      * @return array<string, mixed>
      */
-    public static function dehydrate(Screen $screen, bool $clientOnly = false): array
+    public static function dehydrate(Screen $screen, bool $clientOnly = false, bool $secrets = false): array
     {
         $state = [];
 
@@ -72,7 +72,7 @@ final class ScreenState
                 continue;
             }
 
-            $value = StateCaster::dehydrate($property->getValue($screen));
+            $value = StateCaster::dehydrate($property->getValue($screen), $secrets);
 
             if ($value === StateCaster::UNSUPPORTED) {
                 throw VandaException::unsupportedStateType(

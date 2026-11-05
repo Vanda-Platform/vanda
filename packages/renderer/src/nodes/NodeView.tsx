@@ -2,9 +2,24 @@ import type { ComponentType } from 'react';
 import { isTrue } from '../expr';
 import { useSnapshot } from '../store';
 import type { UiNode } from '../types';
-import { ButtonView, LinkView } from './actions';
-import { InputField, SelectField, SwitchField, TextAreaField } from './fields';
-import { BadgeView, GridView, SectionView, TableView, TextView } from './layout';
+import { ButtonView, LinkView, ModalToggleView } from './actions';
+import {
+  CheckboxField,
+  ColorField,
+  DateField,
+  DateRangeField,
+  InputField,
+  NumberRangeField,
+  PasswordField,
+  RadioField,
+  RangeField,
+  SegmentedField,
+  SelectField,
+  SwitchField,
+  TextAreaField,
+} from './fields';
+import { AlertView, BadgeView, GridView, LegendView, MetricsView, ModalView, PersonaView, SectionView, TableView, TabsView, TextView } from './layout';
+import { KeyValueField, PermissionsField, RepeaterField } from './structured';
 
 /**
  * Node type → component. The PHP side never sends HTML, only these types.
@@ -13,15 +28,34 @@ import { BadgeView, GridView, SectionView, TableView, TextView } from './layout'
 const REGISTRY: Record<string, ComponentType<{ node: any; compact?: boolean }>> = {
   section: SectionView,
   grid: GridView,
+  tabs: TabsView,
+  modal: ModalView,
   table: TableView,
+  legend: LegendView,
+  metrics: MetricsView,
+  alert: AlertView,
+  persona: PersonaView,
   text: TextView,
   badge: BadgeView,
   input: InputField,
+  password: PasswordField,
   textarea: TextAreaField,
   select: SelectField,
   switch: SwitchField,
+  checkbox: CheckboxField,
+  radio: RadioField,
+  segmented: SegmentedField,
+  date: DateField,
+  daterange: DateRangeField,
+  range: RangeField,
+  numberrange: NumberRangeField,
+  color: ColorField,
+  repeater: RepeaterField,
+  keyvalue: KeyValueField,
+  permissions: PermissionsField,
   button: ({ node, compact }) => <ButtonView node={node} size={compact ? 'sm' : 'md'} />,
   link: ({ node, compact }) => <LinkView node={node} size={compact ? 'sm' : 'md'} />,
+  modaltoggle: ModalToggleView,
 };
 
 export function NodeView({ node, compact = false }: { node: UiNode; compact?: boolean }) {

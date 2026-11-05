@@ -3,8 +3,19 @@
 A screen-centric admin framework for Laravel — Orchid rethought for 2026:
 PHP-only screens, instant reactivity, and an API designed to be read and written by AI agents.
 
-> Status: phase 0 (spike). The core pipeline works end to end; the full field and layout set
-> from the design is not implemented yet. See `vanda-analysis.md` for the architecture and roadmap.
+> Status: phase 1. Sign-in, roles and permissions (Orchid-compatible tables), Inertia navigation,
+> tabs, modals, tables with search / sort / bulk actions, and most form fields work end to end.
+> Rich editors, uploads, charts and the command palette come next. See `vanda-analysis.md`.
+
+## Try it
+
+```bash
+cd apps/playground && composer install && php artisan migrate:fresh --seed && php artisan serve
+```
+
+Open http://localhost:8000/admin and sign in as `admin@example.com` / `password`
+(or `i.petrov@example.com` / `password` — a manager without access to roles).
+The "Витрина компонентов" screen shows every field and layout.
 
 ## A screen
 
@@ -60,7 +71,13 @@ final class UserEditScreen extends Screen
 ```
 
 ```php
-Route::screen('users/{user}/edit', UserEditScreen::class)->name('users.edit');
+// Sign-in, sign-out and your screens behind auth, under /admin
+Route::vanda('admin', function () {
+    Route::screen('users/{user}/edit', UserEditScreen::class)->name('users.edit');
+});
+
+// Permissions become Gate abilities; #[Can('platform.users')] guards a screen or an action
+Vanda::permissions(fn () => [PermissionGroup::make('Access')->add('platform.users', 'Users')]);
 ```
 
 ## How it works
