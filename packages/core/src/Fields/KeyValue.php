@@ -37,7 +37,7 @@ final class KeyValue extends Field
      *
      * @return list<array{key: string, value: string}>
      */
-    public function sanitize(mixed $value): array
+    public function sanitize(mixed $value, mixed $current = null): array
     {
         $rows = [];
 

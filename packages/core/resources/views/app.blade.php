@@ -8,8 +8,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
-    <link rel="stylesheet" href="{{ \Vanda\Vanda::asset('vanda.css') }}">
-    <script type="module" src="{{ \Vanda\Vanda::asset('vanda.js') }}"></script>
+    @foreach (\Vanda\Vanda::entry()['styles'] as $style)
+    <link rel="stylesheet" href="{{ $style }}">
+    @endforeach
+    <script type="module" src="{{ \Vanda\Vanda::entry()['script'] }}"></script>
 </head>
 <body>
     @inertia

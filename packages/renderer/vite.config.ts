@@ -12,12 +12,15 @@ export default defineConfig({
     emptyOutDir: true,
     cssCodeSplit: false,
     sourcemap: true,
+    // PHP finds the hashed entry in .vite/manifest.json. File names change with content, so they are
+    // cached forever, and every chunk imports the entry by the same URL the page loaded it with.
+    manifest: true,
     rollupOptions: {
       input: fileURLToPath(new URL('./src/main.tsx', import.meta.url)),
       output: {
-        entryFileNames: 'vanda.js',
+        entryFileNames: 'vanda-[hash].js',
         chunkFileNames: 'vanda-[name]-[hash].js',
-        assetFileNames: (asset) => (asset.names?.[0]?.endsWith('.css') ? 'vanda.css' : 'vanda-[name]-[hash][extname]'),
+        assetFileNames: (asset) => (asset.names?.[0]?.endsWith('.css') ? 'vanda-[hash].css' : 'vanda-[name]-[hash][extname]'),
       },
     },
   },

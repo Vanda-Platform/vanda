@@ -72,6 +72,22 @@ final class ScreenTester
     }
 
     /**
+     * Calls an action whose arguments come from the browser, like a tree move:
+     *
+     *     ->callWithInput('move', ['id' => 5, 'parent' => 2, 'position' => 0])
+     *
+     * @param array<string, mixed> $input
+     */
+    public function callWithInput(string $action, array $input, ?string $from = null): self
+    {
+        $inputs = array_keys($input);
+        sort($inputs);
+        $token = ActionCall::sign($this->screen, $action, ['__input' => $inputs]);
+
+        return $this->apply($this->runtime()->act($action, $input, $token, $this->page['state'], $from, inputs: $inputs));
+    }
+
+    /**
      * Call a Table::bulkActions() action for the selected row ids.
      *
      * @param list<int|string> $ids

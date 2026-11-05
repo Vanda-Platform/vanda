@@ -15,12 +15,42 @@ final class Shell
 {
     private ?Closure $menu = null;
 
+    /** @var list<Closure(string): iterable<SearchResult>> */
+    private array $search = [];
+
     /**
      * @param Closure(): iterable<MenuItem> $items
      */
     public function menu(Closure $items): void
     {
         $this->menu = $items;
+    }
+
+    /**
+     * @param Closure(string $query): iterable<SearchResult> $provider
+     */
+    public function addSearch(Closure $provider): void
+    {
+        $this->search[] = $provider;
+    }
+
+    /**
+     * Results of every provider the user may open, at most $limit per provider.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function search(string $query, int $limit = 6): array
+    {
+        $results = [];
+        foreach ($this->search as $provider) {
+            $found = $provider($query);
+            $allowed = array_filter(is_array($found) ? $found : iterator_to_array($found, false), static fn (SearchResult $result) => $result->isAllowed());
+            foreach (array_slice(array_values($allowed), 0, $limit) as $result) {
+                $results[] = $result->toArray();
+            }
+        }
+
+        return $results;
     }
 
     /**
@@ -51,6 +81,7 @@ final class Shell
         return [
             'name' => config('vanda.name', 'Vanda'),
             'brand' => config('vanda.brand', '#12805C'),
+            'search' => $user !== null && $this->search !== [] && Route::has('vanda.search') ? route('vanda.search') : null,
             'menu' => array_map(static fn (MenuItem $item, int $index) => $item->toArray($index === $active), $items, array_keys($items)),
             'user' => $user === null ? null : array_filter([
                 'name' => (string) ($user->name ?? $user->email ?? ''),

@@ -114,7 +114,8 @@ final class InspectCommand extends Command
                 isset($rules[$node['path'] ?? '']) ? 'rules: '.$this->describeRules($rules[$node['path']]) : null,
                 isset($node['dependsOn']) ? 'dependsOn: '.implode(', ', $node['dependsOn']) : null,
                 isset($node['visibleWhen']) ? 'visibleWhen: '.json_encode($node['visibleWhen'], JSON_UNESCAPED_UNICODE) : null,
-                isset($node['rows']) ? count($node['rows']).' rows' : null,
+                is_array($node['rows'] ?? null) ? count($node['rows']).' rows' : null,
+                isset($node['kind']) && $node['type'] === 'chart' ? $node['kind'].' chart' : null,
                 isset($node['source']) ? '<fg=gray>'.$node['source'].'</>' : null,
             ]);
 

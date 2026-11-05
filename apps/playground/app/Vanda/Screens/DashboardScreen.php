@@ -2,11 +2,13 @@
 
 namespace App\Vanda\Screens;
 
+use App\Enums\Country;
 use App\Enums\UserStatus;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Vanda\Layouts\Alert;
 use Vanda\Layouts\Badge;
+use Vanda\Layouts\Chart;
 use Vanda\Layouts\Layout;
 use Vanda\Layouts\Metric;
 use Vanda\Layouts\Persona;
@@ -31,6 +33,7 @@ final class DashboardScreen extends Screen
     {
         $byStatus = User::query()->toBase()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
         $invited = (int) ($byStatus[UserStatus::Invited->value] ?? 0);
+        $countries = User::query()->toBase()->whereNotNull('country')->selectRaw('country, count(*) as total')->groupBy('country')->pluck('total', 'country');
 
         return [
             Layout::metrics([
@@ -39,6 +42,13 @@ final class DashboardScreen extends Screen
                 Metric::make('Приглашены', $invited)->hint('Ждут первого входа'),
                 Metric::make('Заблокированы', (int) ($byStatus[UserStatus::Blocked->value] ?? 0))->delta('+1', good: false)->trend([0, 0, 0, 1, 1, 1, 1]),
             ]),
+
+            Layout::grid([
+                $this->registrations(),
+                Chart::ranking('Пользователи по странам')
+                    ->labels($countries->keys()->map(fn (string $code) => Country::from($code)->label()))
+                    ->series('Пользователи', $countries->values()),
+            ], columns: 3),
 
             Alert::make("Приглашений без ответа: {$invited}. Напомните коллегам войти в панель.")->title('Обратите внимание.')->tone(Tone::Warning)->visible($invited > 0),
 
@@ -53,5 +63,33 @@ final class DashboardScreen extends Screen
                     ]),
             ]),
         ];
+    }
+
+    /**
+     * New accounts per week for the last 12 weeks, next to the 12 weeks before.
+     */
+    private function registrations(): Chart
+    {
+        $start = now()->startOfWeek()->subWeeks(11);
+        $dates = User::query()->where('created_at', '>=', $start->copy()->subWeeks(12))->pluck('created_at');
+        $week = fn (Carbon $date, Carbon $from) => (int) floor($from->diffInDays($date) / 7);
+
+        $current = array_fill(0, 12, 0);
+        $previous = array_fill(0, 12, 0);
+        foreach ($dates as $date) {
+            $date = Carbon::parse($date);
+            if ($date >= $start) {
+                $current[min(11, $week($date, $start))]++;
+            } else {
+                $previous[min(11, $week($date, $start->copy()->subWeeks(12)))]++;
+            }
+        }
+
+        return Chart::line('Регистрации по неделям')
+            ->description(array_sum($current).' за 12 недель')
+            ->labels(array_map(fn (int $index) => $start->copy()->addWeeks($index)->translatedFormat('j M'), range(0, 11)))
+            ->series('Эти 12 недель', $current)
+            ->series('Прошлые 12 недель', $previous)
+            ->span(2);
     }
 }

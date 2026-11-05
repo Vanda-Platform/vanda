@@ -25,7 +25,8 @@ it('grants permissions through roles and lets personal ones override them', func
 });
 
 it('closes a #[Can] screen to users without the permission', function () {
-    $this->actingAs($this->user)->get('/panel/secured')->assertForbidden();
+    $this->actingAs($this->user)->get('/panel/secured')->assertForbidden()->assertSee('No access')->assertSee('Error 403');
+    $this->actingAs($this->user)->get('/panel/missing')->assertNotFound()->assertSee('Page not found');
 
     $this->user->replaceRoles([$this->manager->id]);
     $this->actingAs($this->user->fresh())->get('/panel/secured')->assertOk();

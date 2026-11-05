@@ -51,4 +51,16 @@ final class ShowcaseForm extends Form
 
     /** @var list<array{key: string, value: string}> */
     public array $utm = [['key' => 'utm_source', 'value' => 'newsletter'], ['key' => 'utm_medium', 'value' => 'email']];
+
+    public string $content = '<p>Мы покупаем зелёное зерно у фермеров напрямую и обжариваем <strong>небольшими партиями</strong>.</p>';
+
+    public string $notes = "## Доставка\nБесплатно от **3 000 ₽**.";
+
+    public string $config = "{\n  \"currency\": \"RUB\",\n  \"roastDays\": [\"mon\", \"thu\"]\n}";
+
+    /** @var list<int> */
+    public array $categories = [11, 16];
+
+    /** @var list<int> */
+    public array $attachments = [];
 }

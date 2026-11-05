@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Vanda\Screen;
 
 use BackedEnum;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
+use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
+use Vanda\Access\Authorizer;
 use Vanda\Attributes\Action;
 use Vanda\Support\Signer;
+use Vanda\VandaException;
 
 /**
  * Rules for calling #[Action] methods from the browser.
@@ -21,6 +25,48 @@ final class ActionCall
 {
     /** Signed in place of arguments for bulk actions, whose ids come from the selection. */
     public const BULK = ['__bulk' => true];
+
+    /**
+     * The screen and method behind a first-class callable such as `$this->move(...)`,
+     * checked to be an #[Action] of a screen.
+     *
+     * @return array{0: Screen, 1: string}
+     */
+    public static function target(Closure $method): array
+    {
+        $reflection = new ReflectionFunction($method);
+        $target = $reflection->getClosureThis();
+        $name = $reflection->getName();
+
+        if (! $target instanceof Screen) {
+            throw VandaException::actionTargetNotScreen($name);
+        }
+        if (! self::isAction($target::class, $name)) {
+            throw VandaException::actionNotMarked($target::class, $name);
+        }
+
+        return [$target, $name];
+    }
+
+    /**
+     * Reference to an action whose named arguments come from the browser (a tree row
+     * that was dragged, an uploaded file). Only these names are accepted, as scalars.
+     * Null when the current user may not run the action.
+     *
+     * @param list<string> $inputs
+     * @return array{name: string, inputs: list<string>, token: string}|null
+     */
+    public static function withInput(Closure $method, array $inputs): ?array
+    {
+        [$screen, $name] = self::target($method);
+        sort($inputs);
+
+        if (! Authorizer::allowsAction($screen, $name, [])) {
+            return null;
+        }
+
+        return ['name' => $name, 'inputs' => $inputs, 'token' => self::sign($screen::class, $name, ['__input' => $inputs])];
+    }
 
     public static function attribute(string $class, string $method): ?Action
     {

@@ -2,24 +2,30 @@
 
 namespace App\Vanda\Screens;
 
+use App\Models\Page;
 use App\Vanda\Forms\ShowcaseForm;
 use Vanda\Actions\Button;
 use Vanda\Attributes\Action;
 use Vanda\Fields\CheckBox;
+use Vanda\Fields\Code;
+use Vanda\Fields\CodeLanguage;
 use Vanda\Fields\Color;
 use Vanda\Fields\DateRange;
 use Vanda\Fields\DateTimer;
 use Vanda\Fields\Input;
 use Vanda\Fields\KeyValue;
+use Vanda\Fields\Markdown;
 use Vanda\Fields\NumberRange;
 use Vanda\Fields\Password;
 use Vanda\Fields\Radio;
 use Vanda\Fields\RadioButtons;
 use Vanda\Fields\Range;
 use Vanda\Fields\Repeater;
+use Vanda\Fields\RichText;
 use Vanda\Fields\Select;
 use Vanda\Fields\Switcher;
 use Vanda\Fields\TextArea;
+use Vanda\Fields\Upload;
 use Vanda\Layouts\Alert;
 use Vanda\Layouts\Layout;
 use Vanda\Layouts\Sight;
@@ -107,6 +113,22 @@ final class ShowcaseScreen extends Screen
                     ]),
                     Layout::section('Ключ — значение', 'Пары для UTM-меток, заголовков, настроек.')->schema([
                         KeyValue::make('form.utm')->label('UTM-метки')->labels('Ключ', 'Значение', 'Добавить пару'),
+                    ]),
+                ],
+                'Редакторы и файлы' => [
+                    Layout::section('Выбор из дерева', 'Отметка раздела выбирает всё внутри; весь раздел показан одной меткой.')->schema([
+                        Select::make('form.categories')->label('Разделы каталога')->multiple()
+                            ->tree(fn () => Page::query()->orderBy('position')->get(['id', 'title', 'parent_id']), label: 'title'),
+                    ]),
+                    Layout::section('Форматированный текст', 'Tiptap: заголовки, списки, цитаты, ссылки. HTML чистится на сервере.')->schema([
+                        RichText::make('form.content')->label('Описание'),
+                    ]),
+                    Layout::section('Markdown и код', 'CodeMirror 6, языки подгружаются по требованию.')->schema([
+                        Markdown::make('form.notes')->label('Заметки'),
+                        Code::make('form.config')->label('settings.json')->language(CodeLanguage::Json),
+                    ]),
+                    Layout::section('Загрузка файлов', 'Файлы ложатся в таблицу attachments, как в Orchid.')->schema([
+                        Upload::make('form.attachments')->label('Вложения')->multiple()->maxFiles(5)->accept('image/*,.pdf,.xlsx'),
                     ]),
                 ],
                 'Просмотр' => [

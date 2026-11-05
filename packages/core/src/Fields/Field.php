@@ -190,8 +190,10 @@ abstract class Field extends Node
     /**
      * Cleans the value that came from the browser before it is applied to state.
      * Structured fields (Repeater, KeyValue, permissions) drop unknown keys here.
+     *
+     * @param mixed $current the value on the server before this request
      */
-    public function sanitize(mixed $value): mixed
+    public function sanitize(mixed $value, mixed $current = null): mixed
     {
         return $value;
     }

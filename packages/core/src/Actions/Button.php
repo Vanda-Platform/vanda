@@ -5,13 +5,10 @@ declare(strict_types=1);
 namespace Vanda\Actions;
 
 use Closure;
-use ReflectionFunction;
 use Vanda\Access\Authorizer;
 use Vanda\Schema\Node;
 use Vanda\Schema\SchemaContext;
 use Vanda\Screen\ActionCall;
-use Vanda\Screen\Screen;
-use Vanda\VandaException;
 
 /**
  * Calls a screen method marked with #[Action]:
@@ -64,16 +61,8 @@ final class Button extends Node
      */
     public function action(Closure $method, array $arguments = []): self
     {
-        $reflection = new ReflectionFunction($method);
-        $target = $reflection->getClosureThis();
-        $name = $reflection->getName();
+        [$target, $name] = ActionCall::target($method);
 
-        if (! $target instanceof Screen) {
-            throw VandaException::actionTargetNotScreen($name);
-        }
-        if (! ActionCall::isAction($target::class, $name)) {
-            throw VandaException::actionNotMarked($target::class, $name);
-        }
         if (! Authorizer::allowsAction($target, $name, $arguments)) {
             $this->hidden = true;
         }

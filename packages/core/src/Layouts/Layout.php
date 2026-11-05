@@ -40,6 +40,14 @@ final class Layout
     }
 
     /**
+     * Nested records with expand/collapse and drag-and-drop ordering.
+     */
+    public static function tree(): TreeTable
+    {
+        return TreeTable::make();
+    }
+
+    /**
      * @param array<string, list<Node>> $tabs title => nodes
      */
     public static function tabs(array $tabs): Tabs

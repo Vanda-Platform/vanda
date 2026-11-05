@@ -36,7 +36,8 @@ it('renders the HTML shell with the embedded page', function () {
     $this->get('/admin/users')
         ->assertOk()
         ->assertSee('data-page="app"', false)
-        ->assertSee('vanda/assets/vanda.js', false);
+        ->assertSee(Vanda::entry()['script'], false)
+        ->assertSee(Vanda::entry()['styles'][0], false);
 });
 
 it('hides server-hidden buttons and links to other screens', function () {

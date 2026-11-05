@@ -5,19 +5,22 @@ namespace App\Vanda\Screens;
 use App\Enums\UserStatus;
 use App\Models\User;
 use App\Vanda\Forms\QuickUserForm;
+use Illuminate\Database\Eloquent\Builder;
+use Vanda\Access\Role;
 use Vanda\Actions\Button;
 use Vanda\Actions\Link;
 use Vanda\Actions\ModalToggle;
-use Vanda\Actions\Variant;
 use Vanda\Attributes\Action;
 use Vanda\Attributes\Can;
 use Vanda\Attributes\Locked;
 use Vanda\Fields\Input;
 use Vanda\Fields\RadioButtons;
 use Vanda\Layouts\Badge;
+use Vanda\Layouts\Filter;
 use Vanda\Layouts\Layout;
 use Vanda\Layouts\Persona;
 use Vanda\Layouts\TD;
+use Vanda\Layouts\View;
 use Vanda\Screen\Result;
 use Vanda\Screen\Screen;
 use Vanda\Vanda;
@@ -59,27 +62,44 @@ final class UserListScreen extends Screen
         return [
             Layout::table()
                 ->query(fn () => User::query()->with('roles'))
-                ->searchable(['name', 'email'], 'Имя или email')
+                ->searchable(['name', 'email'], 'Поиск по имени или email')
+                ->views([
+                    View::make('Все'),
+                    View::make('Администраторы', ['role' => 'admin']),
+                    View::make('Приглашённые', ['status' => UserStatus::Invited->value]),
+                    View::make('Заблокированные', ['status' => UserStatus::Blocked->value]),
+                ])
+                ->filters([
+                    Filter::select('role', 'Роль')
+                        ->options(fn () => Role::query()->pluck('name', 'slug'))
+                        ->apply(fn (Builder $query, string $slug) => $query->whereHas('roles', fn (Builder $roles) => $roles->where('slug', $slug))),
+                    Filter::select('status', 'Статус')->options(UserStatus::class),
+                    Filter::dateRange('created', 'Создан')->column('created_at'),
+                ])
                 ->defaultSort('id', 'desc')
-                ->paginate(10)
+                ->paginate(10, [25, 50])
                 ->rowLink(fn (User $user) => Vanda::url(UserEditScreen::class, ['user' => $user]))
+                ->exportable('users.csv')
                 ->emptyText('Никого не нашлось')
                 ->columns([
                     TD::make('name', 'Пользователь')->sortable()->render(
                         fn (User $user) => Persona::make($user->name)->subtitle($user->email),
                     ),
-                    TD::make('roles', 'Роли')->render(fn (User $user) => $user->roles->pluck('name')->join(', ') ?: '—'),
+                    TD::make('roles', 'Роли')->hideable()->render(fn (User $user) => $user->roles->pluck('name')->join(', ') ?: '—'),
+                    TD::make('country', 'Страна')->defaultHidden()->render(fn (User $user) => $user->country?->label()),
                     TD::make('status', 'Статус')->render(
                         fn (User $user) => Badge::make($user->status->label(), $user->status->tone())->dot(),
                     ),
-                    TD::make('created_at', 'Создан')->sortable()->muted()->render(fn (User $user) => $user->created_at?->translatedFormat('j M Y')),
-                    TD::make('actions', '')->alignRight()->render(
-                        fn (User $user) => ModalToggle::make('Быстро изменить')
-                            ->variant(Variant::Ghost)
-                            ->icon('pencil')
-                            ->modal('quickEdit')
-                            ->load($this->loadQuick(...), ['user' => $user]),
-                    ),
+                    TD::make('created_at', 'Создан')->sortable()->muted()->hideable()->render(fn (User $user) => $user->created_at?->translatedFormat('j M Y')),
+                ])
+                ->rowActions(fn (User $user) => [
+                    Link::make('Редактировать')->icon('pencil')->to(UserEditScreen::class, ['user' => $user]),
+                    ModalToggle::make('Быстро изменить')->icon('settings')->modal('quickEdit')->load($this->loadQuick(...), ['user' => $user]),
+                    Button::make('Удалить')
+                        ->icon('trash')
+                        ->danger()
+                        ->confirm("Пользователь {$user->name} будет удалён без возможности восстановления.", 'Удалить пользователя?', 'Удалить')
+                        ->action($this->delete(...), ['user' => $user]),
                 ])
                 ->bulkActions([
                     Button::make('Удалить')
@@ -115,6 +135,15 @@ final class UserListScreen extends Screen
         $user->update($this->quick->toArray());
 
         return Result::toast("Сохранено: {$user->name}");
+    }
+
+    #[Action(validate: false)]
+    public function delete(User $user): Result
+    {
+        abort_if($user->is(auth()->user()), 422, 'Нельзя удалить самого себя.');
+        $user->delete();
+
+        return Result::toast("Удалён: {$user->name}");
     }
 
     /**

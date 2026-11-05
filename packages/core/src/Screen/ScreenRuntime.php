@@ -7,19 +7,23 @@ namespace Vanda\Screen;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use ReflectionMethod;
 use ReflectionNamedType;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Vanda\Access\Authorizer;
 use Vanda\Attributes\Updated;
 use Vanda\Fields\Field;
 use Vanda\Fields\Repeater;
+use Vanda\Fields\Upload;
 use Vanda\Form\Form;
 use Vanda\Navigation\Crumb;
 use Vanda\Navigation\Shell;
+use Vanda\Layouts\Table;
 use Vanda\Schema\Node;
 use Vanda\Schema\SchemaContext;
 use Vanda\Schema\Tree;
@@ -115,6 +119,44 @@ final class ScreenRuntime
     }
 
     /**
+     * Stores a file sent to an Upload field of this screen (multipart POST with type=upload).
+     *
+     * @return array{0: int, 1: array<string, mixed>} HTTP status and JSON body
+     */
+    public function upload(string $path, ?UploadedFile $file): array
+    {
+        $field = $this->tree()->find($path);
+
+        if (! $field instanceof Upload || ! $field->isEditable() || ! $this->tree()->isShown($field, $this->state())) {
+            throw new HttpException(404, "There is no editable Upload field [{$path}] on ".$this->screen::class.'.');
+        }
+
+        try {
+            $attachment = $field->store($file ?? throw ValidationException::withMessages(['file' => [__('validation.required', ['attribute' => 'file'])]]));
+        } catch (ValidationException $exception) {
+            return [422, ['errors' => [$path => $exception->validator->errors()->all()]]];
+        }
+
+        return [200, $attachment->toUpload()];
+    }
+
+    /**
+     * Every filtered row of an exportable table on this screen as CSV (GET ?export=<table id>).
+     */
+    public function export(string $tableId): StreamedResponse
+    {
+        $table = $this->tree()->find($tableId);
+
+        abort_unless(
+            $table instanceof Table && $table->isExportable() && $this->tree()->isShown($table, $this->state()),
+            404,
+            "Table [{$tableId}] on ".$this->screen::class.' is not exportable. Call ->exportable() on it.',
+        );
+
+        return $table->export(new SchemaContext($this->screen, $this->state()));
+    }
+
+    /**
      * The full page description sent to the renderer.
      *
      * @return array<string, mixed>
@@ -165,7 +207,7 @@ final class ScreenRuntime
 
             if ($field->isEditable() && $field->isVisible() && ScreenState::isClientProperty($this->screen, $root) && Arr::has($client, $path)) {
                 $raw = Arr::get($client, $path);
-                $clean = $field->sanitize($raw);
+                $clean = $field->sanitize($raw, Arr::get($next, $path));
                 Arr::set($next, $path, $clean);
 
                 if ($clean !== $raw) {
@@ -256,9 +298,10 @@ final class ScreenRuntime
      * @param array<string, mixed> $client
      * @param string|null $trigger id of the button, to validate only its scope (e.g. its modal)
      * @param bool $bulk the button belongs to Table::bulkActions(); arguments carry the selected ids
+     * @param list<string>|null $inputs argument names signed with ActionCall::withInput(); only these are taken from $arguments
      * @return array{0: int, 1: array<string, mixed>} HTTP status and JSON body
      */
-    public function act(string $name, array $arguments, string $token, array $client, ?string $trigger = null, bool $bulk = false): array
+    public function act(string $name, array $arguments, string $token, array $client, ?string $trigger = null, bool $bulk = false, ?array $inputs = null): array
     {
         $attribute = ActionCall::attribute($this->screen::class, $name);
 
@@ -270,6 +313,14 @@ final class ScreenRuntime
             $ids = array_values(array_filter((array) ($arguments['ids'] ?? []), static fn ($id) => is_int($id) || is_string($id)));
             $valid = ActionCall::verify($this->screen::class, $name, ActionCall::BULK, $token);
             $arguments = ['ids' => $ids];
+        } elseif ($inputs !== null) {
+            $inputs = array_values(array_filter($inputs, 'is_string'));
+            sort($inputs);
+            $valid = ActionCall::verify($this->screen::class, $name, ['__input' => $inputs], $token);
+            $arguments = array_map(
+                static fn (mixed $value) => is_scalar($value) || $value === null ? $value : null,
+                array_intersect_key($arguments, array_flip($inputs)),
+            );
         } else {
             $valid = ActionCall::verify($this->screen::class, $name, $arguments, $token);
         }

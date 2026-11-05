@@ -67,7 +67,7 @@ final class Repeater extends Field
      *
      * @return list<array<string, mixed>>
      */
-    public function sanitize(mixed $value): array
+    public function sanitize(mixed $value, mixed $current = null): array
     {
         $rows = [];
 

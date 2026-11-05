@@ -161,7 +161,8 @@ abstract class Node
         $vandaSrc = dirname(__DIR__);
         foreach (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 12) as $frame) {
             $file = $frame['file'] ?? null;
-            if ($file !== null && ! str_starts_with($file, $vandaSrc)) {
+            // Nodes Vanda builds itself (a table's row menu) have no line in application code.
+            if ($file !== null && ! str_starts_with($file, $vandaSrc) && ! str_contains($file, DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR)) {
                 $base = function_exists('base_path') ? base_path().DIRECTORY_SEPARATOR : '';
                 $relative = $base !== '' && str_starts_with($file, $base) ? substr($file, strlen($base)) : $file;
                 $this->source = $relative.':'.($frame['line'] ?? 0);

@@ -42,15 +42,67 @@ export function react(page: Page, state: State, signal: AbortSignal) {
   return post<ReactResponse>(page, { type: 'react', snapshot: page.snapshot, state }, signal);
 }
 
-export function act(page: Page, node: string, action: ActionRef, ids?: string[]) {
+/**
+ * Runs an #[Action]. Bulk actions get the selected ids; actions signed with
+ * ActionCall::withInput() get the named values the browser supplies (a dragged row).
+ */
+export function act(page: Page, node: string, action: ActionRef, ids?: string[], input?: Record<string, unknown>) {
   return post<ActionResponse>(page, {
     type: 'action',
     action: action.name,
-    args: action.bulk ? { ids: ids ?? [] } : (action.args ?? {}),
+    args: action.bulk ? { ids: ids ?? [] } : action.inputs ? (input ?? {}) : (action.args ?? {}),
     bulk: action.bulk ?? false,
+    inputs: action.inputs,
     node,
     token: action.token,
     snapshot: page.snapshot,
     state: page.state,
   });
+}
+
+export interface UploadResult {
+  id: number;
+  name: string;
+  size: number;
+  mime: string;
+  extension?: string | null;
+  url?: string | null;
+}
+
+/**
+ * Sends a file to an Upload field of the screen. Uses XMLHttpRequest because fetch
+ * cannot report upload progress. Returns the stored attachment or the field's errors.
+ */
+export function upload(
+  page: Page,
+  field: string,
+  file: File,
+  onProgress: (fraction: number) => void,
+): { promise: Promise<{ status: number; data: UploadResult & { errors?: Record<string, string[]> } }>; abort: () => void } {
+  const xhr = new XMLHttpRequest();
+  const body = new FormData();
+  body.append('type', 'upload');
+  body.append('field', field);
+  body.append('snapshot', page.snapshot);
+  body.append('file', file);
+
+  const promise = new Promise<{ status: number; data: UploadResult & { errors?: Record<string, string[]> } }>((resolve, reject) => {
+    xhr.open('POST', page.url + window.location.search);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('X-Vanda', 'true');
+    for (const [name, value] of Object.entries(csrfHeaders())) xhr.setRequestHeader(name, value);
+    xhr.upload.onprogress = (event) => event.lengthComputable && onProgress(event.loaded / event.total);
+    xhr.onload = () => {
+      try {
+        resolve({ status: xhr.status, data: JSON.parse(xhr.responseText) });
+      } catch {
+        reject(new Error(`Vanda upload failed (${xhr.status})`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Vanda upload failed: network error'));
+    xhr.onabort = () => reject(new DOMException('Upload cancelled', 'AbortError'));
+    xhr.send(body);
+  });
+
+  return { promise, abort: () => xhr.abort() };
 }

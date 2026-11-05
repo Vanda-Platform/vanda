@@ -39,7 +39,7 @@ final class PermissionsField extends Field
     /**
      * @return array<string, bool>
      */
-    public function sanitize(mixed $value): array
+    public function sanitize(mixed $value, mixed $current = null): array
     {
         return Permissions::clean(is_array($value) ? $value : []);
     }

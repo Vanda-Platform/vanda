@@ -1,6 +1,6 @@
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
-import { Button as AriaButton, Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
+import { Button as AriaButton, Dialog, Heading, Menu, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover, Separator } from 'react-aria-components';
 import { t } from '../i18n';
 import { isInternal, nodeAttributes, useSnapshot, useStore } from '../store';
 import { buttonClass, cx, formatHotkey, Icon, Kbd, matchesHotkey, Spinner } from '../ui';
@@ -162,5 +162,82 @@ export function ModalToggleView({ node, compact }: { node: UiNode & { label: str
       {running ? <Spinner /> : <Icon name={node.icon} />}
       {node.label}
     </button>
+  );
+}
+
+type MenuEntry = ButtonNode & { href?: string; external?: boolean; modal?: string };
+
+/** "⋯" and other menus of buttons, links and modal toggles. */
+export function DropDownView({ node, compact }: { node: UiNode & { label?: string; icon?: string; variant?: string }; compact?: boolean }) {
+  const store = useStore();
+  const [confirming, setConfirming] = useState<MenuEntry | null>(null);
+  const items = (node.children ?? []) as MenuEntry[];
+  const iconOnly = !node.label;
+
+  const activate = (item: MenuEntry) => {
+    if (item.type === 'link' && item.href) {
+      if (!item.external && isInternal(item.href)) router.visit(item.href);
+      else window.open(item.href, item.external ? '_blank' : '_self');
+    } else if (item.type === 'modaltoggle') {
+      if (item.action) void store.runAction(item.id, item.action);
+      else if (item.modal) store.openModal(item.modal);
+    } else if (item.action) {
+      if (item.confirm) setConfirming(item);
+      else void store.runAction(item.id, item.action);
+    }
+  };
+
+  return (
+    <>
+      <MenuTrigger>
+        <AriaButton
+          aria-label={iconOnly ? t('actions') : undefined}
+          className={cx(buttonClass(node.variant, compact ? 'sm' : 'md'), iconOnly && (compact ? 'w-7 px-0' : 'w-9 px-0'))}
+          {...nodeAttributes(node)}
+        >
+          <Icon name={node.icon} />
+          {node.label}
+          {!iconOnly && <Icon name="chevron-down" className="size-3.5 text-fg-3" />}
+        </AriaButton>
+        <Popover placement="bottom end" className="min-w-52 rounded-xl border border-line bg-surface p-1 shadow-pop outline-none">
+          <Menu className="outline-none" onAction={(key) => {
+            const item = items.find((entry) => entry.id === key);
+            if (item) activate(item);
+          }}>
+            {items.map((item, index) => {
+              const danger = item.variant === 'danger';
+              return [
+                danger && index > 0 ? <Separator key={`${item.id}-separator`} className="my-1 border-t border-line" /> : null,
+                <MenuItem
+                  key={item.id}
+                  id={item.id}
+                  textValue={item.label}
+                  className={cx(
+                    'flex h-8 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] outline-none',
+                    danger ? 'text-danger-fg data-[focused]:bg-danger-soft' : 'text-fg data-[focused]:bg-surface-2',
+                  )}
+                >
+                  <Icon name={item.icon} className={cx('size-4', !danger && 'text-fg-3')} />
+                  <span className="flex-1">{item.label}</span>
+                  {item.hotkey && <Kbd>{formatHotkey(item.hotkey)}</Kbd>}
+                </MenuItem>,
+              ];
+            })}
+          </Menu>
+        </Popover>
+      </MenuTrigger>
+
+      {confirming?.confirm && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => !open && setConfirming(null)}
+          confirm={confirming.confirm}
+          danger={confirming.variant === 'danger' || Boolean(confirming.confirm.danger)}
+          icon={confirming.icon}
+          label={confirming.label}
+          onConfirm={() => confirming.action && void store.runAction(confirming.id, confirming.action)}
+        />
+      )}
+    </>
   );
 }

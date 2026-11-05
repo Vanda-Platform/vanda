@@ -23,6 +23,9 @@ final class TD
 
     private bool $sortable = false;
 
+    /** null: always shown; true/false: the user may hide it, shown by default or not */
+    private ?bool $shownByDefault = null;
+
     private function __construct(
         private readonly string $name,
         private readonly string $label,
@@ -82,6 +85,26 @@ final class TD
         return $this;
     }
 
+    /**
+     * The user may hide this column from the "Columns" menu; the choice is remembered in the browser.
+     */
+    public function hideable(): self
+    {
+        $this->shownByDefault ??= true;
+
+        return $this;
+    }
+
+    /**
+     * Hidden until the user turns it on in the "Columns" menu.
+     */
+    public function defaultHidden(): self
+    {
+        $this->shownByDefault = false;
+
+        return $this;
+    }
+
     public function isSortable(): bool
     {
         return $this->sortable;
@@ -90,6 +113,11 @@ final class TD
     public function name(): string
     {
         return $this->name;
+    }
+
+    public function label(): string
+    {
+        return $this->label;
     }
 
     /**
@@ -104,6 +132,8 @@ final class TD
             'width' => $this->width,
             'muted' => $this->muted ?: null,
             'sortable' => $this->sortable ?: null,
+            'hideable' => $this->shownByDefault === null ? null : true,
+            'hidden' => $this->shownByDefault === false ? true : null,
         ], static fn ($value) => $value !== null);
     }
 
@@ -125,5 +155,15 @@ final class TD
         }
 
         return ['type' => 'text', 'text' => $value === null ? '' : (string) $value];
+    }
+
+    /**
+     * Plain text of the cell for CSV export: the text a node shows, or the raw value.
+     */
+    public function text(mixed $row, SchemaContext $context): string
+    {
+        $cell = $this->cell($row, $context, 'export');
+
+        return (string) ($cell['text'] ?? $cell['label'] ?? $cell['name'] ?? '');
     }
 }

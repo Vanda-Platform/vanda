@@ -1,10 +1,11 @@
 import { Link, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { Inspector } from './Inspector';
+import { openPalette, Palette } from './Palette';
 import { NodeList } from './nodes/NodeView';
 import { t } from './i18n';
 import { useSnapshot, useStore } from './store';
-import { cx, Icon, Kbd } from './ui';
+import { cx, formatHotkey, Icon, Kbd } from './ui';
 import type { ActionRef, Crumb, MenuItem, Page, UiNode } from './types';
 
 export function App() {
@@ -53,6 +54,7 @@ export function App() {
         </div>
       </main>
       <Toasts />
+      <Palette />
       <Inspector />
     </div>
   );
@@ -147,12 +149,14 @@ function Sidebar() {
 
       <button
         type="button"
-        className="flex h-9 items-center gap-2 rounded-lg border border-line-strong bg-surface px-2.5 text-left text-fg-3"
+        className="flex h-9 items-center gap-2 rounded-lg border border-line-strong bg-surface px-2.5 text-left text-fg-3 hover:border-fg-3 hover:text-fg-2"
         aria-label={t('search')}
+        aria-keyshortcuts="Meta+K"
+        onClick={openPalette}
       >
         <Icon name="search" />
         <span className="flex-grow text-[13.5px]">{t('search')}</span>
-        <Kbd>⌘K</Kbd>
+        <Kbd>{formatHotkey('mod+k')}</Kbd>
       </button>
 
       <nav aria-label={t('menu')} className="mt-2 flex flex-col">

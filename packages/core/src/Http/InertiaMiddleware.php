@@ -6,6 +6,7 @@ namespace Vanda\Http;
 
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use Vanda\Vanda;
 
 /**
  * Inertia handles navigation between screens (history, prefetch, progress).
@@ -20,8 +21,6 @@ final class InertiaMiddleware extends Middleware
      */
     public function version(Request $request): ?string
     {
-        $file = AssetController::directory().'/vanda.js';
-
-        return is_file($file) ? substr(md5((string) filemtime($file)), 0, 12) : null;
+        return Vanda::entry()['version'];
     }
 }

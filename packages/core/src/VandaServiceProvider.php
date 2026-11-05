@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Vanda;
 
 use Closure;
+use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Foundation\Exceptions\Handler;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Vanda\Access\PermissionRegistry;
 use Vanda\Auth\LoginScreen;
 use Vanda\Console\InspectCommand;
@@ -18,6 +22,7 @@ use Vanda\Http\InertiaMiddleware;
 use Vanda\Http\LogoutController;
 use Vanda\Http\RedirectIfAuthenticated;
 use Vanda\Http\ScreenController;
+use Vanda\Http\SearchController;
 use Vanda\Navigation\Shell;
 use Vanda\Schema\Node;
 use Vanda\Screen\Screen;
@@ -55,6 +60,23 @@ final class VandaServiceProvider extends ServiceProvider
             return $user->hasAccess($ability);
         });
 
+        // 403, 404, 419… of panel pages are shown in the panel's style instead of Laravel's default page.
+        $this->callAfterResolving(ExceptionHandler::class, function (ExceptionHandler $handler): void {
+            if (! $handler instanceof Handler) {
+                return;
+            }
+
+            $handler->renderable(function (HttpExceptionInterface $exception, Request $request) {
+                if ($request->expectsJson() || $request->header('X-Vanda') === 'true' || ! Vanda::isPanelRequest($request)) {
+                    return null;
+                }
+
+                $home = rescue(static fn () => Vanda::home(), url('/'), report: false);
+
+                return response()->view('vanda::error', ['status' => $exception->getStatusCode(), 'home' => $home], $exception->getStatusCode(), $exception->getHeaders());
+            });
+        });
+
         Route::get('vanda/assets/{file}', AssetController::class)
             ->where('file', '[A-Za-z0-9_.-]+')
             ->name('vanda.asset');
@@ -77,10 +99,14 @@ final class VandaServiceProvider extends ServiceProvider
          *     });
          */
         Route::macro('vanda', function (string $prefix, Closure $routes) {
+            Vanda::registerPrefix($prefix);
             Route::middleware(config('vanda.middleware', ['web']))->prefix($prefix)->group(function () use ($routes) {
                 Route::screen('login', LoginScreen::class)->name('vanda.login')->middleware(RedirectIfAuthenticated::class);
                 Route::post('logout', LogoutController::class)->name('vanda.logout');
-                Route::middleware(Authenticate::class)->group($routes);
+                Route::middleware(Authenticate::class)->group(function () use ($routes): void {
+                    Route::get('vanda/search', SearchController::class)->name('vanda.search');
+                    $routes();
+                });
             });
         });
 

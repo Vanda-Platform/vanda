@@ -33,8 +33,15 @@ return [
     'middleware' => ['web'],
 
     /*
-     * Run the bundled migration for roles and permissions (skipped automatically
-     * where Orchid's tables already exist). Disable to publish and edit it instead.
+     * Run the bundled migrations for roles, permissions and attachments (skipped
+     * automatically where Orchid's tables already exist). Disable to publish and edit it instead.
      */
     'migrations' => true,
+
+    /*
+     * Upload fields store files on this disk, in Orchid's `attachments` table.
+     */
+    'attachments' => [
+        'disk' => env('VANDA_ATTACHMENTS_DISK', 'public'),
+    ],
 ];

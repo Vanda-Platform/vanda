@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vanda;
 
 use Closure;
+use Illuminate\Http\Request;
 use Vanda\Access\PermissionGroup;
 use Vanda\Access\PermissionRegistry;
 use Vanda\Http\AssetController;
@@ -40,6 +41,19 @@ final class Vanda
     public static function permissions(Closure $groups): void
     {
         app(PermissionRegistry::class)->define($groups);
+    }
+
+    /**
+     * Records the ⌘K palette can find. Called with what the user typed (2+ characters):
+     *
+     *     Vanda::search(fn (string $query) => Page::where('title', 'like', "%{$query}%")->limit(5)->get()
+     *         ->map(fn (Page $page) => SearchResult::make($page->title)->icon('file')->to(PageEditScreen::class, ['page' => $page])));
+     *
+     * @param Closure(string $query): iterable<SearchResult> $provider
+     */
+    public static function search(Closure $provider): void
+    {
+        app(Shell::class)->addSearch($provider);
     }
 
     /**
@@ -88,11 +102,66 @@ final class Vanda
         return new ScreenTester($screen, $parameters);
     }
 
-    public static function asset(string $file): string
-    {
-        $path = AssetController::directory().'/'.$file;
-        $version = is_file($path) ? substr(md5((string) filemtime($path)), 0, 8) : 'missing';
+    /** @var array{script: string, styles: list<string>, version: string}|null */
+    private static ?array $entry = null;
 
-        return route('vanda.asset', ['file' => $file]).'?v='.$version;
+    /** @var list<string> URL prefixes registered with Route::vanda() */
+    private static array $prefixes = [];
+
+    /**
+     * @internal called by Route::vanda()
+     */
+    public static function registerPrefix(string $prefix): void
+    {
+        self::$prefixes[] = trim($prefix, '/');
+    }
+
+    /**
+     * The request is for a screen or for a URL under a Route::vanda() prefix,
+     * so errors are shown as a Vanda page.
+     */
+    public static function isPanelRequest(Request $request): bool
+    {
+        if (($request->route()?->defaults['_vanda_screen'] ?? null) !== null) {
+            return true;
+        }
+
+        foreach (self::$prefixes as $prefix) {
+            if ($prefix === '' || $request->is($prefix, $prefix.'/*')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * URLs of the renderer's script and styles, from the build manifest.
+     *
+     * @return array{script: string, styles: list<string>, version: string}
+     */
+    public static function entry(): array
+    {
+        if (self::$entry !== null) {
+            return self::$entry;
+        }
+
+        $manifest = AssetController::directory().'/.vite/manifest.json';
+        if (! is_file($manifest)) {
+            throw new VandaException("The renderer is not built: {$manifest} is missing. Run `npm run build` in the Vanda repository.");
+        }
+
+        $json = (string) file_get_contents($manifest);
+        $chunks = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        $entry = collect($chunks)->first(static fn (array $chunk) => $chunk['isEntry'] ?? false);
+        $url = static fn (string $file) => route('vanda.asset', ['file' => $file]);
+        // One stylesheet for the whole renderer (cssCodeSplit: false) is listed as "style.css".
+        $styles = [...($entry['css'] ?? []), ...(isset($chunks['style.css']) ? [$chunks['style.css']['file']] : [])];
+
+        return self::$entry = [
+            'script' => $url($entry['file']),
+            'styles' => array_map($url, $styles),
+            'version' => substr(md5($json), 0, 12),
+        ];
     }
 }

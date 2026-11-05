@@ -25,11 +25,21 @@ final class ScreenController
         $runtime = ScreenRuntime::boot($screen, $parameters, '/'.ltrim($request->path(), '/'));
 
         if (! $request->isMethod('POST')) {
+            if (is_string($request->query('export')) && $request->header('X-Vanda') !== 'true') {
+                return $runtime->export($request->query('export'));
+            }
+
             $page = $runtime->ir();
 
             return $request->header('X-Vanda') === 'true'
                 ? new JsonResponse($page)
                 : Inertia::render('vanda', ['page' => $page])->toResponse($request);
+        }
+
+        if ($request->input('type') === 'upload') {
+            $runtime->restore((string) $request->input('snapshot', ''));
+
+            return new JsonResponse(...$this->flip($runtime->upload((string) $request->input('field', ''), $request->file('file'))));
         }
 
         $payload = $request->json()->all();
@@ -45,6 +55,7 @@ final class ScreenController
                 $client,
                 isset($payload['node']) ? (string) $payload['node'] : null,
                 (bool) ($payload['bulk'] ?? false),
+                isset($payload['inputs']) ? (array) $payload['inputs'] : null,
             ))),
             default => abort(400, 'Unknown Vanda request type. Expected "react" or "action".'),
         };

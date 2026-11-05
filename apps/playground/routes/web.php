@@ -1,6 +1,8 @@
 <?php
 
 use App\Vanda\Screens\DashboardScreen;
+use App\Vanda\Screens\PageEditScreen;
+use App\Vanda\Screens\PageListScreen;
 use App\Vanda\Screens\RoleEditScreen;
 use App\Vanda\Screens\RoleListScreen;
 use App\Vanda\Screens\ShowcaseScreen;
@@ -18,5 +20,8 @@ Route::vanda('admin', function () {
     Route::screen('roles', RoleListScreen::class)->name('admin.roles');
     Route::screen('roles/create', RoleEditScreen::class)->name('admin.roles.create');
     Route::screen('roles/{role}/edit', RoleEditScreen::class)->name('admin.roles.edit');
+    Route::screen('pages', PageListScreen::class)->name('admin.pages');
+    Route::screen('pages/create', PageEditScreen::class)->name('admin.pages.create');
+    Route::screen('pages/{page}/edit', PageEditScreen::class)->name('admin.pages.edit');
     Route::screen('showcase', ShowcaseScreen::class)->name('admin.showcase');
 });

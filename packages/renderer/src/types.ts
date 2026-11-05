@@ -42,6 +42,8 @@ export interface ActionRef {
   args?: Record<string, unknown>;
   token: string;
   bulk?: boolean;
+  /** Names of arguments the browser supplies (ActionCall::withInput). */
+  inputs?: string[];
 }
 
 export type UiNode = BaseNode;
@@ -76,6 +78,8 @@ export interface Page {
     name: string;
     brand: string;
     menu: MenuItem[];
+    /** URL of the ⌘K records search, when Vanda::search() providers exist. */
+    search?: string;
     user: { name: string; email: string; logout?: string } | null;
   };
 }

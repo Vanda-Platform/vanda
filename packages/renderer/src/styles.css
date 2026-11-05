@@ -30,6 +30,11 @@
   --v-warning-fg: #92400e;
   --v-shadow-lg: 0 16px 40px rgb(24 24 27 / 0.16), 0 2px 8px rgb(24 24 27 / 0.06);
   --v-scrim: rgb(24 24 27 / 0.36);
+  --v-code-keyword: #7c3aed;
+  --v-code-string: #0f766e;
+  --v-code-number: #c2410c;
+  --v-code-property: #1d4ed8;
+  --v-code-comment: #8a8a94;
   color-scheme: light;
 }
 
@@ -58,6 +63,11 @@
   --v-warning-fg: #fcd34d;
   --v-shadow-lg: 0 20px 48px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.04);
   --v-scrim: rgb(0 0 0 / 0.6);
+  --v-code-keyword: #c4b5fd;
+  --v-code-string: #5eead4;
+  --v-code-number: #fdba74;
+  --v-code-property: #93c5fd;
+  --v-code-comment: #71717a;
   color-scheme: dark;
 }
 
@@ -117,3 +127,31 @@
     transform: rotate(360deg);
   }
 }
+
+/* Text from RichText and the Markdown preview. */
+.vanda-prose {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--v-fg);
+  overflow-wrap: anywhere;
+}
+.vanda-prose > * + * { margin-top: 0.75em; }
+.vanda-prose h1, .vanda-prose h2, .vanda-prose h3, .vanda-prose h4 { font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; text-wrap: balance; }
+.vanda-prose h1 { font-size: 1.6em; }
+.vanda-prose h2 { font-size: 1.35em; margin-top: 1.1em; }
+.vanda-prose h3 { font-size: 1.15em; margin-top: 1em; }
+.vanda-prose h4 { font-size: 1em; margin-top: 1em; }
+.vanda-prose > :first-child { margin-top: 0; }
+.vanda-prose ul { list-style: disc; padding-left: 1.4em; }
+.vanda-prose ol { list-style: decimal; padding-left: 1.4em; }
+.vanda-prose li + li { margin-top: 0.25em; }
+.vanda-prose li > p { margin: 0; }
+.vanda-prose blockquote { border-left: 3px solid var(--v-line-strong); padding-left: 1em; color: var(--v-fg-2); }
+.vanda-prose a { color: var(--v-accent-fg); text-decoration: underline; text-underline-offset: 3px; }
+.vanda-prose code { font-family: var(--font-mono); font-size: 0.88em; background: var(--v-surface-2); border-radius: 5px; padding: 0.1em 0.35em; }
+.vanda-prose pre { font-family: var(--font-mono); font-size: 13px; background: var(--v-surface-2); border-radius: 10px; padding: 0.9em 1em; overflow-x: auto; }
+.vanda-prose pre code { background: none; padding: 0; font-size: inherit; }
+.vanda-prose hr { border: 0; border-top: 1px solid var(--v-line); margin: 1.4em 0; }
+.vanda-prose strong, .vanda-prose b { font-weight: 600; }
+.vanda-prose .ProseMirror-selectednode { outline: 2px solid var(--v-accent); }
+.vanda-prose:focus { outline: none; }

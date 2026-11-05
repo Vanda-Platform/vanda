@@ -137,15 +137,16 @@ export function createStore(initial: Page) {
     },
 
     /**
-     * Calls an #[Action] through the button with this node id. Bulk actions pass the selected row ids.
+     * Calls an #[Action] through the node with this id. Bulk actions pass the selected row ids,
+     * input actions (tree moves, uploads) their named values.
      */
-    async runAction(id: string, action: ActionRef, ids?: string[]): Promise<boolean> {
+    async runAction(id: string, action: ActionRef, ids?: string[], input?: Record<string, unknown>): Promise<boolean> {
       clearTimeout(timer);
       inflight?.abort();
       set({ running: id, pending: new Set() });
 
       try {
-        const { status, data } = await act(snapshot.page, id, action, ids);
+        const { status, data } = await act(snapshot.page, id, action, ids, input);
 
         if (status === 422) {
           set({ errors: data.errors ?? {}, running: null, page: { ...snapshot.page, snapshot: data.snapshot ?? snapshot.page.snapshot } });

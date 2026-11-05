@@ -1,13 +1,11 @@
-import type { ComponentType } from 'react';
+import { lazy, Suspense, type ComponentType } from 'react';
 import { isTrue } from '../expr';
 import { useSnapshot } from '../store';
 import type { UiNode } from '../types';
-import { ButtonView, LinkView, ModalToggleView } from './actions';
+import { ButtonView, DropDownView, LinkView, ModalToggleView } from './actions';
 import {
   CheckboxField,
   ColorField,
-  DateField,
-  DateRangeField,
   InputField,
   NumberRangeField,
   PasswordField,
@@ -18,21 +16,38 @@ import {
   SwitchField,
   TextAreaField,
 } from './fields';
-import { AlertView, BadgeView, GridView, LegendView, MetricsView, ModalView, PersonaView, SectionView, TableView, TabsView, TextView } from './layout';
+import { AlertView, BadgeView, GridView, LegendView, MetricsView, ModalView, PersonaView, SectionView, TabsView, TextView } from './layout';
 import { KeyValueField, PermissionsField, RepeaterField } from './structured';
+import { TableView } from './table';
+import { UploadField } from './upload';
+
+type NodeComponent = ComponentType<{ node: any; compact?: boolean }>;
+
+/** A component from a separate chunk, loaded the first time a screen uses it. */
+function chunk<K extends string>(load: () => Promise<Record<K, NodeComponent>>, name: K): NodeComponent {
+  return lazy(() => load().then((module): { default: NodeComponent } => ({ default: module[name] }))) as NodeComponent;
+}
+
+const dates = () => import('./dates');
+const code = () => import('./code');
+const richtext = () => import('./richtext');
+const tree = () => import('./tree');
+const charts = () => import('./charts');
 
 /**
  * Node type → component. The PHP side never sends HTML, only these types.
  * A custom component is registered here under the type its PHP class returns.
  */
-const REGISTRY: Record<string, ComponentType<{ node: any; compact?: boolean }>> = {
+const REGISTRY: Record<string, NodeComponent> = {
   section: SectionView,
   grid: GridView,
   tabs: TabsView,
   modal: ModalView,
   table: TableView,
+  treetable: chunk(tree, 'TreeTableView'),
   legend: LegendView,
   metrics: MetricsView,
+  chart: chunk(charts, 'ChartView'),
   alert: AlertView,
   persona: PersonaView,
   text: TextView,
@@ -41,21 +56,27 @@ const REGISTRY: Record<string, ComponentType<{ node: any; compact?: boolean }>> 
   password: PasswordField,
   textarea: TextAreaField,
   select: SelectField,
+  treeselect: chunk(tree, 'TreeSelectField'),
   switch: SwitchField,
   checkbox: CheckboxField,
   radio: RadioField,
   segmented: SegmentedField,
-  date: DateField,
-  daterange: DateRangeField,
+  date: chunk(dates, 'DateField'),
+  daterange: chunk(dates, 'DateRangeField'),
   range: RangeField,
   numberrange: NumberRangeField,
   color: ColorField,
   repeater: RepeaterField,
   keyvalue: KeyValueField,
   permissions: PermissionsField,
+  upload: UploadField,
+  richtext: chunk(richtext, 'RichTextField'),
+  code: chunk(code, 'CodeField'),
+  markdown: chunk(code, 'MarkdownField'),
   button: ({ node, compact }) => <ButtonView node={node} size={compact ? 'sm' : 'md'} />,
   link: ({ node, compact }) => <LinkView node={node} size={compact ? 'sm' : 'md'} />,
   modaltoggle: ModalToggleView,
+  dropdown: DropDownView,
 };
 
 export function NodeView({ node, compact = false }: { node: UiNode; compact?: boolean }) {
@@ -71,7 +92,11 @@ export function NodeView({ node, compact = false }: { node: UiNode; compact?: bo
     );
   }
 
-  return <Component node={node} compact={compact} />;
+  return (
+    <Suspense fallback={<div aria-busy="true" className="h-9 animate-pulse rounded-lg bg-surface-2" />}>
+      <Component node={node} compact={compact} />
+    </Suspense>
+  );
 }
 
 export function NodeList({ nodes }: { nodes: UiNode[] }) {

@@ -3,9 +3,10 @@
 A screen-centric admin framework for Laravel — Orchid rethought for 2026:
 PHP-only screens, instant reactivity, and an API designed to be read and written by AI agents.
 
-> Status: phase 1. Sign-in, roles and permissions (Orchid-compatible tables), Inertia navigation,
-> tabs, modals, tables with search / sort / bulk actions, and most form fields work end to end.
-> Rich editors, uploads, charts and the command palette come next. See `vanda-analysis.md`.
+> Status: phase 2. Sign-in, roles and permissions, Inertia navigation, tabs, modals, tables with
+> search / filters / saved views / row menus / CSV export, trees with drag-and-drop, `Select::tree()`,
+> uploads into Orchid's `attachments` table, rich text / Markdown / code editors, charts and the ⌘K
+> palette work end to end. Next: notifications, impersonation, maps, MCP. See `vanda-analysis.md`.
 
 ## Try it
 
@@ -15,7 +16,8 @@ cd apps/playground && composer install && php artisan migrate:fresh --seed && ph
 
 Open http://localhost:8000/admin and sign in as `admin@example.com` / `password`
 (or `i.petrov@example.com` / `password` — a manager without access to roles).
-The "Витрина компонентов" screen shows every field and layout.
+The "Витрина компонентов" screen shows every field and layout; "Страницы" shows a tree
+you can reorder by dragging or with Alt+arrows; ⌘K searches pages, actions and records.
 
 ## A screen
 
@@ -78,6 +80,26 @@ Route::vanda('admin', function () {
 
 // Permissions become Gate abilities; #[Can('platform.users')] guards a screen or an action
 Vanda::permissions(fn () => [PermissionGroup::make('Access')->add('platform.users', 'Users')]);
+
+// Records for the ⌘K palette
+Vanda::search(fn (string $q) => User::where('name', 'like', "%{$q}%")->limit(5)->get()
+    ->map(fn (User $user) => SearchResult::make($user->name)->to(UserEditScreen::class, ['user' => $user])));
+```
+
+```php
+// A list with filters in the URL (?filter[status]=blocked, as in Orchid), views and a row menu
+Layout::table()
+    ->query(fn () => User::query())
+    ->filters([Filter::select('status', 'Status')->options(UserStatus::class), Filter::dateRange('created', 'Created')->column('created_at')])
+    ->views([View::make('All'), View::make('Blocked', ['status' => 'blocked'])])
+    ->columns([TD::make('name', 'Name')->sortable(), TD::make('country', 'Country')->defaultHidden()])
+    ->rowActions(fn (User $user) => [Link::make('Edit')->to(UserEditScreen::class, ['user' => $user])])
+    ->exportable('users.csv');
+
+// A tree; the action receives the dragged row's new place
+Layout::tree()->query(fn () => Page::query())->orderBy('position')
+    ->columns([TD::make('title', 'Title')])
+    ->reorderable($this->move(...));      // #[Action] public function move(int $id, ?int $parent, int $position)
 ```
 
 ## How it works
