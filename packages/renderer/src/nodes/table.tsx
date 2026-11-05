@@ -173,9 +173,9 @@ export function TableView({ node }: { node: TableNode }) {
   }, [node.export, rows]);
 
   return (
-    <div className="-mx-8 flex flex-col" {...nodeAttributes(node)}>
+    <div className="-mx-(--v-gutter) flex flex-col" {...nodeAttributes(node)}>
       {views.length > 0 && (
-        <div role="tablist" aria-label={t('views')} className="mx-8 mb-1 flex gap-6 overflow-x-auto border-b border-line">
+        <div role="tablist" aria-label={t('views')} className="mx-(--v-gutter) mb-1 flex gap-6 overflow-x-auto border-b border-line">
           {views.map((view) => (
             <button
               key={view.label}
@@ -200,7 +200,7 @@ export function TableView({ node }: { node: TableNode }) {
       )}
 
       {toolbar && selected.length === 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-8 py-3.5">
+        <div className="flex flex-wrap items-center gap-2 px-(--v-gutter) py-3.5">
           {node.search && (
             <div className="relative flex w-[300px] max-w-full items-center">
               <Icon name="search" className="pointer-events-none absolute left-2.5 size-4 text-fg-3" />
@@ -227,8 +227,8 @@ export function TableView({ node }: { node: TableNode }) {
           {filters
             .filter((filter) => filter.value !== undefined)
             .map((filter) => (
-              <span key={filter.name} className="inline-flex h-7 items-center gap-1 rounded-full border border-line-strong bg-surface pr-1 pl-2.5 text-[13px]">
-                <b className="font-medium">{filter.label}:</b> {filter.display}
+              <span key={filter.name} className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-surface pr-1 pl-2.5 text-[13px]">
+                <b className="font-medium text-fg-3">{filter.label}:</b> {filter.display}
                 <button
                   type="button"
                   aria-label={t('removeFilter', { label: filter.label })}
@@ -261,7 +261,7 @@ export function TableView({ node }: { node: TableNode }) {
                     <MenuItem
                       key={column.name}
                       id={column.name}
-                      className="flex h-8 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] outline-none data-[focused]:bg-surface-2"
+                      className="flex h-8 cursor-pointer items-center gap-2.5 rounded-md px-2 text-[14px] outline-none data-[focused]:bg-surface-2"
                     >
                       {({ isSelected }) => (
                         <>
@@ -290,10 +290,10 @@ export function TableView({ node }: { node: TableNode }) {
       {selected.length > 0 && (
         <div className="mx-5 my-2.5 flex flex-wrap items-center gap-2 rounded-[10px] bg-accent-soft py-1.5 pr-1.5 pl-3.5 text-accent-fg">
           <span className="text-[14px] font-semibold">{t('selected', { count: selected.length })}</span>
-          {pagination && <span className="text-[13.5px] opacity-80">{`${t('from')} ${pagination.total.toLocaleString()}`}</span>}
+          {pagination && <span className="text-[13.5px] opacity-80">{t('ofTotal', { total: pagination.total.toLocaleString() })}</span>}
           <div className="flex-grow" />
           {bulk.map((button) => (
-            <ButtonView key={button.id} node={{ ...button, variant: button.variant === 'danger' ? 'danger' : 'secondary' }} size="sm" ids={selected} />
+            <ButtonView key={button.id} node={{ ...button, variant: button.variant === 'danger' ? 'danger-soft' : 'secondary' }} size="sm" ids={selected} />
           ))}
           <button type="button" aria-label={t('clearSelection')} onClick={() => setSelected([])} className="grid size-7 place-items-center rounded-md hover:bg-surface/60">
             <Icon name="x" />
@@ -306,7 +306,7 @@ export function TableView({ node }: { node: TableNode }) {
           <thead>
             <tr>
               {bulk.length > 0 && (
-                <th className="w-11 pl-8">
+                <th className="w-11 pl-5">
                   <input
                     type="checkbox"
                     aria-label={t('selectAll')}
@@ -325,7 +325,7 @@ export function TableView({ node }: { node: TableNode }) {
                     style={{ width: column.width }}
                     aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : undefined}
                     className={cx(
-                      'px-3 py-2.5 text-[12.5px] font-medium whitespace-nowrap text-fg-3 first:pl-8 last:pr-8',
+                      'px-3 py-[9px] text-[12.5px] font-medium whitespace-nowrap text-fg-3 first:pl-5 last:pr-5',
                       column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left',
                     )}
                   >
@@ -341,7 +341,7 @@ export function TableView({ node }: { node: TableNode }) {
                 );
               })}
               {hasActions && (
-                <th className="w-14 pr-8">
+                <th className="w-14 pr-5">
                   <span className="sr-only">{t('actions')}</span>
                 </th>
               )}
@@ -363,7 +363,7 @@ export function TableView({ node }: { node: TableNode }) {
                   }}
                 >
                   {bulk.length > 0 && (
-                    <td className={cx(cellClass, 'pl-8')}>
+                    <td className={cx(cellClass, 'pl-5')}>
                       <input type="checkbox" aria-label={t('selectRow')} checked={isSelected} onChange={() => toggle(row.key)} className="size-4 accent-(--v-accent)" />
                     </td>
                   )}
@@ -374,7 +374,7 @@ export function TableView({ node }: { node: TableNode }) {
                         key={column.name}
                         className={cx(
                           cellClass,
-                          'px-3 whitespace-nowrap first:pl-8 last:pr-8',
+                          'px-3 whitespace-nowrap first:pl-5 last:pr-5',
                           column.muted && 'text-fg-3',
                           column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left',
                         )}
@@ -387,7 +387,7 @@ export function TableView({ node }: { node: TableNode }) {
                       </td>
                     );
                   })}
-                  {hasActions && <td className={cx(cellClass, 'pr-6 text-right')}>{row.actions && <DropDownView node={row.actions} compact />}</td>}
+                  {hasActions && <td className={cx(cellClass, 'pr-4 text-right')}>{row.actions && <DropDownView node={row.actions} compact />}</td>}
                 </tr>
               );
             })}
@@ -411,7 +411,7 @@ function pageList(page: number, last: number): (number | null)[] {
 
 function PaginationBar({ pagination }: { pagination: Pagination }) {
   return (
-    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-8 py-3.5 text-[13.5px] text-fg-3">
+    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3.5 text-[13.5px] text-fg-3">
       <span className="tabular-nums">{t('shown', { from: pagination.from ?? 0, to: pagination.to ?? 0, total: pagination.total.toLocaleString() })}</span>
       <span className="flex flex-wrap items-center gap-4">
         {pagination.options && (

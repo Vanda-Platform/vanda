@@ -141,7 +141,7 @@ export function Palette() {
 
   return (
     <ModalOverlay isOpen={open} onOpenChange={setOpen} isDismissable className="fixed inset-0 z-50 flex justify-center bg-(--v-scrim) px-4 pt-[12vh]">
-      <Modal className="h-fit w-full max-w-[600px] overflow-hidden rounded-2xl border border-line bg-surface shadow-pop outline-none">
+      <Modal className="h-fit w-full max-w-[520px] overflow-hidden rounded-xl border border-line bg-surface shadow-pop outline-none">
         <Dialog aria-label={t('palette')} className="flex flex-col outline-none">
           <div className="flex items-center gap-3 border-b border-line px-4">
             <Icon name="search" className="size-5 text-fg-3" />

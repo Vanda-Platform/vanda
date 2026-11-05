@@ -3,7 +3,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton, Dialog, DialogTrigger, Popover } from 'react-aria-components';
 import { t } from '../i18n';
-import { buttonClass, controlClass, cx, Icon } from '../ui';
+import { buttonClass, controlClass, cx, Icon, invalidClass } from '../ui';
 import type { FieldNode } from '../types';
 import { FieldFrame, useField } from './fields';
 
@@ -137,7 +137,7 @@ export function RichTextField({ node }: { node: FieldNode & { minHeight?: number
       <div
         className={cx(
           'overflow-hidden rounded-lg border bg-surface shadow-sm transition focus-within:border-accent focus-within:ring-3 focus-within:ring-ring',
-          field.error ? 'border-danger' : 'border-line-strong',
+          field.error ? invalidClass : 'border-line-strong',
         )}
       >
         {!field.disabled && (

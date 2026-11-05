@@ -21,7 +21,7 @@ export function App() {
 
   if (page.chrome === 'card') {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-bg px-4 py-12" style={brand}>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-10 bg-bg px-4 py-12" style={brand}>
         <Logo name={page.app.name} large />
         <CardScreen page={page} />
         <Toasts />
@@ -37,7 +37,7 @@ export function App() {
           <Breadcrumbs crumbs={crumbsFor(page)} />
         </header>
 
-        <section className="flex flex-wrap items-end justify-between gap-4 px-8 pt-7 pb-6">
+        <section className="flex flex-wrap items-end justify-between gap-4 px-8 pt-7 pb-5">
           <div className="flex min-w-0 flex-col gap-1">
             {page.title && <h1 className="text-[24px] leading-8 font-semibold tracking-[-0.015em]">{page.title}</h1>}
             {page.description && <p className="text-fg-2">{page.description}</p>}
@@ -49,7 +49,7 @@ export function App() {
           )}
         </section>
 
-        <div className="flex max-w-[1180px] flex-col gap-10 px-8 pb-10">
+        <div className="flex flex-col gap-4 px-8 pb-10">
           <NodeList nodes={page.layout} />
         </div>
       </main>
@@ -67,7 +67,7 @@ function CardScreen({ page }: { page: Page }) {
 
   return (
     <form
-      className="flex w-full max-w-[380px] flex-col gap-5 rounded-2xl border border-line bg-surface p-8 shadow-[0_1px_2px_rgb(24_24_27/0.04),0_4px_14px_rgb(24_24_27/0.06)]"
+      className="flex w-full max-w-[380px] flex-col gap-5 rounded-xl border border-line bg-surface p-8 shadow-card"
       onSubmit={(event) => {
         event.preventDefault();
         if (primary) void store.runAction(primary.id, primary.action);

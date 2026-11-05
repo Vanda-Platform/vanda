@@ -17,7 +17,7 @@ import {
 import { getPath, isTrue } from '../expr';
 import { t } from '../i18n';
 import { nodeAttributes, useSnapshot, useStore } from '../store';
-import { controlClass, cx, Icon, Spinner } from '../ui';
+import { controlClass, cx, Icon, invalidClass, Spinner } from '../ui';
 import type { FieldNode, Option } from '../types';
 
 export function useField(node: FieldNode) {
@@ -105,7 +105,7 @@ export function InputField({ node }: { node: FieldNode & { inputType?: string; p
       required={field.required}
       aria-invalid={field.error ? true : undefined}
       aria-describedby={field.error ? `${id}-error` : node.help ? `${id}-help` : undefined}
-      className={cx(controlClass, field.error && 'border-danger focus:border-danger', node.prefix && 'rounded-l-none', node.suffix && 'rounded-r-none')}
+      className={cx(controlClass, field.error && invalidClass, (node.prefix || node.suffix) && 'shadow-none', node.prefix && 'rounded-l-none', node.suffix && 'rounded-r-none')}
     />
   );
 
@@ -153,7 +153,7 @@ export function PasswordField({ node }: { node: FieldNode & { strength?: boolean
           onChange={(event) => field.setValue(event.target.value)}
           disabled={field.disabled}
           aria-invalid={field.error ? true : undefined}
-          className={cx(controlClass, 'pr-10', field.error && 'border-danger')}
+          className={cx(controlClass, 'pr-10', field.error && invalidClass)}
         />
         <button
           type="button"
@@ -195,7 +195,7 @@ export function TextAreaField({ node }: { node: FieldNode & { rows?: number; max
         disabled={field.disabled}
         readOnly={node.readonly}
         aria-invalid={field.error ? true : undefined}
-        className={cx(controlClass, 'h-auto resize-y py-2 leading-relaxed', field.error && 'border-danger')}
+        className={cx(controlClass, 'h-auto resize-y py-2 leading-relaxed', field.error && invalidClass)}
       />
     </FieldFrame>
   );
@@ -214,7 +214,7 @@ export function SelectField({ node }: { node: FieldNode & { options?: Option[]; 
   const trigger = cx(
     controlClass,
     'flex items-center justify-between gap-2 text-left data-[focus-visible]:border-accent data-[focus-visible]:ring-3 data-[focus-visible]:ring-ring',
-    field.error && 'border-danger',
+    field.error && invalidClass,
   );
   const list = (
     <Popover className={popoverClass}>

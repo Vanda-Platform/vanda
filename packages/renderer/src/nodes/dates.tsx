@@ -15,7 +15,7 @@ import {
   Popover,
   RangeCalendar,
 } from 'react-aria-components';
-import { controlClass, cx, Icon } from '../ui';
+import { controlClass, cx, Icon, invalidClass } from '../ui';
 import type { FieldNode } from '../types';
 import { FieldFrame, useField } from './fields';
 
@@ -79,7 +79,7 @@ export function DateField({ node }: { node: FieldNode & { withTime?: boolean; mi
         isDisabled={field.disabled}
         isInvalid={Boolean(field.error)}
       >
-        <Group className={cx(controlClass, 'flex items-center gap-1 pr-1', field.error && 'border-danger')}>
+        <Group className={cx(controlClass, 'flex items-center gap-1 pr-1', field.error && invalidClass)}>
           <DateSegments />
           <AriaButton className="grid size-7 place-items-center rounded-md text-fg-3 hover:bg-surface-2 hover:text-fg">
             <Icon name="calendar" />

@@ -6,7 +6,7 @@ import { basicSetup, minimalSetup } from 'codemirror';
 import { Marked, type Tokens } from 'marked';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n';
-import { cx } from '../ui';
+import { cx, invalidClass } from '../ui';
 import type { FieldNode } from '../types';
 import { FieldFrame, useField } from './fields';
 
@@ -130,7 +130,7 @@ function CodeEditor({ id, label, value, onChange, language, minHeight, lineNumbe
 const frame = (error?: string) =>
   cx(
     'overflow-hidden rounded-lg border bg-surface shadow-sm transition focus-within:border-accent focus-within:ring-3 focus-within:ring-ring',
-    error ? 'border-danger' : 'border-line-strong',
+    error ? invalidClass : 'border-line-strong',
   );
 
 const LANGUAGE_LABELS: Record<string, string> = { json: 'JSON', html: 'HTML', css: 'CSS', javascript: 'JavaScript', php: 'PHP', sql: 'SQL', markdown: 'Markdown', yaml: 'YAML' };

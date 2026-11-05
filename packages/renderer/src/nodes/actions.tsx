@@ -36,7 +36,7 @@ export function ConfirmDialog({
 }) {
   return (
     <ModalOverlay isOpen={open} onOpenChange={onOpenChange} isDismissable className="fixed inset-0 z-50 grid place-items-center bg-(--v-scrim) p-4">
-      <Modal className="w-full max-w-sm rounded-2xl border border-line bg-surface p-6 shadow-pop outline-none">
+      <Modal className="w-full max-w-[420px] rounded-xl border border-line bg-surface p-6 shadow-pop outline-none">
         <Dialog role="alertdialog" className="flex flex-col gap-4 outline-none">
           {({ close }) => (
             <>
@@ -77,7 +77,7 @@ export function ButtonView({ node, size = 'md', ids }: { node: ButtonNode; size?
   const running = useSnapshot((s) => s.running !== null && s.running === node.id);
   const busy = useSnapshot((s) => s.running !== null);
   const [confirming, setConfirming] = useState(false);
-  const danger = node.variant === 'danger' || Boolean(node.confirm?.danger);
+  const danger = node.variant === 'danger' || node.variant === 'danger-soft' || Boolean(node.confirm?.danger);
 
   const fire = () => {
     if (node.action) void store.runAction(node.id, node.action, ids);
@@ -107,7 +107,7 @@ export function ButtonView({ node, size = 'md', ids }: { node: ButtonNode; size?
         onClick={run}
         disabled={busy && !running}
         aria-busy={running || undefined}
-        className={cx(buttonClass(node.variant, size), node.block && 'w-full', node.block && size === 'md' && 'h-10')}
+        className={cx(buttonClass(node.variant, size), node.block && 'w-full', node.block && size === 'md' && 'h-[42px] px-4 text-[14.5px]')}
         {...nodeAttributes(node)}
       >
         {running ? <Spinner /> : <Icon name={node.icon} />}
@@ -213,7 +213,7 @@ export function DropDownView({ node, compact }: { node: UiNode & { label?: strin
                   id={item.id}
                   textValue={item.label}
                   className={cx(
-                    'flex h-8 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] outline-none',
+                    'flex h-8 cursor-pointer items-center gap-2.5 rounded-md px-2 text-[14px] outline-none',
                     danger ? 'text-danger-fg data-[focused]:bg-danger-soft' : 'text-fg data-[focused]:bg-surface-2',
                   )}
                 >

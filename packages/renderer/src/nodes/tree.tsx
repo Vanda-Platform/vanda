@@ -4,7 +4,7 @@ import { Button as AriaButton, Dialog, DialogTrigger, Popover } from 'react-aria
 import { t } from '../i18n';
 import { isInternal, nodeAttributes, useStore } from '../store';
 import { applyMove, branch, dropMove, hasChildren, keyboardMove, type DropZone, type Move } from '../treeMove';
-import { buttonClass, controlClass, cx, Icon, Kbd } from '../ui';
+import { buttonClass, controlClass, cx, Icon, invalidClass, Kbd } from '../ui';
 import type { ActionRef, FieldNode, UiNode } from '../types';
 import { DropDownView } from './actions';
 import { FieldFrame, useField } from './fields';
@@ -210,8 +210,8 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
 
 
   return (
-    <div className="-mx-8 flex flex-col" {...nodeAttributes(node)}>
-      <div className="flex flex-wrap items-center gap-2 px-8 pb-3.5">
+    <div className="-mx-(--v-gutter) flex flex-col" {...nodeAttributes(node)}>
+      <div className="flex flex-wrap items-center gap-2 px-(--v-gutter) pb-3.5">
         {node.searchable && (
           <div className="relative flex w-[300px] max-w-full items-center">
             <Icon name="search" className="pointer-events-none absolute left-2.5 size-4 text-fg-3" />
@@ -244,8 +244,8 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
                   scope="col"
                   style={{ width: column.width }}
                   className={cx(
-                    'px-3 py-2.5 text-[12.5px] font-medium whitespace-nowrap text-fg-3 last:pr-8',
-                    index === 0 && (move ? 'pl-1' : 'pl-8'),
+                    'px-3 py-[9px] text-[12.5px] font-medium whitespace-nowrap text-fg-3 last:pr-5',
+                    index === 0 && (move ? 'pl-1' : 'pl-5'),
                     column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left',
                   )}
                 >
@@ -253,7 +253,7 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
                 </th>
               ))}
               {hasActions && (
-                <th className="w-14 pr-8">
+                <th className="w-14 pr-5">
                   <span className="sr-only">{t('actions')}</span>
                 </th>
               )}
@@ -309,8 +309,8 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
                         key={column.name}
                         className={cx(
                           cellClass,
-                          'px-3 whitespace-nowrap last:pr-8',
-                          index === 0 && (move ? 'pl-1' : 'pl-8'),
+                          'px-3 whitespace-nowrap last:pr-5',
+                          index === 0 && (move ? 'pl-1' : 'pl-5'),
                           column.muted && 'text-fg-3',
                           column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left',
                         )}
@@ -346,7 +346,7 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
                           <span
                             aria-hidden="true"
                             className={cx('pointer-events-none absolute right-0 flex items-center', target === 'before' ? '-top-px' : '-bottom-px')}
-                            style={{ left: (move ? 4 : 32) + row.depth * INDENT }}
+                            style={{ left: (move ? 4 : 20) + row.depth * INDENT }}
                           >
                             <span className="size-2 shrink-0 rounded-full border-2 border-accent bg-surface" />
                             <span className="h-0.5 flex-1 rounded-full bg-accent" />
@@ -355,7 +355,7 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
                       </td>
                     );
                   })}
-                  {hasActions && <td className={cx(cellClass, 'pr-6 text-right')}>{row.actions && <DropDownView node={row.actions} compact />}</td>}
+                  {hasActions && <td className={cx(cellClass, 'pr-4 text-right')}>{row.actions && <DropDownView node={row.actions} compact />}</td>}
                 </tr>
               );
             })}
@@ -382,7 +382,7 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
       )}
 
       {move && items.length > 0 && (
-        <footer className="flex flex-wrap items-center gap-1.5 border-t border-line px-8 py-3.5 text-[13px] text-fg-3">
+        <footer className="flex flex-wrap items-center gap-1.5 border-t border-line px-5 py-3.5 text-[13px] text-fg-3">
           <Kbd>→</Kbd>
           <Kbd>←</Kbd> {t('expandCollapse')}
           <span className="mx-1.5">·</span>
@@ -481,7 +481,7 @@ export function TreeSelectField({ node }: { node: FieldNode & { options?: TreeOp
     return !(parent && selected.has(parent));
   });
 
-  const trigger = cx(controlClass, 'flex items-center justify-between gap-2 text-left', field.error && 'border-danger', multiple && 'h-auto min-h-9 py-1');
+  const trigger = cx(controlClass, 'flex items-center justify-between gap-2 text-left', field.error && invalidClass, multiple && 'h-auto min-h-9 py-1');
 
   return (
     <FieldFrame node={node} inputId={id} required={field.required} error={field.error}>

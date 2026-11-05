@@ -15,19 +15,24 @@ const COLUMNS: Record<number, string> = {
   4: 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4',
 };
 
+/**
+ * A titled block of a form. Blocks on a page sit 16px apart (cards, charts, alerts);
+ * a section adds 24px above itself, so sections are 40px apart, as in the design.
+ * Its width stays within the design's 1120px page, while tables and charts use the full width.
+ */
 export function SectionView({ node }: { node: UiNode & { title: string; description?: string; commandIds?: string[] } }) {
   const commands = new Set(node.commandIds ?? []);
   const content = (node.children ?? []).filter((child) => !commands.has(child.id));
   const buttons = (node.children ?? []).filter((child) => commands.has(child.id));
 
   return (
-    <section className="flex flex-wrap gap-6 border-b border-line pb-10 last:border-b-0 last:pb-0" {...nodeAttributes(node)}>
+    <section className="flex max-w-[1056px] flex-wrap gap-6 border-b border-line pb-10 last:border-b-0 last:pb-0 not-first:mt-6" {...nodeAttributes(node)}>
       <div className="flex max-w-[300px] flex-[1_1_220px] flex-col gap-1.5">
         <h2 className="text-[15px] leading-[22px] font-semibold">{node.title}</h2>
         {node.description && <p className="text-[13.5px] text-fg-2">{node.description}</p>}
       </div>
       <div className="min-w-0 flex-[999_1_480px] rounded-xl border border-line bg-surface shadow-sm">
-        <div className="flex flex-col gap-5 p-6">
+        <div className="flex flex-col gap-5 p-6 [--v-gutter:24px]">
           <NodeList nodes={content} />
         </div>
         {buttons.length > 0 && (
@@ -90,7 +95,7 @@ export function TabsView({ node }: { node: UiNode }) {
         ))}
       </div>
       {tabs.map((tab, index) => (
-        <div key={tab.id} role="tabpanel" id={`${tab.id}-panel`} aria-labelledby={`${tab.id}-tab`} hidden={index !== active} className="flex flex-col gap-6">
+        <div key={tab.id} role="tabpanel" id={`${tab.id}-panel`} aria-labelledby={`${tab.id}-tab`} hidden={index !== active} className="flex flex-col gap-4">
           <NodeList nodes={tab.children ?? []} />
         </div>
       ))}
@@ -107,7 +112,7 @@ export function ModalView({ node }: { node: UiNode & { title: string; descriptio
 
   return (
     <ModalOverlay isOpen={open} onOpenChange={(next) => store.openModal(next ? node.id : null)} isDismissable className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-(--v-scrim) p-4">
-      <Modal className={cx('w-full rounded-2xl border border-line bg-surface shadow-pop outline-none', node.size === 'lg' ? 'max-w-2xl' : 'max-w-md')}>
+      <Modal className={cx('w-full rounded-xl border border-line bg-surface shadow-pop outline-none', node.size === 'lg' ? 'max-w-2xl' : 'max-w-[440px]')}>
         <Dialog className="flex flex-col outline-none" {...nodeAttributes(node)}>
           {({ close }) => (
             <form
@@ -128,10 +133,10 @@ export function ModalView({ node }: { node: UiNode & { title: string; descriptio
                   <Icon name="x" />
                 </button>
               </div>
-              <div className="flex flex-col gap-4 px-5 py-4">
+              <div className="flex flex-col gap-3.5 px-5 py-4">
                 <NodeList nodes={content} />
               </div>
-              <div className="flex justify-end gap-2 border-t border-line px-5 py-3">
+              <div className="flex justify-end gap-2 border-t border-line px-5 pt-3 pb-4">
                 <button type="button" onClick={close} className={buttonClass('secondary')}>
                   {t('cancel')}
                 </button>

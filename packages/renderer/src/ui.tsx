@@ -133,6 +133,9 @@ export function cx(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
 
+/** Red border and ring of a field with an error, as .o-input.is-invalid in the design. */
+export const invalidClass = 'border-danger focus:border-danger ring-3 ring-[color-mix(in_oklch,var(--v-danger)_16%,transparent)]';
+
 /** Shared look of text inputs, select triggers and pickers. */
 export const controlClass = cx(
   'h-9 w-full rounded-lg border border-line-strong bg-surface px-2.5 text-[14px] text-fg shadow-sm transition',
@@ -157,17 +160,18 @@ export function Avatar({ initials, hue = 0, size = 'md' }: { initials: string; h
 }
 
 const VARIANTS: Record<string, string> = {
-  primary: 'bg-accent text-white shadow-sm hover:bg-accent-hover',
+  primary: 'bg-accent text-white shadow-primary hover:bg-accent-hover',
   secondary: 'bg-surface text-fg border border-line-strong shadow-sm hover:bg-surface-2',
   ghost: 'text-fg-2 hover:bg-surface-2 hover:text-fg',
   danger: 'bg-danger text-white hover:opacity-90',
+  'danger-soft': 'bg-danger-soft text-danger-fg hover:bg-[color-mix(in_oklch,var(--v-danger)_16%,var(--v-surface))]',
   link: 'text-accent-fg hover:underline underline-offset-4 px-0 h-auto',
 };
 
 export function buttonClass(variant = 'secondary', size: 'sm' | 'md' = 'md'): string {
   return cx(
     'inline-flex items-center justify-center gap-1.5 rounded-lg font-medium whitespace-nowrap transition-colors',
-    'disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer select-none',
+    'disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none cursor-pointer select-none',
     size === 'sm' ? 'h-7 px-2.5 text-[13px] rounded-md' : 'h-9 px-3 text-[13.5px]',
     VARIANTS[variant] ?? VARIANTS.secondary,
   );
@@ -187,7 +191,7 @@ export function Kbd({ children, inverted = false }: { children: string; inverted
   return (
     <kbd
       className={cx(
-        'inline-flex h-[18px] items-center rounded border px-1.5 font-mono text-[11px] font-medium',
+        'inline-flex h-[18px] items-center rounded border px-[5px] font-mono text-[11px] font-medium',
         inverted ? 'border-white/25 bg-white/15 text-white/90' : 'border-line bg-surface-2 text-fg-3',
       )}
     >

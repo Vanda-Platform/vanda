@@ -5,6 +5,8 @@
  * every accent shade through color-mix, so re-branding never needs a rebuild.
  */
 :root {
+  /* Horizontal padding of the surface a table bleeds into: the page, or a section card (24px). */
+  --v-gutter: 32px;
   --v-accent: #12805c;
   --v-bg: #f7f7f8;
   --v-surface: #ffffff;
@@ -28,6 +30,8 @@
   --v-warning: #b45309;
   --v-warning-soft: #fef3e2;
   --v-warning-fg: #92400e;
+  --v-shadow-sm: 0 1px 2px rgb(24 24 27 / 0.05);
+  --v-shadow: 0 1px 2px rgb(24 24 27 / 0.04), 0 4px 14px rgb(24 24 27 / 0.06);
   --v-shadow-lg: 0 16px 40px rgb(24 24 27 / 0.16), 0 2px 8px rgb(24 24 27 / 0.06);
   --v-scrim: rgb(24 24 27 / 0.36);
   --v-code-keyword: #7c3aed;
@@ -61,6 +65,8 @@
   --v-warning: #d97706;
   --v-warning-soft: #33240c;
   --v-warning-fg: #fcd34d;
+  --v-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --v-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 16px rgb(0 0 0 / 0.3);
   --v-shadow-lg: 0 20px 48px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.04);
   --v-scrim: rgb(0 0 0 / 0.6);
   --v-code-keyword: #c4b5fd;
@@ -97,17 +103,27 @@
   --color-warning: var(--v-warning);
   --color-warning-soft: var(--v-warning-soft);
   --color-warning-fg: var(--v-warning-fg);
+  /* Shadows of the design system instead of Tailwind's heavier defaults. */
+  --shadow-sm: var(--v-shadow-sm);
+  --shadow-card: var(--v-shadow);
+  --shadow-primary: var(--v-shadow-sm), inset 0 1px 0 rgb(255 255 255 / 0.14);
   --shadow-pop: var(--v-shadow-lg);
 }
 
 @layer base {
+  /* The root keeps the browser's 16px so Tailwind's rem spacing stays on the 4px grid
+     of the design (h-9 = 36px); body text is 14px. */
   html {
     font-family: var(--font-sans);
-    font-size: 14px;
-    line-height: 1.5;
     color: var(--v-fg);
     background: var(--v-bg);
     -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11";
+  }
+
+  body {
+    font-size: 14px;
+    line-height: 1.5;
   }
 
   :focus-visible {
