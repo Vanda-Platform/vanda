@@ -12,13 +12,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Vanda\Access\HasPermissions;
+use Vanda\Attachments\Attachable;
 
-#[Fillable(['name', 'email', 'password', 'country', 'city', 'vat', 'status', 'permissions'])]
+#[Fillable(['name', 'email', 'phone', 'password', 'country', 'city', 'vat', 'timezone', 'status', 'permissions'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasPermissions, Notifiable;
+    use Attachable, HasFactory, HasPermissions, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -33,6 +34,20 @@ class User extends Authenticatable
             'country' => Country::class,
             'city' => 'integer',
             'status' => UserStatus::class,
+            'last_login_at' => 'datetime',
         ];
+    }
+
+    /**
+     * URL of the photo uploaded in the user card. Uses eager-loaded attachments
+     * when the list loaded them (->with('attachments')), so a table makes no query per row.
+     */
+    public function avatarUrl(): ?string
+    {
+        $photo = $this->relationLoaded('attachments')
+            ? $this->attachments->firstWhere('group', 'avatar')
+            : $this->attachments('avatar')->first();
+
+        return $photo?->url();
     }
 }

@@ -16,6 +16,8 @@ final class Persona extends Node
 
     private ?string $href = null;
 
+    private ?string $image = null;
+
     public function __construct(private readonly string $name) {}
 
     public static function make(string $name): self
@@ -35,6 +37,16 @@ final class Persona extends Node
         return $this;
     }
 
+    /**
+     * Photo instead of the initials: `->image($user->avatarUrl())`; null keeps the initials.
+     */
+    public function image(?string $url): self
+    {
+        $this->image = $url;
+
+        return $this;
+    }
+
     public function href(string $url): self
     {
         $this->href = $url;
@@ -44,16 +56,12 @@ final class Persona extends Node
 
     protected function properties(SchemaContext $context): array
     {
-        $initials = implode('', array_map(
-            static fn (string $part) => mb_strtoupper(mb_substr($part, 0, 1)),
-            array_slice(preg_split('/\s+/u', trim($this->name)) ?: [], 0, 2),
-        ));
-
         return [
             'name' => $this->name,
             'subtitle' => $this->subtitle,
-            'initials' => $initials,
-            'hue' => crc32($this->name) % 6,
+            'initials' => Avatar::initials($this->name),
+            'hue' => Avatar::hue($this->name),
+            'image' => $this->image,
             'href' => $this->href,
         ];
     }

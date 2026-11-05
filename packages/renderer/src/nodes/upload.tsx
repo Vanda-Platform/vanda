@@ -3,11 +3,13 @@ import { getPath } from '../expr';
 import { lang, t } from '../i18n';
 import { useStore } from '../store';
 import { upload, type UploadResult } from '../transport';
-import { buttonClass, cx, Icon } from '../ui';
+import { Avatar, buttonClass, cx, Icon } from '../ui';
 import type { FieldNode } from '../types';
 import { FieldFrame, useField } from './fields';
 
 type UploadNode = FieldNode & {
+  /** Upload::avatar(): a round photo with buttons instead of a drop zone. */
+  avatar?: { initials: string; hue: number };
   multiple?: boolean;
   accept?: string;
   maxSize: number;
@@ -115,7 +117,9 @@ export function UploadField({ node }: { node: UploadNode }) {
 
   const start = (files: FileList | null) => {
     if (!files) return;
-    const chosen = [...files].slice(0, Math.max(0, room));
+    // Read the room from the store: a replaced avatar was removed a moment ago, in the same event.
+    const free = node.multiple ? (node.maxFiles ?? Infinity) - currentIds().length - pending.filter((item) => !item.error).length : currentIds().length === 0 ? 1 : 0;
+    const chosen = [...files].slice(0, Math.max(0, free));
     const items = chosen.map<Pending>((file) => ({
       key: ++counter.current,
       file,
@@ -140,6 +144,45 @@ export function UploadField({ node }: { node: UploadNode }) {
   };
 
   const hint = [node.accept?.split(',').map(typeLabel).join(', '), t('upTo', { size: formatSize(node.maxSize) })].filter(Boolean).join(' · ');
+
+  if (node.avatar) {
+    const file = ids[0] !== undefined ? known[ids[0]] : undefined;
+    const item = pending[0];
+    return (
+      <FieldFrame node={node} inputId={id} required={field.required} error={field.error}>
+        <div className="flex flex-wrap items-center gap-4">
+          <Avatar initials={node.avatar.initials} hue={node.avatar.hue} image={file?.url} size="lg" />
+          <div className="flex flex-col gap-1.5">
+            {!field.disabled && (
+              <div className="flex gap-2">
+                <label htmlFor={id} className={cx(buttonClass('secondary', 'sm'), item && !item.error && 'pointer-events-none opacity-50')}>
+                  {item && !item.error ? `${Math.round(item.progress * 100)}%` : t('uploadPhoto')}
+                </label>
+                {ids.length > 0 && (
+                  <button type="button" className={buttonClass('ghost', 'sm')} onClick={() => remove(ids[0]!)}>
+                    {t('remove')}
+                  </button>
+                )}
+              </div>
+            )}
+            {item?.error && <span className="text-[12.5px] text-danger-fg">{item.error}</span>}
+          </div>
+          <input
+            ref={input}
+            id={id}
+            type="file"
+            className="sr-only"
+            accept={node.accept}
+            onChange={(event) => {
+              setPending([]);
+              if (ids[0] !== undefined) remove(ids[0]);
+              start(event.target.files);
+            }}
+          />
+        </div>
+      </FieldFrame>
+    );
+  }
 
   return (
     <FieldFrame node={node} inputId={id} required={field.required} error={field.error}>

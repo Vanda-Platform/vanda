@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Vanda\Screen;
 
+use Vanda\Layouts\Avatar;
+use Vanda\Layouts\Badge;
 use Vanda\Navigation\Crumb;
 use Vanda\Schema\Node;
 
@@ -34,6 +36,24 @@ abstract class Screen
     }
 
     public function description(): ?string
+    {
+        return null;
+    }
+
+    /**
+     * Picture before the title of a record's screen:
+     *
+     *     public function avatar(): ?Avatar { return Avatar::make($this->user->name); }
+     */
+    public function avatar(): ?Avatar
+    {
+        return null;
+    }
+
+    /**
+     * Status next to the title: `Badge::make('Active', Tone::Success)->dot()`.
+     */
+    public function badge(): ?Badge
     {
         return null;
     }

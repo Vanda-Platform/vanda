@@ -48,6 +48,16 @@ final class Layout
     }
 
     /**
+     * Rows "what it does — button", separated by rules (a user's danger zone).
+     *
+     * @param list<ActionRow> $rows
+     */
+    public static function actions(array $rows): ActionList
+    {
+        return ActionList::make($rows);
+    }
+
+    /**
      * @param array<string, list<Node>> $tabs title => nodes
      */
     public static function tabs(array $tabs): Tabs

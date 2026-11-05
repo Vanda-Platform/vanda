@@ -10,8 +10,9 @@ use Illuminate\Contracts\Support\Arrayable;
 use Vanda\Schema\Get;
 
 /**
- * Options as [value => label], a list of ['value' => …, 'label' => …], a BackedEnum
+ * Options as [value => label], a list of ['value' => …, 'label' => …, 'hint' => …], a BackedEnum
  * class (labels from its label() method) or a closure receiving the state.
+ * A hint is shown muted after the label: "Europe/Berlin  UTC+01:00".
  */
 trait HasOptions
 {
@@ -29,7 +30,7 @@ trait HasOptions
     }
 
     /**
-     * @return list<array{value: int|string, label: string}>
+     * @return list<array{value: int|string, label: string, hint?: string}>
      */
     public function resolveOptions(Get $get): array
     {
@@ -52,7 +53,7 @@ trait HasOptions
         $resolved = [];
         foreach ($options as $value => $label) {
             $resolved[] = is_array($label) && array_key_exists('value', $label)
-                ? ['value' => $label['value'], 'label' => (string) ($label['label'] ?? $label['value'])]
+                ? array_filter(['value' => $label['value'], 'label' => (string) ($label['label'] ?? $label['value']), 'hint' => isset($label['hint']) ? (string) $label['hint'] : null], static fn ($item) => $item !== null)
                 : ['value' => $value, 'label' => (string) $label];
         }
 

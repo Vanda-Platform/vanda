@@ -3,10 +3,10 @@
 A screen-centric admin framework for Laravel — Orchid rethought for 2026:
 PHP-only screens, instant reactivity, and an API designed to be read and written by AI agents.
 
-> Status: phase 2. Sign-in, roles and permissions, Inertia navigation, tabs, modals, tables with
-> search / filters / saved views / row menus / CSV export, trees with drag-and-drop, `Select::tree()`,
-> uploads into Orchid's `attachments` table, rich text / Markdown / code editors, charts and the ⌘K
-> palette work end to end. Next: notifications, impersonation, maps, MCP. See `vanda-analysis.md`.
+> Status: phase 3. Everything from phase 2 (tables with filters and views, trees, `Select::tree()`,
+> uploads, editors, charts, ⌘K) plus record headers with avatar and status, an "unsaved changes" bar,
+> signing in as another user, the notification bell, empty states and action rows. Next: maps,
+> real-time updates, MCP for agents. See `vanda-analysis.md`.
 
 ## Try it
 
@@ -80,6 +80,9 @@ Route::vanda('admin', function () {
 
 // Permissions become Gate abilities; #[Can('platform.users')] guards a screen or an action
 Vanda::permissions(fn () => [PermissionGroup::make('Access')->add('platform.users', 'Users')]);
+
+// The bell: Laravel database notifications in Orchid's DashboardMessage shape
+$admin->notify(PanelMessage::make('Import finished')->message('18 products added')->tone(Tone::Success));
 
 // Records for the ⌘K palette
 Vanda::search(fn (string $q) => User::where('name', 'like', "%{$q}%")->limit(5)->get()

@@ -171,3 +171,44 @@
 .vanda-prose strong, .vanda-prose b { font-weight: 600; }
 .vanda-prose .ProseMirror-selectednode { outline: 2px solid var(--v-accent); }
 .vanda-prose:focus { outline: none; }
+
+/* Native checkboxes in tables, drawn like .o-check of the design. */
+.vanda-check {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid var(--v-line-strong);
+  border-radius: 4.5px;
+  background: var(--v-surface);
+  box-shadow: var(--v-shadow-sm);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.vanda-check::after {
+  content: "";
+  width: 8px;
+  height: 4.5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: translate(0, -1px) rotate(-45deg);
+  opacity: 0;
+}
+.vanda-check:checked {
+  background: var(--v-accent);
+  border-color: var(--v-accent);
+}
+.vanda-check:checked::after { opacity: 1; }
+.vanda-check:indeterminate {
+  background: var(--v-accent);
+  border-color: var(--v-accent);
+}
+.vanda-check:indeterminate::after {
+  width: 8px;
+  height: 0;
+  border-left: 0;
+  transform: none;
+  opacity: 1;
+}

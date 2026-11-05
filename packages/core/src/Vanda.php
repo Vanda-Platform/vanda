@@ -57,6 +57,18 @@ final class Vanda
     }
 
     /**
+     * Photo of the signed-in user in the sidebar; without it the initials are shown:
+     *
+     *     Vanda::userAvatar(fn (User $user) => $user->attachments('avatar')->first()?->url());
+     *
+     * @param Closure(mixed $user): ?string $resolver
+     */
+    public static function userAvatar(Closure $resolver): void
+    {
+        app(Shell::class)->userAvatar($resolver);
+    }
+
+    /**
      * Where to go after signing in: config('vanda.home'), else the first menu item.
      */
     public static function home(): string

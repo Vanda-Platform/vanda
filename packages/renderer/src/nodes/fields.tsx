@@ -223,7 +223,10 @@ export function SelectField({ node }: { node: FieldNode & { options?: Option[]; 
           <ListBoxItem id={option.id} textValue={option.label} className={optionClass}>
             {({ isSelected }) => (
               <>
-                <span className="truncate">{option.label}</span>
+                <span className="truncate">
+                  {option.label}
+                  {option.hint && <span className="ml-2 text-fg-3">{option.hint}</span>}
+                </span>
                 {isSelected && <Icon name="check" />}
               </>
             )}
@@ -277,7 +280,14 @@ export function SelectField({ node }: { node: FieldNode & { options?: Option[]; 
         placeholder={node.placeholder ?? t('choose')}
       >
         <AriaButton className={trigger}>
-          <SelectValue className="truncate data-[placeholder]:text-fg-3" />
+          {current ? (
+            <span className="truncate">
+              {current.label}
+              {current.hint && <span className="ml-2 text-fg-3">{current.hint}</span>}
+            </span>
+          ) : (
+            <SelectValue className="truncate data-[placeholder]:text-fg-3" />
+          )}
           <span className="flex items-center gap-2 text-fg-3">
             {field.pending && <Spinner className="size-3" />}
             <Icon name="chevron-down" />

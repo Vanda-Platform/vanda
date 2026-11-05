@@ -145,13 +145,15 @@ export const controlClass = cx(
 
 const TONES = ['#12805C', '#2563EB', '#BE185D', '#C2410C', '#0F766E', '#7C3AED'];
 
-/** Initials avatar; the hue comes from the server so it is stable per person. */
-export function Avatar({ initials, hue = 0, size = 'md' }: { initials: string; hue?: number; size?: 'sm' | 'md' }) {
+/** Initials avatar (or a photo); the hue comes from the server so it is stable per person. */
+export function Avatar({ initials, hue = 0, size = 'md', image }: { initials: string; hue?: number; size?: 'sm' | 'md' | 'lg'; image?: string | null }) {
   const color = TONES[hue % TONES.length];
+  const box = size === 'sm' ? 'size-6 text-[10.5px]' : size === 'lg' ? 'size-12 text-[17px]' : 'size-8 text-[12px]';
+  if (image) return <img src={image} alt="" className={cx('shrink-0 rounded-full object-cover', box)} />;
   return (
     <span
       aria-hidden="true"
-      className={cx('grid shrink-0 place-items-center rounded-full font-semibold', size === 'sm' ? 'size-6 text-[10.5px]' : 'size-8 text-[12px]')}
+      className={cx('grid shrink-0 place-items-center rounded-full font-semibold', box)}
       style={{ background: `color-mix(in oklch, ${color} 14%, var(--v-surface))`, color: `color-mix(in oklch, ${color} 72%, var(--v-fg))` }}
     >
       {initials}

@@ -50,6 +50,7 @@ abstract class TestCase extends Orchestra
 
         (require __DIR__.'/../database/migrations/2026_11_05_000001_create_vanda_access_tables.php')->up();
         (require __DIR__.'/../database/migrations/2026_11_06_000001_create_vanda_attachment_tables.php')->up();
+        (require __DIR__.'/../database/migrations/2026_11_07_000001_create_vanda_notifications_table.php')->up();
     }
 
     protected function defineRoutes($router): void
@@ -61,6 +62,7 @@ abstract class TestCase extends Orchestra
             Route::screen('showcase', ShowcaseScreen::class)->name('showcase');
             Route::screen('table', Fixtures\TableScreen::class)->name('table');
             Route::screen('upload', Fixtures\UploadScreen::class)->name('upload');
+            Route::screen('profile/{user}', Fixtures\ProfileScreen::class)->name('profile');
         });
 
         Route::vanda('panel', function (): void {

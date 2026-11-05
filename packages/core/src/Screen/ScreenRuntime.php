@@ -177,6 +177,8 @@ final class ScreenRuntime
             'chrome' => $this->screen->chrome()->value,
             'title' => $this->screen->title(),
             'description' => $this->screen->description(),
+            'avatar' => $this->screen->avatar()?->toArray(),
+            'badge' => $this->screen->badge()?->id('header.badge')->toSchema($context),
             'breadcrumbs' => array_values(array_map(
                 static fn (Crumb $crumb) => $crumb->toArray(),
                 iterator_to_array($this->screen->breadcrumbs(), false),

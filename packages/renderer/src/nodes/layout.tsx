@@ -194,7 +194,7 @@ export function AlertView({ node }: { node: UiNode & { text: string; title?: str
   );
 }
 
-export function PersonaView({ node }: { node: UiNode & { name: string; subtitle?: string; initials: string; hue?: number; href?: string } }) {
+export function PersonaView({ node }: { node: UiNode & { name: string; subtitle?: string; initials: string; hue?: number; image?: string; href?: string } }) {
   const name = node.href ? (
     <a href={node.href} className="font-medium text-fg underline-offset-4 hover:underline">
       {node.name}
@@ -205,7 +205,7 @@ export function PersonaView({ node }: { node: UiNode & { name: string; subtitle?
 
   return (
     <div className="flex min-w-0 items-center gap-3" {...nodeAttributes(node)}>
-      <Avatar initials={node.initials} hue={node.hue} />
+      <Avatar initials={node.initials} hue={node.hue} image={node.image} />
       <div className="flex min-w-0 flex-col leading-tight">
         {name}
         {node.subtitle && <span className="truncate text-[13px] text-fg-3">{node.subtitle}</span>}
@@ -283,6 +283,49 @@ export function MetricsView({ node }: { node: UiNode & { items?: MetricItem[] } 
           {metric.hint && <span className="text-[12.5px] text-fg-3">{metric.hint}</span>}
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Nothing here yet: an icon, a sentence and a way to start. */
+export function EmptyStateView({ node }: { node: UiNode & { title: string; description?: string; icon?: string } }) {
+  return (
+    <div className="flex flex-col items-center gap-2.5 rounded-xl bg-surface-2 px-4 py-7 text-center" {...nodeAttributes(node)}>
+      <span aria-hidden="true" className="grid size-11 place-items-center rounded-xl border border-line bg-surface text-fg-3">
+        <Icon name={node.icon ?? 'file'} className="size-5" />
+      </span>
+      <h3 className="text-[15px] font-semibold">{node.title}</h3>
+      {node.description && <p className="max-w-[280px] text-[13.5px] text-fg-2">{node.description}</p>}
+      {(node.children ?? []).length > 0 && (
+        <div className="mt-1 flex flex-wrap justify-center gap-2">
+          {(node.children ?? []).map((child) => (
+            <NodeView key={child.id} node={child} compact />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Layout::actions(): rows edge to edge in a section card, separated by rules. */
+export function ActionListView({ node }: { node: UiNode }) {
+  return (
+    <div className="-m-6 flex flex-col divide-y divide-line" {...nodeAttributes(node)}>
+      <NodeList nodes={node.children ?? []} />
+    </div>
+  );
+}
+
+export function ActionRowView({ node }: { node: UiNode & { title: string; description?: string } }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-[18px]" {...nodeAttributes(node)}>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="font-medium">{node.title}</span>
+        {node.description && <span className="text-[12.5px] text-fg-3">{node.description}</span>}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <NodeList nodes={node.children ?? []} />
+      </div>
     </div>
   );
 }

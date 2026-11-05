@@ -1,11 +1,13 @@
 import { Link, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { Inspector } from './Inspector';
+import { NotificationsBell } from './Notifications';
 import { openPalette, Palette } from './Palette';
-import { NodeList } from './nodes/NodeView';
-import { t } from './i18n';
-import { useSnapshot, useStore } from './store';
-import { cx, formatHotkey, Icon, Kbd } from './ui';
+import type { ButtonNode } from './nodes/actions';
+import { NodeList, NodeView } from './nodes/NodeView';
+import { t, tn } from './i18n';
+import { dirtyCount, useSnapshot, useStore } from './store';
+import { Avatar, buttonClass, cx, formatHotkey, Icon, Kbd } from './ui';
 import type { ActionRef, Crumb, MenuItem, Page, UiNode } from './types';
 
 export function App() {
@@ -13,6 +15,23 @@ export function App() {
   const store = useStore();
 
   useEffect(() => store.showFlash(), [store]);
+
+  // Leaving a form with unsaved changes asks first: links, the palette, the browser's back and close.
+  useEffect(() => {
+    const off = router.on('before', (event) => {
+      const visit = event.detail.visit;
+      if (visit.method !== 'get' || new URL(String(visit.url), window.location.href).pathname === window.location.pathname) return;
+      if (dirtyCount(store.get()) > 0 && !window.confirm(t('leaveUnsaved'))) event.preventDefault();
+    });
+    const onUnload = (event: BeforeUnloadEvent) => {
+      if (dirtyCount(store.get()) > 0) event.preventDefault();
+    };
+    window.addEventListener('beforeunload', onUnload);
+    return () => {
+      off();
+      window.removeEventListener('beforeunload', onUnload);
+    };
+  }, [store]);
   useEffect(() => {
     document.title = page.title ? `${page.title} — ${page.app.name}` : page.app.name;
   }, [page.title, page.app.name]);
@@ -33,14 +52,31 @@ export function App() {
     <div className="flex min-h-screen flex-wrap items-stretch bg-bg" style={brand}>
       <Sidebar />
       <main className="m-2 flex min-w-0 flex-[999_1_560px] flex-col rounded-[14px] border border-line bg-surface shadow-sm">
-        <header className="flex items-center gap-4 border-b border-line px-8 py-3">
+        {page.app.user?.impersonator && (
+          <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-t-[13px] border-b border-line bg-warning-soft px-8 py-2 text-[13.5px] text-warning-fg">
+            <Icon name="eye" />
+            <span>{t('impersonating', { name: page.app.user.name })}</span>
+            <button type="button" onClick={() => router.post(page.app.user!.impersonator!.stop)} className="font-medium underline underline-offset-3 hover:no-underline">
+              {t('stopImpersonating', { name: page.app.user.impersonator.name })}
+            </button>
+          </div>
+        )}
+        <header className="flex min-h-[61px] items-center justify-between gap-4 border-b border-line py-3 pr-5 pl-8">
           <Breadcrumbs crumbs={crumbsFor(page)} />
+          <NotificationsBell />
         </header>
 
-        <section className="flex flex-wrap items-end justify-between gap-4 px-8 pt-7 pb-5">
-          <div className="flex min-w-0 flex-col gap-1">
-            {page.title && <h1 className="text-[24px] leading-8 font-semibold tracking-[-0.015em]">{page.title}</h1>}
-            {page.description && <p className="text-fg-2">{page.description}</p>}
+        {/* A record's screen (with an avatar) gets the design's centred header with a rule under it. */}
+        <section className={cx('flex flex-wrap justify-between gap-4 px-8', page.avatar ? 'items-center gap-5 border-b border-line py-7' : 'items-end pt-7 pb-5')}>
+          <div className="flex min-w-0 items-center gap-4">
+            {page.avatar && <Avatar initials={page.avatar.initials} hue={page.avatar.hue} image={page.avatar.image} size="lg" />}
+            <div className="flex min-w-0 flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-2.5">
+                {page.title && <h1 className="text-[24px] leading-8 font-semibold tracking-[-0.015em]">{page.title}</h1>}
+                {page.badge && <NodeView node={page.badge} />}
+              </div>
+              {page.description && <p className="text-fg-2">{page.description}</p>}
+            </div>
           </div>
           {page.commandBar.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -49,9 +85,10 @@ export function App() {
           )}
         </section>
 
-        <div className="flex flex-col gap-4 px-8 pb-10">
+        <div className={cx('flex flex-col gap-4 px-8 pb-10', page.avatar && 'pt-8')}>
           <NodeList nodes={page.layout} />
         </div>
+        <UnsavedBar />
       </main>
       <Toasts />
       <Palette />
@@ -189,9 +226,7 @@ function Sidebar() {
         <ThemeSwitch />
         {app.user && (
           <div className="flex items-center gap-2.5 px-2 py-2">
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent-soft text-[12px] font-semibold text-accent-fg">
-              {app.user.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
-            </span>
+            <Avatar initials={app.user.avatar.initials} hue={app.user.avatar.hue} image={app.user.avatar.image} />
             <span className="flex min-w-0 flex-grow flex-col">
               <span className="truncate text-[13.5px] font-medium">{app.user.name}</span>
               <span className="truncate text-[12.5px] text-fg-3">{app.user.email}</span>
@@ -287,6 +322,36 @@ function Toasts() {
           </button>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** "Unsaved changes · 3 fields · Discard · Save" at the bottom of a form, as in the design. */
+function UnsavedBar() {
+  const store = useStore();
+  const count = useSnapshot(dirtyCount);
+  const running = useSnapshot((s) => s.running !== null);
+  const save = useSnapshot((s) => s.page.commandBar.find((node): node is ButtonNode => node.type === 'button' && node.variant === 'primary' && Boolean(node.action)));
+
+  if (!save?.action || count === 0) return null;
+
+  return (
+    <div role="status" className="sticky bottom-4 z-20 mx-4 mt-2 mb-6 flex items-center gap-3 self-center rounded-xl border border-line bg-surface py-2 pr-2 pl-4 shadow-pop">
+      <span aria-hidden="true" className="size-2 rounded-full bg-warning" />
+      <span className="text-[14px] font-medium">{t('unsaved')}</span>
+      <span className="text-[13.5px] text-fg-3">{tn('changedFields', count)}</span>
+      <button
+        type="button"
+        className={buttonClass('ghost', 'sm')}
+        disabled={running}
+        onClick={() => router.visit(window.location.href, { preserveScroll: true, replace: true })}
+      >
+        {t('discard')}
+      </button>
+      <button type="button" className={buttonClass('primary', 'sm')} disabled={running} onClick={() => void store.runAction(save.id, save.action!)}>
+        {save.label}
+        {save.hotkey && <Kbd inverted>{formatHotkey(save.hotkey)}</Kbd>}
+      </button>
     </div>
   );
 }

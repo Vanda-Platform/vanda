@@ -26,7 +26,10 @@ use Vanda\Fields\Select;
 use Vanda\Fields\Switcher;
 use Vanda\Fields\TextArea;
 use Vanda\Fields\Upload;
+use Vanda\Actions\Link;
+use Vanda\Layouts\ActionRow;
 use Vanda\Layouts\Alert;
+use Vanda\Layouts\EmptyState;
 use Vanda\Layouts\Layout;
 use Vanda\Layouts\Sight;
 use Vanda\Schema\Expr;
@@ -142,6 +145,19 @@ final class ShowcaseScreen extends Screen
                                 Sight::make('created', 'Создан'),
                             ],
                         ),
+                    ]),
+                    Layout::section('Пустое состояние', 'EmptyState — когда данных ещё нет. Таблица принимает его через ->empty().')->schema([
+                        EmptyState::make('Заказов пока нет')->icon('file')
+                            ->description('Здесь появятся заказы из магазина. Можно создать первый вручную.')
+                            ->actions([Link::make('Создать заказ')->icon('plus')->primary()->href('#')]),
+                    ]),
+                    Layout::section('Строки действий', 'Layout::actions() — «что делает» слева, кнопка справа.')->schema([
+                        Layout::actions([
+                            ActionRow::make('Очистить кеш')->description('Страницы соберутся заново при следующем открытии.')
+                                ->buttons([Button::make('Очистить')->action($this->save(...))]),
+                            ActionRow::make('Сбросить демо-данные')->description('Вернёт песочницу к исходному состоянию.')
+                                ->buttons([Button::make('Сбросить')->danger()->confirm('Все изменения в песочнице пропадут.', 'Сбросить данные?', 'Сбросить')->action($this->save(...))]),
+                        ]),
                     ]),
                 ],
             ]),

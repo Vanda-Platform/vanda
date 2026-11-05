@@ -1,10 +1,10 @@
 import { router } from '@inertiajs/react';
 import { createContext, useContext, useSyncExternalStore } from 'react';
-import { evaluate } from './expr';
+import { evaluate, getPath } from './expr';
 import { t } from './i18n';
 import { applyPatches, setPath, walk } from './patch';
 import { act, react } from './transport';
-import type { ActionRef, FieldNode, Page, UiNode } from './types';
+import type { ActionRef, FieldNode, Page, State, UiNode } from './types';
 
 export interface Toast {
   id: number;
@@ -22,6 +22,8 @@ export interface Snapshot {
   /** Id of the open Layout::modal(). */
   modal: string | null;
   toasts: Toast[];
+  /** State as last loaded or saved; fields that differ from it are unsaved changes. */
+  baseline: State;
 }
 
 const FLASH_KEY = 'vanda:toast';
@@ -33,7 +35,7 @@ const DISCRETE = new Set(['select', 'switch', 'checkbox', 'radio', 'segmented', 
  * changed path, the field is live, or a button is pressed.
  */
 export function createStore(initial: Page) {
-  let snapshot: Snapshot = { page: initial, errors: {}, pending: new Set(), running: null, modal: null, toasts: [] };
+  let snapshot: Snapshot = { page: initial, errors: {}, pending: new Set(), running: null, modal: null, toasts: [], baseline: initial.state };
   const listeners = new Set<() => void>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let inflight: AbortController | undefined;
@@ -60,6 +62,7 @@ export function createStore(initial: Page) {
   });
 
   snapshot = { ...snapshot, page: withComputed(initial) };
+  snapshot = { ...snapshot, baseline: snapshot.page.state };
 
   const pushToast = (message: string, tone = 'success') => {
     const id = ++toastId;
@@ -111,7 +114,8 @@ export function createStore(initial: Page) {
       synced = page;
       clearTimeout(timer);
       inflight?.abort();
-      set({ page: withComputed(page), errors: {}, pending: new Set(), running: null, modal: null });
+      const next = withComputed(page);
+      set({ page: next, errors: {}, pending: new Set(), running: null, modal: null, baseline: next.state });
     },
 
     setValue(path: string, value: unknown) {
@@ -156,9 +160,12 @@ export function createStore(initial: Page) {
           return false;
         }
 
+        // A saved form is clean; an action inside a modal leaves the page's own changes alone.
+        const fromModal = snapshot.modal !== null && insideModal(id, snapshot.modal);
+
         if (data.redirect) {
           if (data.toast) sessionStorage.setItem(FLASH_KEY, JSON.stringify(data.toast));
-          set({ running: null });
+          set({ running: null, baseline: snapshot.page.state });
           router.visit(data.redirect);
           return true;
         }
@@ -170,9 +177,10 @@ export function createStore(initial: Page) {
         if (data.page) {
           synced = data.page;
           router.replaceProp('page', data.page);
-          set({ running: null, errors: {}, page: withComputed(data.page), modal });
+          const next = withComputed(data.page);
+          set({ running: null, errors: {}, page: next, modal, baseline: fromModal ? snapshot.baseline : next.state });
         } else {
-          set({ running: null, errors: {}, modal, page: { ...snapshot.page, snapshot: data.snapshot ?? snapshot.page.snapshot } });
+          set({ running: null, errors: {}, modal, page: { ...snapshot.page, snapshot: data.snapshot ?? snapshot.page.snapshot }, baseline: fromModal ? snapshot.baseline : snapshot.page.state });
         }
 
         return true;
@@ -200,6 +208,26 @@ export function createStore(initial: Page) {
 }
 
 export type Store = ReturnType<typeof createStore>;
+
+const blank = (value: unknown) => (value === undefined || value === null || value === '' ? null : value);
+
+/**
+ * How many editable fields of the page (outside modals) differ from the last loaded or saved state.
+ * A number, so components can subscribe to it without re-rendering on every keystroke.
+ */
+export function dirtyCount(snapshot: Snapshot): number {
+  const fields: FieldNode[] = [];
+  const visit = (nodes: UiNode[]) => {
+    for (const node of nodes) {
+      if (node.type === 'modal') continue;
+      if (typeof node.path === 'string' && !node.disabled && !node.readonly && node.computed === undefined) fields.push(node as FieldNode);
+      visit(node.children ?? []);
+    }
+  };
+  visit(snapshot.page.layout);
+
+  return fields.filter((field) => JSON.stringify(blank(getPath(snapshot.page.state, field.path))) !== JSON.stringify(blank(getPath(snapshot.baseline, field.path)))).length;
+}
 
 export const StoreContext = createContext<Store | null>(null);
 

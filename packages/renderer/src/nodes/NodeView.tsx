@@ -16,7 +16,7 @@ import {
   SwitchField,
   TextAreaField,
 } from './fields';
-import { AlertView, BadgeView, GridView, LegendView, MetricsView, ModalView, PersonaView, SectionView, TabsView, TextView } from './layout';
+import { ActionListView, ActionRowView, AlertView, BadgeView, EmptyStateView, GridView, LegendView, MetricsView, ModalView, PersonaView, SectionView, TabsView, TextView } from './layout';
 import { KeyValueField, PermissionsField, RepeaterField } from './structured';
 import { TableView } from './table';
 import { UploadField } from './upload';
@@ -49,6 +49,9 @@ const REGISTRY: Record<string, NodeComponent> = {
   metrics: MetricsView,
   chart: chunk(charts, 'ChartView'),
   alert: AlertView,
+  empty: EmptyStateView,
+  actionlist: ActionListView,
+  actionrow: ActionRowView,
   persona: PersonaView,
   text: TextView,
   badge: BadgeView,

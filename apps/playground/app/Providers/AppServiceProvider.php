@@ -11,8 +11,11 @@ use App\Vanda\Screens\RoleListScreen;
 use App\Vanda\Screens\ShowcaseScreen;
 use App\Vanda\Screens\UserEditScreen;
 use App\Vanda\Screens\UserListScreen;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
+use Vanda\Access\Impersonation;
 use Vanda\Access\PermissionGroup;
 use Vanda\Navigation\MenuItem;
 use Vanda\Navigation\SearchResult;
@@ -38,16 +41,27 @@ class AppServiceProvider extends ServiceProvider
         Vanda::permissions(fn () => [
             PermissionGroup::make('Доступ')
                 ->add('platform.users', 'Пользователи')
-                ->add('platform.roles', 'Роли'),
+                ->add('platform.roles', 'Роли')
+                ->add('platform.impersonate', 'Вход под пользователем'),
             PermissionGroup::make('Сайт')
                 ->add('platform.pages', 'Страницы'),
         ]);
 
+        // Signing in as someone else from the user card is not their own visit.
+        Event::listen(Login::class, function (Login $event): void {
+            if ($event->user instanceof User && ! Impersonation::isActive()) {
+                $event->user->forceFill(['last_login_at' => now()])->saveQuietly();
+            }
+        });
+
+        // The photo from the user card next to the name in the sidebar.
+        Vanda::userAvatar(fn (User $user) => $user->avatarUrl());
+
         // ⌘K finds people and pages; results that lead to screens the user may not open are hidden.
-        Vanda::search(fn (string $query) => User::query()
+        Vanda::search(fn (string $query) => User::query()->with('attachments')
             ->where(fn ($where) => $where->where('name', 'like', "%{$query}%")->orWhere('email', 'like', "%{$query}%"))
             ->limit(5)->get()
-            ->map(fn (User $user) => SearchResult::make($user->name)->subtitle($user->email)->avatar($user->name)->group('Пользователи')
+            ->map(fn (User $user) => SearchResult::make($user->name)->subtitle($user->email)->avatar($user->name, $user->avatarUrl())->group('Пользователи')
                 ->to(UserEditScreen::class, ['user' => $user])));
 
         Vanda::search(fn (string $query) => Page::query()->where('title', 'like', "%{$query}%")->limit(5)->get()

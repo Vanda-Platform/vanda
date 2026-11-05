@@ -17,6 +17,7 @@ interface Entry {
   icon?: string;
   initials?: string;
   hue?: number;
+  image?: string;
   hotkey?: string;
   href?: string;
   run?: () => void;
@@ -29,6 +30,7 @@ interface Record {
   icon?: string;
   initials?: string;
   hue?: number;
+  image?: string;
   group?: string;
 }
 
@@ -187,7 +189,7 @@ export function Palette() {
                     className={cx('flex h-11 cursor-pointer items-center gap-3 rounded-lg px-3 text-[14px] text-fg-2', index === active && 'bg-surface-2 text-fg')}
                   >
                     {entry.initials ? (
-                      <Avatar initials={entry.initials} hue={entry.hue} size="sm" />
+                      <Avatar initials={entry.initials} hue={entry.hue} image={entry.image} size="sm" />
                     ) : (
                       <span className="grid size-6 place-items-center text-fg-3">
                         <Icon name={entry.icon ?? (entry.run ? 'chevron-right' : 'file')} />

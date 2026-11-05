@@ -45,6 +45,23 @@ const messages = {
     to: 'to',
     hasErrors: 'Has errors',
     actions: 'Actions',
+    unsaved: 'Unsaved changes',
+    uploadPhoto: 'Upload photo',
+    notifications: 'Notifications',
+    notificationsUnread: 'Notifications, {count} unread',
+    readAll: 'Mark all read',
+    all: 'All',
+    unreadTab: 'Unread',
+    unreadOne: 'Unread',
+    noNotifications: 'No notifications',
+    impersonating: 'You are signed in as {name}.',
+    stopImpersonating: 'Back to {name}',
+    discard: 'Discard',
+    leaveUnsaved: 'You have unsaved changes. Leave the page anyway?',
+    changedFields_one: '{count} field',
+    changedFields_few: '{count} fields',
+    changedFields_many: '{count} fields',
+    changedFields_other: '{count} fields',
     ofTotal: 'of {total}',
     filter: 'Filter',
     apply: 'Apply',
@@ -152,6 +169,23 @@ const messages = {
     to: 'до',
     hasErrors: 'Есть ошибки',
     actions: 'Действия',
+    unsaved: 'Несохранённые изменения',
+    uploadPhoto: 'Загрузить фото',
+    notifications: 'Уведомления',
+    notificationsUnread: 'Уведомления, непрочитанных: {count}',
+    readAll: 'Прочитать все',
+    all: 'Все',
+    unreadTab: 'Непрочитанные',
+    unreadOne: 'Не прочитано',
+    noNotifications: 'Уведомлений нет',
+    impersonating: 'Вы вошли как {name}.',
+    stopImpersonating: 'Вернуться к своей учётной записи ({name})',
+    discard: 'Отменить',
+    leaveUnsaved: 'Есть несохранённые изменения. Всё равно уйти со страницы?',
+    changedFields_one: '{count} поле',
+    changedFields_few: '{count} поля',
+    changedFields_many: '{count} полей',
+    changedFields_other: '{count} поля',
     ofTotal: 'из {total}',
     filter: 'Фильтр',
     apply: 'Применить',
@@ -223,4 +257,11 @@ export function lang(): 'ru' | 'en' {
 
 export function t(key: Key, params: Record<string, string | number> = {}): string {
   return Object.entries(params).reduce<string>((text, [name, value]) => text.replace(`{${name}}`, String(value)), messages[lang()][key]);
+}
+
+/** Plural form by count: tn('changedFields', 3) → "3 поля". Keys end in _one, _few, _many, _other. */
+export function tn(key: 'changedFields', count: number): string {
+  const rule = new Intl.PluralRules(lang() === 'ru' ? 'ru-RU' : 'en-US').select(count);
+  const form = rule === 'one' || rule === 'few' || rule === 'many' ? rule : 'other';
+  return t(`${key}_${form}`, { count });
 }

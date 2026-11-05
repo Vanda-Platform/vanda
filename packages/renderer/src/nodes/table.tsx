@@ -65,6 +65,7 @@ type TableNode = UiNode & {
   views?: View[];
   bulk?: ButtonNode[];
   export?: string;
+  empty?: UiNode;
 };
 
 /** Visit the same screen with changed query parameters, keeping scroll and local state. */
@@ -311,8 +312,11 @@ export function TableView({ node }: { node: TableNode }) {
                     type="checkbox"
                     aria-label={t('selectAll')}
                     checked={allChecked}
+                    ref={(input) => {
+                      if (input) input.indeterminate = selected.length > 0 && !allChecked;
+                    }}
                     onChange={() => setSelected(allChecked ? [] : rows.map((row) => row.key))}
-                    className="size-4 accent-(--v-accent)"
+                    className="vanda-check"
                   />
                 </th>
               )}
@@ -330,9 +334,9 @@ export function TableView({ node }: { node: TableNode }) {
                     )}
                   >
                     {column.sortable ? (
-                      <button type="button" onClick={() => sortBy(column.name)} className={cx('inline-flex items-center gap-1 hover:text-fg', direction && 'text-fg')}>
+                      <button type="button" onClick={() => sortBy(column.name)} className={cx('group/sort inline-flex items-center gap-1 hover:text-fg', direction && 'text-fg')}>
                         {column.label}
-                        <Icon name={direction === 'asc' ? 'arrow-up' : direction === 'desc' ? 'arrow-down' : 'sort'} className={cx('size-3.5', !direction && 'opacity-40')} />
+                        <Icon name={direction === 'asc' ? 'arrow-up' : direction === 'desc' ? 'arrow-down' : 'sort'} className={cx('size-3.5', !direction && 'opacity-0 group-hover/sort:opacity-50 group-focus-visible/sort:opacity-50')} />
                       </button>
                     ) : (
                       column.label
@@ -364,7 +368,7 @@ export function TableView({ node }: { node: TableNode }) {
                 >
                   {bulk.length > 0 && (
                     <td className={cx(cellClass, 'pl-5')}>
-                      <input type="checkbox" aria-label={t('selectRow')} checked={isSelected} onChange={() => toggle(row.key)} className="size-4 accent-(--v-accent)" />
+                      <input type="checkbox" aria-label={t('selectRow')} checked={isSelected} onChange={() => toggle(row.key)} className="vanda-check" />
                     </td>
                   )}
                   {visible.map((column, index) => {
@@ -395,7 +399,14 @@ export function TableView({ node }: { node: TableNode }) {
         </table>
       </div>
 
-      {rows.length === 0 && <p className="border-t border-line px-8 py-12 text-center text-fg-3">{node.emptyText ?? t('empty')}</p>}
+      {rows.length === 0 &&
+        (node.empty ? (
+          <div className="border-t border-line px-(--v-gutter) py-6">
+            <NodeView node={node.empty} />
+          </div>
+        ) : (
+          <p className="border-t border-line px-8 py-12 text-center text-fg-3">{node.emptyText ?? t('empty')}</p>
+        ))}
 
       {pagination && (pagination.lastPage > 1 || pagination.options) && pagination.total > 0 && <PaginationBar pagination={pagination} />}
     </div>

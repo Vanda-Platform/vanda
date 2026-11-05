@@ -35,6 +35,8 @@ export interface FieldNode extends BaseNode {
 export interface Option {
   value: string | number;
   label: string;
+  /** Muted text after the label, e.g. "UTC+01:00". */
+  hint?: string;
 }
 
 export interface ActionRef {
@@ -69,6 +71,8 @@ export interface Page {
   chrome?: 'panel' | 'card';
   title: string | null;
   description: string | null;
+  avatar?: { name: string; initials: string; hue: number; image?: string } | null;
+  badge?: UiNode | null;
   breadcrumbs?: Crumb[];
   commandBar: UiNode[];
   layout: UiNode[];
@@ -80,7 +84,9 @@ export interface Page {
     menu: MenuItem[];
     /** URL of the ⌘K records search, when Vanda::search() providers exist. */
     search?: string;
-    user: { name: string; email: string; logout?: string } | null;
+    /** The bell: Vanda's notification endpoints and the unread count. */
+    notifications?: { url: string; read: string; unread: number } | null;
+    user: { name: string; email: string; avatar: { initials: string; hue: number; image?: string }; logout?: string; impersonator?: { name: string; stop: string } } | null;
   };
 }
 

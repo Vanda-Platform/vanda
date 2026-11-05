@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Vanda\Attachments\Attachment;
+use Vanda\Layouts\Avatar;
 use Vanda\Schema\SchemaContext;
 
 /**
@@ -38,6 +39,8 @@ final class Upload extends Field
     private ?string $disk = null;
 
     private ?string $group = null;
+
+    private ?string $avatar = null;
 
     public function type(): string
     {
@@ -88,6 +91,18 @@ final class Upload extends Field
         $this->disk = $disk;
 
         return $this;
+    }
+
+    /**
+     * A round photo with "Upload photo" and "Remove" buttons, for a person's picture.
+     * Until a photo is uploaded, the initials of this name are shown.
+     */
+    public function avatar(string $name): static
+    {
+        $this->avatar = $name;
+        $this->multiple = false;
+
+        return $this->image();
     }
 
     /**
@@ -160,6 +175,7 @@ final class Upload extends Field
             'accept' => $this->accept,
             'maxSize' => $this->maxSize * 1024 * 1024,
             'maxFiles' => $this->maxFiles,
+            'avatar' => $this->avatar === null ? null : ['initials' => Avatar::initials($this->avatar), 'hue' => Avatar::hue($this->avatar)],
             'files' => array_map(static fn (Attachment $file) => $file->toUpload(), is_array($files) ? $files : $files->all()),
         ];
     }

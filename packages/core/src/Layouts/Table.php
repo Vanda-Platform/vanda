@@ -72,6 +72,8 @@ final class Table extends Node
 
     private ?string $emptyText = null;
 
+    private ?EmptyState $empty = null;
+
     public static function make(): self
     {
         return (new self)->captureSource();
@@ -227,6 +229,16 @@ final class Table extends Node
         return $this;
     }
 
+    /**
+     * Shown instead of the rows when there are none (and no search or filter hides them).
+     */
+    public function empty(EmptyState $empty): self
+    {
+        $this->empty = $empty;
+
+        return $this;
+    }
+
     protected function properties(SchemaContext $context): array
     {
         [$data, $sort, $search, $filters] = $this->load();
@@ -285,6 +297,7 @@ final class Table extends Node
             'bulk' => $bulk,
             'export' => $this->isExportable() ? $this->id : null,
             'emptyText' => $this->emptyText,
+            'empty' => $this->empty !== null && $rows === [] && $search === '' && $filters === [] ? $this->empty->id($this->id.'.empty')->toSchema($context) : null,
         ];
     }
 

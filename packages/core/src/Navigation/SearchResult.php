@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vanda\Navigation;
 
 use Vanda\Access\Authorizer;
+use Vanda\Layouts\Avatar;
 use Vanda\Screen\ScreenRegistry;
 
 /**
@@ -27,6 +28,8 @@ final class SearchResult
     private ?string $icon = null;
 
     private ?string $avatar = null;
+
+    private ?string $image = null;
 
     private ?string $group = null;
 
@@ -71,11 +74,12 @@ final class SearchResult
     }
 
     /**
-     * Shows initials of this name in a coloured circle instead of an icon.
+     * Shows the person's photo, or initials of this name in a coloured circle, instead of an icon.
      */
-    public function avatar(string $name): self
+    public function avatar(string $name, ?string $image = null): self
     {
         $this->avatar = $name;
+        $this->image = $image;
 
         return $this;
     }
@@ -100,13 +104,8 @@ final class SearchResult
      */
     public function toArray(): array
     {
-        $initials = null;
-        $hue = null;
-        if ($this->avatar !== null) {
-            $words = preg_split('/\s+/u', trim($this->avatar)) ?: [];
-            $initials = mb_strtoupper(implode('', array_map(static fn (string $word) => mb_substr($word, 0, 1), array_slice($words, 0, 2))));
-            $hue = crc32($this->avatar) % 6;
-        }
+        $initials = $this->avatar === null ? null : Avatar::initials($this->avatar);
+        $hue = $this->avatar === null ? null : Avatar::hue($this->avatar);
 
         return array_filter([
             'label' => $this->label,
@@ -115,6 +114,7 @@ final class SearchResult
             'icon' => $this->icon,
             'initials' => $initials,
             'hue' => $hue,
+            'image' => $this->image,
             'group' => $this->group,
         ], static fn ($value) => $value !== null);
     }

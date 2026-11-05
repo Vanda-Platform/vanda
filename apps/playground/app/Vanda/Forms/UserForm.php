@@ -19,6 +19,14 @@ final class UserForm extends Form
     #[Validate('required|email|max:255')]
     public string $email = '';
 
+    #[Validate('nullable|string|max:32')]
+    public ?string $phone = null;
+
+    #[Validate('nullable|timezone')]
+    public ?string $timezone = null;
+
+    public ?int $avatar = null;
+
     public UserStatus $status = UserStatus::Active;
 
     #[Validate('nullable')]
@@ -31,8 +39,11 @@ final class UserForm extends Form
     public ?string $vat = null;
 
     #[Secret]
-    #[Validate('nullable|string|min:8')]
+    #[Validate('nullable|string|min:8|confirmed')]
     public string $password = '';
+
+    #[Secret]
+    public string $password_confirmation = '';
 
     /** @var list<int> */
     #[Validate('array')]
@@ -44,7 +55,8 @@ final class UserForm extends Form
     public static function fromUser(User $user): self
     {
         return self::fromArray([
-            ...$user->only(['name', 'email', 'status', 'country', 'city', 'vat']),
+            ...$user->only(['name', 'email', 'phone', 'status', 'country', 'city', 'vat', 'timezone']),
+            'avatar' => $user->exists ? $user->attachments('avatar')->value('attachments.id') : null,
             'roles' => $user->roles->pluck('id')->all(),
             'permissions' => $user->permissions ?? [],
         ]);

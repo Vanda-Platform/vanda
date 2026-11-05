@@ -61,7 +61,7 @@ final class UserListScreen extends Screen
     {
         return [
             Layout::table()
-                ->query(fn () => User::query()->with('roles'))
+                ->query(fn () => User::query()->with(['roles', 'attachments']))
                 ->searchable(['name', 'email'], 'Поиск по имени или email')
                 ->views([
                     View::make('Все'),
@@ -83,7 +83,7 @@ final class UserListScreen extends Screen
                 ->emptyText('Никого не нашлось')
                 ->columns([
                     TD::make('name', 'Пользователь')->sortable()->render(
-                        fn (User $user) => Persona::make($user->name)->subtitle($user->email),
+                        fn (User $user) => Persona::make($user->name)->subtitle($user->email)->image($user->avatarUrl()),
                     ),
                     TD::make('roles', 'Роли')->hideable()->render(fn (User $user) => $user->roles->pluck('name')->join(', ') ?: '—'),
                     TD::make('country', 'Страна')->defaultHidden()->render(fn (User $user) => $user->country?->label()),

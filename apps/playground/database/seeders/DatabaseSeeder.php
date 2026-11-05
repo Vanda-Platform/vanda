@@ -7,10 +7,14 @@ use App\Enums\PageStatus;
 use App\Enums\UserStatus;
 use App\Models\Page;
 use App\Models\User;
+use App\Vanda\Screens\PageListScreen;
+use App\Vanda\Screens\UserEditScreen;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Vanda\Access\Role;
+use Vanda\Layouts\Tone;
+use Vanda\Notifications\PanelMessage;
 
 class DatabaseSeeder extends Seeder
 {
@@ -24,7 +28,7 @@ class DatabaseSeeder extends Seeder
         $admin = Role::query()->create([
             'slug' => 'admin',
             'name' => 'Администратор',
-            'permissions' => ['platform.users' => true, 'platform.roles' => true, 'platform.pages' => true],
+            'permissions' => ['platform.users' => true, 'platform.roles' => true, 'platform.pages' => true, 'platform.impersonate' => true],
         ]);
         $manager = Role::query()->create([
             'slug' => 'manager',
@@ -33,13 +37,16 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Sign in to /admin with admin@example.com / password
-        User::factory()->create([
+        $vera = User::factory()->create([
             'name' => 'Вера Миронова',
             'email' => 'admin@example.com',
             'password' => Hash::make('password'),
+            'phone' => '(912) 345-67-89',
             'country' => Country::Russia,
             'city' => 1,
-        ])->replaceRoles([$admin->id]);
+            'timezone' => 'Europe/Moscow',
+        ]);
+        $vera->replaceRoles([$admin->id]);
 
         $people = [
             ['Анна Смирнова', 'anna.smirnova@example.com', Country::Russia, 1, UserStatus::Active, $manager],
@@ -58,6 +65,8 @@ class DatabaseSeeder extends Seeder
                 'city' => $city,
                 'status' => $status,
                 'vat' => $country->inEu() ? $country->value.' 129 273 398' : null,
+                'timezone' => $country->inEu() ? 'Europe/Berlin' : 'Europe/Moscow',
+                'last_login_at' => $status === UserStatus::Invited ? null : now()->subMinutes(random_int(2, 60 * 24 * 5)),
             ]);
 
             if ($role) {
@@ -67,6 +76,7 @@ class DatabaseSeeder extends Seeder
 
         $this->seedMorePeople();
         $this->seedPages();
+        $this->seedNotifications($vera);
     }
 
     /**
@@ -145,5 +155,26 @@ class DatabaseSeeder extends Seeder
         };
 
         $create($tree, null);
+    }
+
+    /**
+     * A few messages for the bell in the panel header.
+     */
+    private function seedNotifications(User $admin): void
+    {
+        $maria = User::query()->where('email', 'm.kovaleva@example.com')->first();
+        $messages = [
+            PanelMessage::make('Мария Ковалёва ещё не приняла приглашение')->message('Приглашение отправлено 3 дня назад.')->to(UserEditScreen::class, ['user' => $maria])->tone(Tone::Warning),
+            PanelMessage::make('Страница «Доставка и оплата» обновлена')->message('Игорь Петров изменил текст и цены доставки.')->to(PageListScreen::class),
+            PanelMessage::make('Импорт каталога завершён')->message('Добавлено 18 товаров, ошибок нет.')->tone(Tone::Success),
+            PanelMessage::make('Не удалось отправить письмо')->message('Адрес s.lebedev@example.com не принимает почту.')->tone(Tone::Danger),
+        ];
+
+        foreach ($messages as $message) {
+            $admin->notify($message);
+        }
+
+        // The oldest one is already read.
+        $admin->notifications()->oldest()->first()?->markAsRead();
     }
 }

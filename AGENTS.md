@@ -44,6 +44,9 @@ php artisan vanda:inspect /admin/users/1/edit        # add --json for the raw IR
 - **Uploads** are multipart POSTs to the screen's own URL (`type=upload`, `field=<path>`), so the screen's `#[Can]` and middleware apply. `Upload::store()` checks size and type (no `.php`, no SVG under `image/*`); `Upload::sanitize()` keeps only ids already in the field or uploaded by the current user.
 - **Rich text** is cleaned on the server by `Vanda\Support\Html::clean()` (tag and attribute allowlist). The Markdown preview escapes raw HTML and drops unsafe links.
 - **Heavy renderer components** (dates, tree, editors, charts) load as separate chunks through `chunk()` in `NodeView.tsx`. Keep new heavy dependencies out of the main bundle the same way.
+- **A record's screen** returns `avatar()` and `badge()` for its header; the renderer then draws the design's record header. The "unsaved changes" bar and the leave warning come for free on any screen whose command bar has a primary button with an action.
+- **Impersonation** goes only through `Vanda\Access\Impersonation::loginAs()` inside an `#[Action]` guarded by `#[Can]`; the panel shows the banner and the way back by itself.
+- **Notifications** for the bell are Laravel database notifications; send `Vanda\Notifications\PanelMessage` (Orchid's DashboardMessage data shape).
 - **Assets** are hashed files listed in `resources/dist/.vite/manifest.json`; `Vanda::entry()` reads it. Never load the entry with a query string: chunks import it by its plain URL, and a second URL means a second copy of React.
 - **A new node type** needs three things in one change: the PHP class (extends `Vanda\Schema\Node`), a renderer component registered in `packages/renderer/src/nodes/NodeView.tsx`, and a test that checks its IR.
 - **Expressions** (`Expr`) are evaluated in PHP and TS. Change both evaluators and add a case to `packages/schema/fixtures/expressions.json`; both test suites read it.

@@ -20,9 +20,11 @@ use Vanda\Http\AssetController;
 use Vanda\Http\Authenticate;
 use Vanda\Http\InertiaMiddleware;
 use Vanda\Http\LogoutController;
+use Vanda\Http\NotificationsController;
 use Vanda\Http\RedirectIfAuthenticated;
 use Vanda\Http\ScreenController;
 use Vanda\Http\SearchController;
+use Vanda\Http\StopImpersonationController;
 use Vanda\Navigation\Shell;
 use Vanda\Schema\Node;
 use Vanda\Screen\Screen;
@@ -103,8 +105,11 @@ final class VandaServiceProvider extends ServiceProvider
             Route::middleware(config('vanda.middleware', ['web']))->prefix($prefix)->group(function () use ($routes) {
                 Route::screen('login', LoginScreen::class)->name('vanda.login')->middleware(RedirectIfAuthenticated::class);
                 Route::post('logout', LogoutController::class)->name('vanda.logout');
+                Route::post('vanda/impersonation/stop', StopImpersonationController::class)->name('vanda.impersonation.stop');
                 Route::middleware(Authenticate::class)->group(function () use ($routes): void {
                     Route::get('vanda/search', SearchController::class)->name('vanda.search');
+                    Route::get('vanda/notifications', [NotificationsController::class, 'index'])->name('vanda.notifications');
+                    Route::post('vanda/notifications/read', [NotificationsController::class, 'read'])->name('vanda.notifications.read');
                     $routes();
                 });
             });
