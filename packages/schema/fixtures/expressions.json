@@ -1,0 +1,107 @@
+[
+  {
+    "name": "field in list",
+    "expr": {"op": "in", "args": [{"field": "form.country"}, {"value": ["DE", "FR"]}]},
+    "state": {"form": {"country": "DE"}},
+    "expected": true
+  },
+  {
+    "name": "field not in list",
+    "expr": {"op": "in", "args": [{"field": "form.country"}, {"value": ["DE", "FR"]}]},
+    "state": {"form": {"country": "RU"}},
+    "expected": false
+  },
+  {
+    "name": "numeric string equals number",
+    "expr": {"op": "eq", "args": [{"field": "form.city"}, {"value": 12}]},
+    "state": {"form": {"city": "12"}},
+    "expected": true
+  },
+  {
+    "name": "missing field equals null",
+    "expr": {"op": "eq", "args": [{"field": "form.nothing"}, {"value": null}]},
+    "state": {"form": {}},
+    "expected": true
+  },
+  {
+    "name": "neq",
+    "expr": {"op": "neq", "args": [{"field": "form.status"}, {"value": "draft"}]},
+    "state": {"form": {"status": "published"}},
+    "expected": true
+  },
+  {
+    "name": "gt with numeric string",
+    "expr": {"op": "gt", "args": [{"field": "form.price"}, {"value": 1000}]},
+    "state": {"form": {"price": "1500"}},
+    "expected": true
+  },
+  {
+    "name": "lte false",
+    "expr": {"op": "lte", "args": [{"field": "form.price"}, {"value": 1000}]},
+    "state": {"form": {"price": 1500}},
+    "expected": false
+  },
+  {
+    "name": "comparing text is false",
+    "expr": {"op": "gt", "args": [{"field": "form.name"}, {"value": 1}]},
+    "state": {"form": {"name": "abc"}},
+    "expected": false
+  },
+  {
+    "name": "empty string is empty",
+    "expr": {"op": "empty", "args": [{"field": "form.title"}]},
+    "state": {"form": {"title": ""}},
+    "expected": true
+  },
+  {
+    "name": "zero is not empty",
+    "expr": {"op": "empty", "args": [{"field": "form.count"}]},
+    "state": {"form": {"count": 0}},
+    "expected": false
+  },
+  {
+    "name": "empty list is empty",
+    "expr": {"op": "empty", "args": [{"field": "form.roles"}]},
+    "state": {"form": {"roles": []}},
+    "expected": true
+  },
+  {
+    "name": "notEmpty",
+    "expr": {"op": "notEmpty", "args": [{"field": "form.roles"}]},
+    "state": {"form": {"roles": [1]}},
+    "expected": true
+  },
+  {
+    "name": "and / or / not",
+    "expr": {"op": "and", "args": [
+      {"op": "or", "args": [{"field": "form.a"}, {"field": "form.b"}]},
+      {"op": "not", "args": [{"field": "form.c"}]}
+    ]},
+    "state": {"form": {"a": false, "b": "yes", "c": 0}},
+    "expected": true
+  },
+  {
+    "name": "slug from cyrillic",
+    "expr": {"op": "slug", "args": [{"field": "form.title"}]},
+    "state": {"form": {"title": "Как мы обжариваем кофе!"}},
+    "expected": "kak-my-obzharivaem-kofe"
+  },
+  {
+    "name": "slug keeps latin and digits",
+    "expr": {"op": "slug", "args": [{"field": "form.title"}]},
+    "state": {"form": {"title": "  Summer Sale 2026 — Ёлки  "}},
+    "expected": "summer-sale-2026-elki"
+  },
+  {
+    "name": "lower",
+    "expr": {"op": "lower", "args": [{"field": "form.code"}]},
+    "state": {"form": {"code": "ABC-Ж"}},
+    "expected": "abc-ж"
+  },
+  {
+    "name": "concat with null",
+    "expr": {"op": "concat", "args": [{"field": "form.first"}, {"value": " "}, {"field": "form.last"}]},
+    "state": {"form": {"first": "Анна", "last": null}},
+    "expected": "Анна "
+  }
+]

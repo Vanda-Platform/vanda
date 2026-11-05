@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens of Vanda. One brand colour (--v-accent, set from PHP config) drives
+ * every accent shade through color-mix, so re-branding never needs a rebuild.
+ */
+:root {
+  --v-accent: #12805c;
+  --v-bg: #f7f7f8;
+  --v-surface: #ffffff;
+  --v-surface-2: #f4f4f5;
+  --v-surface-3: #eaeaed;
+  --v-line: #e4e4e7;
+  --v-line-strong: #d4d4d8;
+  --v-fg: #18181b;
+  --v-fg-2: #52525b;
+  --v-fg-3: #6b6b74;
+  --v-accent-fg: color-mix(in oklch, var(--v-accent) 90%, black);
+  --v-accent-soft: color-mix(in oklch, var(--v-accent) 10%, white);
+  --v-accent-hover: color-mix(in oklch, var(--v-accent) 86%, black);
+  --v-ring: color-mix(in oklch, var(--v-accent) 26%, transparent);
+  --v-danger: #c81e1e;
+  --v-danger-soft: #fdecec;
+  --v-danger-fg: #b91c1c;
+  --v-success: #15803d;
+  --v-success-soft: #e7f6ec;
+  --v-success-fg: #166534;
+  --v-warning: #b45309;
+  --v-warning-soft: #fef3e2;
+  --v-warning-fg: #92400e;
+  --v-shadow-lg: 0 16px 40px rgb(24 24 27 / 0.16), 0 2px 8px rgb(24 24 27 / 0.06);
+  --v-scrim: rgb(24 24 27 / 0.36);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --v-bg: #0c0c0f;
+  --v-surface: #141418;
+  --v-surface-2: #1b1b21;
+  --v-surface-3: #26262e;
+  --v-line: #27272f;
+  --v-line-strong: #393943;
+  --v-fg: #f4f4f5;
+  --v-fg-2: #b8b8c0;
+  --v-fg-3: #8e8e98;
+  --v-accent-fg: color-mix(in oklch, var(--v-accent) 52%, white);
+  --v-accent-soft: color-mix(in oklch, var(--v-accent) 22%, #141418);
+  --v-accent-hover: color-mix(in oklch, var(--v-accent) 86%, white);
+  --v-ring: color-mix(in oklch, var(--v-accent) 45%, transparent);
+  --v-danger: #dc2626;
+  --v-danger-soft: #361618;
+  --v-danger-fg: #fca5a5;
+  --v-success: #16a34a;
+  --v-success-soft: #0f2a1a;
+  --v-success-fg: #86efac;
+  --v-warning: #d97706;
+  --v-warning-soft: #33240c;
+  --v-warning-fg: #fcd34d;
+  --v-shadow-lg: 0 20px 48px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --v-scrim: rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Onest", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --color-bg: var(--v-bg);
+  --color-surface: var(--v-surface);
+  --color-surface-2: var(--v-surface-2);
+  --color-surface-3: var(--v-surface-3);
+  --color-line: var(--v-line);
+  --color-line-strong: var(--v-line-strong);
+  --color-fg: var(--v-fg);
+  --color-fg-2: var(--v-fg-2);
+  --color-fg-3: var(--v-fg-3);
+  --color-accent: var(--v-accent);
+  --color-accent-fg: var(--v-accent-fg);
+  --color-accent-soft: var(--v-accent-soft);
+  --color-accent-hover: var(--v-accent-hover);
+  --color-ring: var(--v-ring);
+  --color-danger: var(--v-danger);
+  --color-danger-soft: var(--v-danger-soft);
+  --color-danger-fg: var(--v-danger-fg);
+  --color-success: var(--v-success);
+  --color-success-soft: var(--v-success-soft);
+  --color-success-fg: var(--v-success-fg);
+  --color-warning: var(--v-warning);
+  --color-warning-soft: var(--v-warning-soft);
+  --color-warning-fg: var(--v-warning-fg);
+  --shadow-pop: var(--v-shadow-lg);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--v-fg);
+    background: var(--v-bg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--v-accent);
+    outline-offset: 2px;
+  }
+
+  [data-vanda-inspect] [data-vanda-node]:hover {
+    outline: 1px dashed var(--v-accent);
+    outline-offset: 2px;
+    cursor: help;
+  }
+}
+
+@keyframes vanda-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
