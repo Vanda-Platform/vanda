@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
+import { useCopy } from '../copy';
 import { t } from '../i18n';
 import { cx, Icon } from '../ui';
 import { formatSize } from './upload';
@@ -13,24 +14,6 @@ export interface ViewedImage {
 /** The address to share: relative URLs from the server become absolute. */
 const absolute = (url: string) => new URL(url, window.location.href).href;
 
-async function copy(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // No clipboard API outside https and localhost: the old way still works there.
-    const area = document.createElement('textarea');
-    area.value = text;
-    area.style.position = 'fixed';
-    area.style.opacity = '0';
-    document.body.append(area);
-    area.select();
-    const done = document.execCommand('copy');
-    area.remove();
-    return done;
-  }
-}
-
 const tool = 'inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-white/85 hover:bg-white/12 hover:text-white focus-visible:outline-2 focus-visible:outline-white';
 const arrow = 'absolute top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-white hover:bg-black/65 focus-visible:outline-2 focus-visible:outline-white';
 
@@ -40,15 +23,12 @@ const arrow = 'absolute top-1/2 grid size-10 -translate-y-1/2 place-items-center
  */
 export function Lightbox({ images, start, onClose }: { images: ViewedImage[]; start: number; onClose: () => void }) {
   const [index, setIndex] = useState(start);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopy();
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const image = images[index] ?? images[0];
   const many = images.length > 1;
 
-  useEffect(() => {
-    setNatural(null);
-    setCopied(false);
-  }, [index]);
+  useEffect(() => setNatural(null), [index]);
 
   useEffect(() => {
     if (!many) return;
@@ -75,7 +55,7 @@ export function Lightbox({ images, start, onClose }: { images: ViewedImage[]; st
               </Heading>
               {details && <span className="text-[12.5px] text-white/60 tabular-nums">{details}</span>}
             </div>
-            <button type="button" className={tool} onClick={() => void copy(absolute(image.url)).then((done) => setCopied(done))}>
+            <button type="button" className={tool} onClick={() => void copy(absolute(image.url))}>
               <Icon name={copied ? 'check' : 'copy'} />
               {copied ? t('linkCopied') : t('copyLink')}
             </button>

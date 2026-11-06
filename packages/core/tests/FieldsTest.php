@@ -59,7 +59,7 @@ it('describes the fields that came from Orchid in the IR', function () {
     $screen = Panel::test(FieldsScreen::class);
 
     expect($screen->node('owner'))->toMatchArray(['type' => 'relation', 'label' => 'Owner'])
-        ->and($screen->node('prices'))->toMatchArray(['type' => 'repeater', 'table' => true, 'addLabel' => 'Add a price'])
+        ->and($screen->node('prices'))->toMatchArray(['type' => 'repeater', 'layout' => 'table', 'addLabel' => 'Add a price'])
         ->and(array_column($screen->node('prices')['fields'], 'label'))->toBe(['Volume', 'Price'])
         ->and($screen->node('location'))->toMatchArray(['type' => 'map', 'zoom' => 15, 'center' => ['lat' => 59.93, 'lng' => 30.31], 'tiles' => 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'])
         ->and($screen->node('link'))->toMatchArray(['type' => 'utm'])
@@ -90,3 +90,16 @@ it('renders a Blade view among the nodes, escaped by Blade', function () {
 it('explains a missing Blade view', function () {
     Vanda\Layouts\Layout::view('admin.missing')->toSchema(new Vanda\Schema\SchemaContext(new FieldsScreen, []));
 })->throws(Vanda\VandaException::class, 'Create resources/views/admin/missing.blade.php');
+
+it('picks how a repeater draws its rows from its fields', function () {
+    $layout = fn (array $fields) => Vanda\Fields\Repeater::make('rows')->fields($fields)->resolvedLayout();
+    $input = fn (string $path) => Vanda\Fields\Input::make($path);
+
+    expect($layout([$input('name')]))->toBe(Vanda\Fields\RepeaterLayout::List)
+        ->and($layout([$input('name'), Vanda\Fields\Select::make('unit'), Vanda\Fields\Switcher::make('on')]))->toBe(Vanda\Fields\RepeaterLayout::Table)
+        ->and($layout([$input('a'), $input('b'), $input('c'), $input('d'), $input('e')]))->toBe(Vanda\Fields\RepeaterLayout::Blocks)
+        ->and($layout([$input('title'), Vanda\Fields\Upload::make('image')]))->toBe(Vanda\Fields\RepeaterLayout::Blocks)
+        ->and($layout([$input('title'), Vanda\Fields\Select::make('tags')->multiple()]))->toBe(Vanda\Fields\RepeaterLayout::Blocks)
+        ->and($layout([Vanda\Fields\TextArea::make('text')]))->toBe(Vanda\Fields\RepeaterLayout::Blocks)
+        ->and(Vanda\Fields\Repeater::make('rows')->fields([$input('name')])->layout(Vanda\Fields\RepeaterLayout::Blocks)->resolvedLayout())->toBe(Vanda\Fields\RepeaterLayout::Blocks);
+});

@@ -84,6 +84,14 @@ final class LoginScreen extends Screen
             $request->session()->regenerate();
         }
 
-        return Result::redirectTo(redirect()->intended(Panel::home())->getTargetUrl());
+        // The only moment the password is known: a weak one turns on the red strip (production).
+        WeakPassword::remember($request, Auth::guard(config('vanda.guard'))->user(), $this->form->password);
+
+        // Only the path of the page asked for: the stored URL may carry another host (an old port in
+        // development, a proxy's name), and signing in must never lead off this panel.
+        $target = parse_url(redirect()->intended(Panel::home())->getTargetUrl());
+        $path = '/'.ltrim($target['path'] ?? '', '/').(isset($target['query']) ? '?'.$target['query'] : '');
+
+        return Result::redirectTo($path);
     }
 }

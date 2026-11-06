@@ -16,7 +16,7 @@ import {
   RangeCalendar,
   TimeField,
 } from 'react-aria-components';
-import { controlClass, cx, Icon, invalidClass } from '../ui';
+import { controlClass, cx, Icon, invalidClass, readonlyClass } from '../ui';
 import type { FieldNode } from '../types';
 import { FieldFrame, useField } from './fields';
 
@@ -87,9 +87,9 @@ function TimeOnlyField({ node }: { node: FieldNode }) {
         isDisabled={field.disabled}
         isInvalid={Boolean(field.error)}
       >
-        <Group className={cx(controlClass, 'flex w-32 items-center gap-1', field.error && invalidClass)}>
+        <Group className={cx(controlClass, 'flex w-32 items-center gap-1', field.error && invalidClass, field.readonly && readonlyClass)}>
           <DateSegments />
-          <Icon name="clock" className="size-4 text-fg-3" />
+          {!field.readonly && <Icon name="clock" className="size-4 text-fg-3" />}
         </Group>
       </TimeField>
     </FieldFrame>
@@ -120,11 +120,13 @@ function DatePickerField({ node }: { node: FieldNode & { withTime?: boolean; min
         isDisabled={field.disabled}
         isInvalid={Boolean(field.error)}
       >
-        <Group className={cx(controlClass, 'flex items-center gap-1 pr-1', field.error && invalidClass)}>
+        <Group className={cx(controlClass, 'flex items-center gap-1 pr-1', field.error && invalidClass, field.readonly && readonlyClass)}>
           <DateSegments />
-          <AriaButton className="grid size-7 place-items-center rounded-md text-fg-3 hover:bg-surface-2 hover:text-fg">
-            <Icon name="calendar" />
-          </AriaButton>
+          {!field.readonly && (
+            <AriaButton className="grid size-7 place-items-center rounded-md text-fg-3 hover:bg-surface-2 hover:text-fg">
+              <Icon name="calendar" />
+            </AriaButton>
+          )}
         </Group>
         <Popover className="rounded-xl border border-line bg-surface p-3 shadow-pop outline-none">
           <Dialog className="outline-none">
@@ -155,7 +157,7 @@ export function DateRangeField({ node }: { node: FieldNode }) {
         onChange={(range) => field.setValue(range ? { start: range.start.toString(), end: range.end.toString() } : null)}
         isDisabled={field.disabled}
       >
-        <Group className={cx(controlClass, 'flex items-center gap-1 pr-1')}>
+        <Group className={cx(controlClass, 'flex items-center gap-1 pr-1', field.readonly && readonlyClass)}>
           <DateInput slot="start" className="flex items-center">
             {(segment) => <DateSegment segment={segment} className="rounded px-0.5 tabular-nums outline-none data-[focused]:bg-accent-soft data-[placeholder]:text-fg-3" />}
           </DateInput>

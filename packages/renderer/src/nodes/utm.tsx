@@ -47,8 +47,8 @@ export function UtmField({ node }: { node: FieldNode }) {
           value={link}
           onChange={(event) => field.setValue(event.target.value)}
           placeholder={node.placeholder ?? 'https://'}
-          disabled={field.disabled}
-          readOnly={node.readonly}
+          disabled={field.disabled && !field.readonly}
+          readOnly={field.readonly}
           aria-invalid={field.error ? true : undefined}
           className={cx(controlClass, 'min-w-0 flex-1', field.error && invalidClass)}
         />

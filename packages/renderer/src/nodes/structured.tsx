@@ -1,7 +1,8 @@
-import { useId } from 'react';
+import { useContext, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { t } from '../i18n';
 import { nodeAttributes } from '../store';
-import { buttonClass, cx, Icon } from '../ui';
+import { buttonClass, controlClass, cx, Icon, MOBILE_QUERY, readonlyClass, useMediaQuery } from '../ui';
+import { BlockTitleContext } from './blockTitle';
 import type { FieldNode, UiNode } from '../types';
 import { FieldFrame, useField } from './fields';
 import { NodeView } from './NodeView';
@@ -10,12 +11,120 @@ type Row = Record<string, unknown>;
 
 const iconButton = 'grid size-7 shrink-0 place-items-center rounded-md text-fg-3 hover:bg-surface-2 hover:text-fg disabled:opacity-30';
 
-/** Rows of the same fields; child paths are relative to the row ("form.specs.0.name"). */
-export function RepeaterField({ node }: { node: FieldNode & { fields?: FieldNode[]; addLabel?: string; max?: number; table?: boolean } }) {
+type RepeaterNode = FieldNode & {
+  fields?: FieldNode[];
+  addLabel?: string;
+  max?: number;
+  /** Chosen on the server from the fields (Repeater::resolvedLayout()). */
+  layout?: 'list' | 'table' | 'blocks';
+  /** Blocks: "Вариант" gives "Вариант 1", "Вариант 2". */
+  itemLabel?: string;
+};
+
+/** Fields that need the whole width of a block. */
+const WIDE = new Set(['richtext', 'markdown', 'code', 'textarea', 'repeater', 'keyvalue', 'map', 'permissions']);
+
+const same = (a?: string | null, b?: string | null) => Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase());
+
+interface Drag {
+  from: number;
+  to: number;
+  dy: number;
+  /** How far the other rows move aside: the dragged row's height plus the gap. */
+  step: number;
+}
+
+/**
+ * Reordering by the grip: dragged with a mouse or a finger (pointer events), or moved with
+ * the arrow keys while the grip has focus.
+ */
+function useRowDrag(count: number, move: (from: number, to: number) => void) {
+  const rows = useRef<(HTMLElement | null)[]>([]);
+  const current = useRef<Drag | null>(null);
+  const [drag, setDrag] = useState<Drag | null>(null);
+
+  const update = (next: Drag | null) => {
+    current.current = next;
+    setDrag(next);
+  };
+
+  const focusGrip = (index: number) => requestAnimationFrame(() => rows.current[index]?.querySelector<HTMLElement>('[data-grip]')?.focus());
+
+  const gripProps = (index: number) => ({
+    'data-grip': true,
+    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      const grip = event.currentTarget;
+      grip.setPointerCapture(event.pointerId);
+      const startY = event.clientY;
+      const rects = rows.current.slice(0, count).map((row) => row?.getBoundingClientRect() ?? null);
+      const own = rects[index];
+      const next = rects[index + 1] ?? rects[index - 1];
+      const gap = own && next ? Math.abs((next.top > own.top ? next.top - own.bottom : own.top - next.bottom)) : 8;
+      const step = (own?.height ?? 0) + gap;
+      update({ from: index, to: index, dy: 0, step });
+
+      const onMove = (moveEvent: globalThis.PointerEvent) => {
+        let to = index;
+        rects.forEach((rect, i) => {
+          if (!rect) return;
+          const middle = rect.top + rect.height / 2;
+          if (i < index && moveEvent.clientY < middle) to = Math.min(to, i);
+          if (i > index && moveEvent.clientY > middle) to = Math.max(to, i);
+        });
+        update({ from: index, to, dy: moveEvent.clientY - startY, step });
+      };
+      const onUp = () => {
+        grip.removeEventListener('pointermove', onMove);
+        grip.removeEventListener('pointerup', onUp);
+        grip.removeEventListener('pointercancel', onUp);
+        const done = current.current;
+        update(null);
+        if (done && done.to !== done.from) {
+          move(done.from, done.to);
+          focusGrip(done.to);
+        }
+      };
+      grip.addEventListener('pointermove', onMove);
+      grip.addEventListener('pointerup', onUp);
+      grip.addEventListener('pointercancel', onUp);
+    },
+    onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
+      const to = event.key === 'ArrowUp' ? index - 1 : event.key === 'ArrowDown' ? index + 1 : null;
+      if (to === null || to < 0 || to >= count) return;
+      event.preventDefault();
+      move(index, to);
+      focusGrip(to);
+    },
+  });
+
+  /** Where a row is drawn while another one is dragged. */
+  const rowStyle = (index: number): CSSProperties | undefined => {
+    if (!drag) return undefined;
+    if (index === drag.from) return { transform: `translateY(${drag.dy}px)`, zIndex: 10, position: 'relative' };
+    const shift = drag.from < drag.to && index > drag.from && index <= drag.to ? -drag.step : drag.to < drag.from && index >= drag.to && index < drag.from ? drag.step : 0;
+    return { transform: `translateY(${shift}px)`, transition: 'transform 150ms ease' };
+  };
+
+  return { rows, drag, gripProps, rowStyle };
+}
+
+/**
+ * Rows of the same fields; child paths are relative to the row ("form.specs.0.name").
+ * One border per level: rows never get a box of their own inside the section's card.
+ * List: one input per row. Table: columns with the labels once. Blocks: divided groups.
+ */
+export function RepeaterField({ node }: { node: RepeaterNode }) {
+  const labelId = useId();
   const field = useField(node);
+  const mobile = useMediaQuery(MOBILE_QUERY);
+  const blockTitle = useContext(BlockTitleContext);
   const rows = (Array.isArray(field.value) ? field.value : []) as Row[];
   const templates = node.fields ?? [];
-  const canAdd = node.max === undefined || rows.length < node.max;
+  const canAdd = !field.disabled && (node.max === undefined || rows.length < node.max);
+  // A table of inputs does not fit a phone: its rows become blocks there.
+  const layout = node.layout === 'table' && mobile ? 'blocks' : (node.layout ?? 'blocks');
 
   const move = (from: number, to: number) => {
     const next = [...rows];
@@ -23,137 +132,178 @@ export function RepeaterField({ node }: { node: FieldNode & { fields?: FieldNode
     next.splice(to, 0, row as Row);
     field.setValue(next);
   };
+  const remove = (index: number) => field.setValue(rows.filter((_, i) => i !== index));
+  const { rows: rowRefs, drag, gripProps, rowStyle } = useRowDrag(rows.length, move);
 
-  const rowButtons = (index: number, vertical: boolean) => (
-    <div className={cx('flex shrink-0 gap-0.5', vertical && 'flex-col')}>
-      <button type="button" className={iconButton} aria-label={t('moveUp')} disabled={index === 0 || field.disabled} onClick={() => move(index, index - 1)}>
-        <Icon name="chevron-up" />
+  const child = (template: FieldNode, index: number, hideLabel: boolean) => {
+    const path = `${node.path}.${index}.${template.path}`;
+    return <NodeView key={path} node={{ ...template, id: path, path, labelHidden: hideLabel, help: hideLabel ? undefined : template.help } as UiNode} />;
+  };
+
+  const grip = (index: number) =>
+    !field.disabled && (
+      <button
+        type="button"
+        {...gripProps(index)}
+        aria-label={t('move', { label: String(index + 1) })}
+        title={t('move', { label: String(index + 1) })}
+        className={cx(iconButton, 'size-9 cursor-grab touch-none active:cursor-grabbing', drag?.from === index && 'text-fg')}
+      >
+        <Icon name="grip" />
       </button>
-      <button type="button" className={iconButton} aria-label={t('moveDown')} disabled={index === rows.length - 1 || field.disabled} onClick={() => move(index, index + 1)}>
-        <Icon name="chevron-down" />
-      </button>
-      <button type="button" className={iconButton} aria-label={t('remove')} disabled={field.disabled} onClick={() => field.setValue(rows.filter((__, i) => i !== index))}>
+    );
+
+  const removeButton = (index: number) =>
+    !field.disabled && (
+      <button type="button" className={cx(iconButton, 'size-9 hover:text-danger-fg')} aria-label={`${t('remove')} ${index + 1}`} onClick={() => remove(index)}>
         <Icon name="x" />
       </button>
-    </div>
-  );
-
-  const addButton = (
-    <button type="button" className={cx(buttonClass('secondary', 'sm'), 'self-start')} disabled={!canAdd || field.disabled} onClick={() => field.setValue([...rows, {}])}>
-      <Icon name="plus" />
-      {node.addLabel ?? t('add')}
-    </button>
-  );
-
-  // Repeater::table() / Matrix: one column per field, the labels become the header.
-  if (node.table) {
-    return (
-      <div className="flex flex-col gap-2" data-vanda-path={node.path} {...nodeAttributes(node)}>
-        {node.label && <span className="text-[13px] font-medium">{node.label}</span>}
-        <div className="overflow-x-auto rounded-lg border border-line">
-          <table className="w-full border-collapse text-[14px]">
-            <thead>
-              <tr className="bg-surface-2/60 text-left text-[12.5px] text-fg-2">
-                {templates.map((template) => (
-                  <th key={template.path} scope="col" className="px-2.5 py-2 font-medium">
-                    {template.label ?? template.path}
-                  </th>
-                ))}
-                <th scope="col" className="w-px">
-                  <span className="sr-only">{t('actions')}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((_, index) => (
-                <tr key={index} className="border-t border-line align-top">
-                  {templates.map((template) => {
-                    const path = `${node.path}.${index}.${template.path}`;
-                    return (
-                      <td key={path} className="p-1.5">
-                        <NodeView node={{ ...template, id: path, path, labelHidden: true } as UiNode} />
-                      </td>
-                    );
-                  })}
-                  <td className="p-1.5 align-middle">{rowButtons(index, false)}</td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr className="border-t border-line">
-                  <td colSpan={templates.length + 1} className="px-3 py-4 text-center text-[13.5px] text-fg-3">
-                    {t('empty')}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        {addButton}
-        {node.help && <span className="text-[12.5px] text-fg-3">{node.help}</span>}
-      </div>
     );
-  }
+
+  // Help of a single field is said once, under the list, not under every row.
+  const helps = [...new Set([...(layout === 'blocks' ? [] : templates.map((template) => template.help)), node.help].filter(Boolean))];
 
   return (
-    <div className="flex flex-col gap-2" data-vanda-path={node.path} {...nodeAttributes(node)}>
-      {node.label && <span className="text-[13px] font-medium">{node.label}</span>}
-      <ol className="flex flex-col gap-2">
-        {rows.map((_, index) => (
-          <li key={index} className="flex items-start gap-2 rounded-lg border border-line p-2.5">
-            <div className={cx('grid min-w-0 flex-grow gap-2.5', templates.length > 1 ? 'md:grid-cols-2' : 'grid-cols-1')}>
-              {templates.map((template) => {
-                const path = `${node.path}.${index}.${template.path}`;
-                return <NodeView key={path} node={{ ...template, id: path, path } as UiNode} />;
-              })}
-            </div>
-            {rowButtons(index, true)}
-          </li>
-        ))}
-      </ol>
-      {addButton}
-      {node.help && <span className="text-[12.5px] text-fg-3">{node.help}</span>}
+    <div role="group" aria-labelledby={node.label ? labelId : undefined} className="flex flex-col gap-2" data-vanda-path={node.path} {...nodeAttributes(node)}>
+      {node.label && (
+        <span id={labelId} className={cx('flex items-center gap-1 text-[13px] font-medium', same(node.label, blockTitle) && 'sr-only')}>
+          {node.label}
+          {field.required && <span className="text-danger-fg" aria-hidden="true">*</span>}
+        </span>
+      )}
+
+      {layout === 'table' && rows.length > 0 && (
+        <div aria-hidden="true" className="flex items-center gap-1.5 text-[12.5px] font-medium text-fg-3">
+          {!field.disabled && <span className="w-9 shrink-0" />}
+          {templates.map((template) => (
+            <span key={template.path} className="min-w-0 flex-1 truncate">
+              {template.label ?? template.path}
+              {template.required && <span className="ml-0.5 text-danger-fg">*</span>}
+            </span>
+          ))}
+          {!field.disabled && <span className="w-9 shrink-0" />}
+        </div>
+      )}
+
+      {rows.length > 0 && (
+        <ol className={cx('flex flex-col', layout === 'blocks' ? '' : 'gap-2')}>
+          {rows.map((_, index) => (
+            <li
+              key={index}
+              ref={(element) => {
+                rowRefs.current[index] = element;
+              }}
+              style={rowStyle(index)}
+              className={cx(
+                'bg-surface',
+                layout === 'blocks' ? cx('flex flex-col gap-3 py-4', index > 0 && 'border-t border-line', index === 0 && 'pt-1') : 'flex items-start gap-1.5',
+                drag?.from === index && 'rounded-lg shadow-pop',
+              )}
+            >
+              {layout === 'blocks' ? (
+                <>
+                  <div className="flex items-center gap-1">
+                    <span className="flex-1 text-[13px] font-medium text-fg-2">{node.itemLabel ? `${node.itemLabel} ${index + 1}` : `№ ${index + 1}`}</span>
+                    {grip(index)}
+                    {removeButton(index)}
+                  </div>
+                  <div className={cx('grid gap-3', templates.length > 1 && 'md:grid-cols-2')}>
+                    {templates.map((template) => (
+                      <div key={template.path} className={cx('min-w-0', WIDE.has(template.type) && 'md:col-span-2')}>
+                        {child(template, index, false)}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {grip(index)}
+                  {templates.map((template) => (
+                    <div key={template.path} className="min-w-0 flex-1">
+                      {child(template, index, true)}
+                    </div>
+                  ))}
+                  {removeButton(index)}
+                </>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {canAdd && (
+        <div className={cx(layout === 'blocks' ? rows.length > 0 && 'border-t border-line pt-3' : rows.length > 0 && !field.disabled && 'pl-[42px]')}>
+          <button type="button" className={cx(buttonClass('ghost', 'sm'), '-ml-2.5 text-fg-2')} onClick={() => field.setValue([...rows, {}])}>
+            <Icon name="plus" />
+            {node.addLabel ?? t('add')}
+          </button>
+        </div>
+      )}
+
+      {field.error ? (
+        <span className="flex items-center gap-1.5 text-[12.5px] text-danger-fg">
+          <Icon name="alert" className="size-3.5" />
+          {field.error}
+        </span>
+      ) : (
+        helps.length > 0 && <span className={cx('text-[12.5px] text-fg-3', layout !== 'blocks' && rows.length > 0 && !field.disabled && 'pl-[42px]')}>{helps.join(' · ')}</span>
+      )}
     </div>
   );
 }
 
+/**
+ * Pairs of texts (UTM tags, headers, settings) drawn like the Repeater's table:
+ * the column names once, a row of two inputs per pair, no frame of its own.
+ */
 export function KeyValueField({ node }: { node: FieldNode & { keyLabel?: string; valueLabel?: string; addLabel?: string } }) {
   const id = useId();
   const field = useField(node);
   const rows = (Array.isArray(field.value) ? field.value : []) as { key: string; value: string }[];
   const update = (index: number, key: 'key' | 'value', value: string) => field.setValue(rows.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
+  const input = cx(controlClass, 'font-mono text-[13px]', field.readonly && readonlyClass);
 
   return (
     <FieldFrame node={node} inputId={id} required={field.required} error={field.error}>
-      <div className="overflow-hidden rounded-lg border border-line-strong">
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_36px] bg-surface-2 text-[12.5px] font-medium text-fg-3">
-          <span className="border-r border-line px-2.5 py-1.5">{node.keyLabel}</span>
-          <span className="px-2.5 py-1.5">{node.valueLabel}</span>
-        </div>
-        {rows.map((row, index) => (
-          <div key={index} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_36px] border-t border-line">
-            <input
-              id={index === 0 ? id : undefined}
-              value={row.key}
-              onChange={(event) => update(index, 'key', event.target.value)}
-              aria-label={`${node.keyLabel} ${index + 1}`}
-              className="min-w-0 border-r border-line bg-transparent px-2.5 py-2 font-mono text-[13px] outline-none focus:bg-accent-soft"
-            />
-            <input
-              value={row.value}
-              onChange={(event) => update(index, 'value', event.target.value)}
-              aria-label={`${node.valueLabel} ${index + 1}`}
-              className="min-w-0 bg-transparent px-2.5 py-2 font-mono text-[13px] outline-none focus:bg-accent-soft"
-            />
-            <button type="button" className={cx(iconButton, 'm-auto')} aria-label={t('remove')} onClick={() => field.setValue(rows.filter((_, i) => i !== index))}>
-              <Icon name="x" />
-            </button>
+      {rows.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div aria-hidden="true" className="flex items-center gap-1.5 text-[12.5px] font-medium text-fg-3">
+            <span className="min-w-0 flex-1">{node.keyLabel}</span>
+            <span className="min-w-0 flex-1">{node.valueLabel}</span>
+            {!field.disabled && <span className="w-9 shrink-0" />}
           </div>
-        ))}
-      </div>
-      <button type="button" className={cx(buttonClass('ghost', 'sm'), 'self-start')} onClick={() => field.setValue([...rows, { key: '', value: '' }])}>
-        <Icon name="plus" />
-        {node.addLabel ?? t('add')}
-      </button>
+          {rows.map((row, index) => (
+            <div key={index} className="flex items-center gap-1.5">
+              <input
+                id={index === 0 ? id : undefined}
+                value={row.key}
+                onChange={(event) => update(index, 'key', event.target.value)}
+                readOnly={field.disabled}
+                aria-label={`${node.keyLabel} ${index + 1}`}
+                className={cx(input, 'min-w-0 flex-1')}
+              />
+              <input
+                value={row.value}
+                onChange={(event) => update(index, 'value', event.target.value)}
+                readOnly={field.disabled}
+                aria-label={`${node.valueLabel} ${index + 1}`}
+                className={cx(input, 'min-w-0 flex-1')}
+              />
+              {!field.disabled && (
+                <button type="button" className={cx(iconButton, 'size-9 hover:text-danger-fg')} aria-label={`${t('remove')} ${index + 1}`} onClick={() => field.setValue(rows.filter((_, i) => i !== index))}>
+                  <Icon name="x" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {!field.disabled && (
+        <button type="button" className={cx(buttonClass('ghost', 'sm'), '-ml-2.5 self-start text-fg-2')} onClick={() => field.setValue([...rows, { key: '', value: '' }])}>
+          <Icon name="plus" />
+          {node.addLabel ?? t('add')}
+        </button>
+      )}
     </FieldFrame>
   );
 }

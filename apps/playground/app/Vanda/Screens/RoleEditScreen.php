@@ -6,8 +6,6 @@ use App\Vanda\Forms\RoleForm;
 use Vanda\Access\Permissions;
 use Vanda\Access\Role;
 use Vanda\Actions\Button;
-use Vanda\Actions\Link;
-use Vanda\Actions\Variant;
 use Vanda\Attributes\Action;
 use Vanda\Attributes\Can;
 use Vanda\Fields\Input;
@@ -46,7 +44,6 @@ final class RoleEditScreen extends Screen
     public function commandBar(): iterable
     {
         return [
-            Link::make('К списку')->icon('chevron-left')->variant(Variant::Ghost)->to(RoleListScreen::class),
             Button::make('Удалить')->icon('trash')->danger()->confirm('Пользователи потеряют права этой роли.', 'Удалить роль?', 'Удалить')
                 ->action($this->delete(...))->visible($this->role->exists),
             Button::make('Сохранить')->icon('save')->primary()->hotkey('mod+s')->action($this->save(...)),

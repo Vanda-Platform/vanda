@@ -9,7 +9,10 @@ use Vanda\Schema\SchemaContext;
 use Vanda\Schema\ValidationScope;
 
 /**
- * A titled block: description on the left, content in a card on the right.
+ * A titled block of fields: the title and description above, the fields in a card below,
+ * the block's own buttons at the bottom of the card.
+ *
+ *     Layout::section('Profile', 'Name and contacts')->schema([...])->commands([...]),
  */
 final class Section extends Node implements ValidationScope
 {

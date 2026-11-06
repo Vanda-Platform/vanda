@@ -100,6 +100,11 @@ final class Relation extends Field
         return $this;
     }
 
+    public function isMultiple(): bool
+    {
+        return $this->multiple;
+    }
+
     /**
      * How many matches the browser gets at once (20).
      */

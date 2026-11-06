@@ -229,7 +229,8 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* relative: hidden helpers inside rows stay in this scroller instead of widening the page. */}
+      <div className="relative overflow-x-auto">
         <table role="treegrid" aria-label={columns[0]?.label} className="w-full border-separate border-spacing-0 text-[14px]">
           <thead>
             <tr>

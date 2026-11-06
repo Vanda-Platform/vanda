@@ -7,6 +7,8 @@ import { isInternal, nodeAttributes, useSnapshot, useStore } from '../store';
 import { Avatar, buttonClass, cx, Icon } from '../ui';
 import type { UiNode } from '../types';
 import type { ButtonNode } from './actions';
+import { CopyButton } from '../copy';
+import { BlockTitleContext } from './blockTitle';
 import { NodeList, NodeView } from './NodeView';
 
 const COLUMNS: Record<number, string> = {
@@ -26,18 +28,21 @@ export function SectionView({ node }: { node: UiNode & { title: string; descript
   const content = (node.children ?? []).filter((child) => !commands.has(child.id));
   const buttons = (node.children ?? []).filter((child) => commands.has(child.id));
 
+  // The title and description sit above the card with the fields, the card takes the full width.
   return (
-    <section className="flex max-w-[1056px] flex-wrap gap-6 border-b border-line pb-10 last:border-b-0 last:pb-0 not-first:mt-6" {...nodeAttributes(node)}>
-      <div className="flex max-w-[300px] flex-[1_1_220px] flex-col gap-1.5">
+    <section className="flex min-w-0 flex-col gap-3 not-first:mt-4" {...nodeAttributes(node)}>
+      <div className="flex max-w-[720px] flex-col gap-0.5">
         <h2 className="text-[15px] leading-[22px] font-semibold">{node.title}</h2>
         {node.description && <p className="text-[13.5px] text-fg-2">{node.description}</p>}
       </div>
-      <div className="min-w-0 flex-[999_1_480px] rounded-xl border border-line bg-surface shadow-sm">
-        <div className="flex flex-col gap-5 p-6 [--v-gutter:24px]">
-          <NodeList nodes={content} />
+      <div className="min-w-0 rounded-xl border border-line bg-surface shadow-sm">
+        <div className="flex flex-col gap-5 p-4 [--v-gutter:16px] md:p-6 md:[--v-gutter:24px]">
+          <BlockTitleContext.Provider value={node.title}>
+            <NodeList nodes={content} />
+          </BlockTitleContext.Provider>
         </div>
         {buttons.length > 0 && (
-          <div className="flex justify-end gap-2 border-t border-line px-6 py-3">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line px-4 py-3 md:px-6">
             <NodeList nodes={buttons} />
           </div>
         )}
@@ -57,7 +62,7 @@ export function CardView({ node }: { node: UiNode & { title: string; description
 
   return (
     <section className="flex min-w-0 flex-col rounded-xl border border-line bg-surface shadow-sm" {...nodeAttributes(node)}>
-      <header className="flex flex-wrap items-start justify-between gap-3 px-6 pt-5">
+      <header className="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 md:px-6 md:pt-5">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="text-[15px] leading-[22px] font-semibold">{node.title}</h2>
           {node.description && <p className="text-[13.5px] text-fg-2">{node.description}</p>}
@@ -70,8 +75,10 @@ export function CardView({ node }: { node: UiNode & { title: string; description
           </div>
         )}
       </header>
-      <div className="flex flex-col gap-5 p-6 pt-5 [--v-gutter:24px]">
-        <NodeList nodes={content} />
+      <div className="flex flex-col gap-5 p-4 [--v-gutter:16px] md:p-6 md:pt-5 md:[--v-gutter:24px]">
+        <BlockTitleContext.Provider value={node.title}>
+          <NodeList nodes={content} />
+        </BlockTitleContext.Provider>
       </div>
     </section>
   );
@@ -79,13 +86,44 @@ export function CardView({ node }: { node: UiNode & { title: string; description
 
 export function GridView({ node }: { node: UiNode & { columns?: number } }) {
   return (
-    <div className={cx('grid gap-5', COLUMNS[node.columns ?? 1] ?? COLUMNS[2])} {...nodeAttributes(node)}>
+    // *:mt-0!: blocks side by side start at the same height (a section adds space above itself in a column).
+    <div className={cx('grid gap-5 *:mt-0!', COLUMNS[node.columns ?? 1] ?? COLUMNS[2])} {...nodeAttributes(node)}>
       <NodeList nodes={node.children ?? []} />
     </div>
   );
 }
 
 /** Tabs switch on the client and remember the active one in ?tab=…; a tab with errors is marked. */
+/** Nodes that are a block of their own on a page; fields and other content around them get a card. */
+const BLOCKS = new Set(['section', 'card', 'table', 'treetable', 'tabs', 'metrics', 'chart', 'alert', 'empty', 'actionlist']);
+
+const isBlock = (node: UiNode): boolean =>
+  BLOCKS.has(node.type) || (node.type === 'grid' && (node.children ?? []).length > 0 && (node.children ?? []).every(isBlock));
+
+/**
+ * The content of a page or a tab. Sections, cards and tables stand on their own; fields placed
+ * straight on the page are gathered into a card, so every field sits one level deep (one border
+ * per level), as in a section.
+ */
+export function BlockList({ nodes }: { nodes: UiNode[] }) {
+  const runs: UiNode[][] = [];
+  for (const child of nodes) {
+    const last = runs[runs.length - 1];
+    if (last && !isBlock(child) && !isBlock(last[0]!)) last.push(child);
+    else runs.push([child]);
+  }
+
+  return runs.map((run) =>
+    isBlock(run[0]!) ? (
+      <NodeView key={run[0]!.id} node={run[0]!} />
+    ) : (
+      <div key={`${run[0]!.id}-card`} className="flex min-w-0 flex-col gap-5 rounded-xl border border-line bg-surface p-4 shadow-sm [--v-gutter:16px] md:p-6 md:[--v-gutter:24px]">
+        <NodeList nodes={run} />
+      </div>
+    ),
+  );
+}
+
 export function TabsView({ node }: { node: UiNode }) {
   const tabs = node.children ?? [];
   const errors = useSnapshot((s) => s.errors);
@@ -128,7 +166,7 @@ export function TabsView({ node }: { node: UiNode }) {
       </div>
       {tabs.map((tab, index) => (
         <div key={tab.id} role="tabpanel" id={`${tab.id}-panel`} aria-labelledby={`${tab.id}-tab`} hidden={index !== active} className="flex flex-col gap-4">
-          <NodeList nodes={tab.children ?? []} />
+          <BlockList nodes={tab.children ?? []} />
         </div>
       ))}
     </div>
@@ -143,8 +181,20 @@ export function ModalView({ node }: { node: UiNode & { title: string; descriptio
   const footer = (node.children ?? []).filter((child) => buttons.has(child.id));
 
   return (
-    <ModalOverlay isOpen={open} onOpenChange={(next) => store.openModal(next ? node.id : null)} isDismissable className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-(--v-scrim) p-4">
-      <Modal className={cx('w-full rounded-xl border border-line bg-surface shadow-pop outline-none', node.size === 'lg' ? 'max-w-2xl' : 'max-w-[440px]')}>
+    // On phones a modal is a sheet from the bottom, scrolling inside, its buttons pinned to the bottom.
+    <ModalOverlay
+      isOpen={open}
+      onOpenChange={(next) => store.openModal(next ? node.id : null)}
+      isDismissable
+      className="fixed inset-0 z-40 grid overflow-y-auto bg-(--v-scrim) max-md:items-end md:place-items-center md:p-4"
+    >
+      <Modal
+        className={cx(
+          'w-full border border-line bg-surface shadow-pop outline-none md:rounded-xl',
+          'max-md:max-h-[92dvh] max-md:overflow-y-auto max-md:overscroll-contain max-md:rounded-t-2xl max-md:border-b-0 max-md:data-[entering]:animate-[vanda-sheet-in_220ms_cubic-bezier(0.2,0.8,0.2,1)] max-md:motion-reduce:animate-none',
+          node.size === 'lg' ? 'md:max-w-2xl' : 'md:max-w-[440px]',
+        )}
+      >
         <Dialog className="flex flex-col outline-none" {...nodeAttributes(node)}>
           {({ close }) => (
             <form
@@ -168,7 +218,7 @@ export function ModalView({ node }: { node: UiNode & { title: string; descriptio
               <div className="flex flex-col gap-3.5 px-5 py-4">
                 <NodeList nodes={content} />
               </div>
-              <div className="flex justify-end gap-2 border-t border-line px-5 pt-3 pb-4">
+              <div className="flex justify-end gap-2 border-t border-line bg-surface px-5 pt-3 pb-4 max-md:sticky max-md:bottom-0 max-md:pb-[calc(16px+env(safe-area-inset-bottom))]">
                 <button type="button" onClick={close} className={buttonClass('secondary')}>
                   {t('cancel')}
                 </button>
@@ -254,16 +304,7 @@ export function LegendView({ node }: { node: UiNode & { items?: { label: string;
           <dt className="text-fg-3">{item.label}</dt>
           <dd className="m-0 flex min-w-0 items-center gap-1.5">
             <NodeView node={item.value} compact />
-            {item.copyable && item.value.type === 'text' && (
-              <button
-                type="button"
-                aria-label={t('copy')}
-                onClick={() => void navigator.clipboard.writeText(String(item.value.text))}
-                className="grid size-6 place-items-center rounded-md text-fg-3 hover:bg-surface-2 hover:text-fg"
-              >
-                <Icon name="copy" className="size-3.5" />
-              </button>
-            )}
+            {item.copyable && item.value.type === 'text' && <CopyButton text={String(item.value.text)} />}
           </dd>
         </div>
       ))}
@@ -298,15 +339,16 @@ function Sparkline({ values, good }: { values: number[]; good: boolean }) {
 
 export function MetricsView({ node }: { node: UiNode & { items?: MetricItem[] } }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4" {...nodeAttributes(node)}>
+    // Two in a row on phones, so four numbers fit on one screen.
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] md:gap-4" {...nodeAttributes(node)}>
       {(node.items ?? []).map((metric) => (
-        <div key={metric.label} className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-[18px] pb-3.5 shadow-sm">
-          <span className="text-[13.5px] font-medium text-fg-3">{metric.label}</span>
-          <div className="flex flex-wrap items-baseline gap-2.5">
-            <span className="text-[26px] leading-8 font-semibold tracking-[-0.02em] tabular-nums">{metric.value}</span>
+        <div key={metric.label} className="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface p-3.5 shadow-sm md:p-[18px] md:pb-3.5">
+          <span className="text-[13px] font-medium text-fg-3 md:text-[13.5px]">{metric.label}</span>
+          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+            <span className="text-[20px] leading-7 font-semibold tracking-[-0.02em] tabular-nums md:text-[26px] md:leading-8">{metric.value}</span>
             {metric.delta && (
-              <span className={cx('inline-flex h-[22px] items-center gap-1 rounded-full px-2 text-[12px] font-medium', metric.good ? TONES.success : TONES.danger)}>
-                <Icon name={metric.good ? 'arrow-up' : 'arrow-down'} className="size-3" />
+              <span className={cx('inline-flex min-h-[22px] items-center gap-1 rounded-[11px] px-2 py-0.5 text-[12px] leading-[1.3] font-medium', metric.good ? TONES.success : TONES.danger)}>
+                <Icon name={metric.good ? 'arrow-up' : 'arrow-down'} className="size-3 shrink-0" />
                 {metric.delta}
               </span>
             )}

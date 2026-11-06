@@ -20,6 +20,7 @@ use Vanda\Attributes\Updated;
 use Vanda\Fields\Field;
 use Vanda\Fields\Relation;
 use Vanda\Fields\Repeater;
+use Vanda\Fields\RichText;
 use Vanda\Fields\Upload;
 use Vanda\Form\Form;
 use Vanda\Navigation\Crumb;
@@ -121,15 +122,18 @@ final class ScreenRuntime
     }
 
     /**
-     * Stores a file sent to an Upload field of this screen (multipart POST with type=upload).
+     * Stores a file sent to an Upload field of this screen, or an image pasted into a RichText
+     * with ->uploads() (multipart POST with type=upload).
      *
      * @return array{0: int, 1: array<string, mixed>} HTTP status and JSON body
      */
     public function upload(string $path, ?UploadedFile $file): array
     {
         $field = $this->editableField($path);
+        // A RichText with ->uploads() stores images through an Upload of its own.
+        $field = $field instanceof RichText ? $field->uploader() : $field;
         if (! $field instanceof Upload) {
-            throw new HttpException(404, "There is no editable Upload field [{$path}] on ".$this->screen::class.'.');
+            throw new HttpException(404, "There is no editable Upload field (or RichText with ->uploads()) [{$path}] on ".$this->screen::class.'.');
         }
 
         try {

@@ -1,13 +1,18 @@
 import { Link, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import { Dialog, Modal, ModalOverlay } from 'react-aria-components';
 import { Inspector } from './Inspector';
+import defaultAuthBackground from './assets/auth-background.webp';
+import { VandaLogo, VandaSymbol } from './logo';
 import { NotificationsBell } from './Notifications';
 import { openPalette, Palette } from './Palette';
-import type { ButtonNode } from './nodes/actions';
+import { DropDownView, type ButtonNode } from './nodes/actions';
+import { BlockList } from './nodes/layout';
 import { NodeList, NodeView } from './nodes/NodeView';
+import { COLLAPSED_GROUPS, FAVORITES, useStoredList } from './menuPrefs';
 import { t, tn } from './i18n';
 import { dirtyCount, useSnapshot, useStore } from './store';
-import { Avatar, buttonClass, cx, formatHotkey, Icon, Kbd } from './ui';
+import { Avatar, buttonClass, cx, formatHotkey, Icon, Kbd, MOBILE_QUERY, useMediaQuery } from './ui';
 import type { ActionRef, Crumb, MenuItem, Page, UiNode } from './types';
 
 export function App() {
@@ -37,23 +42,43 @@ export function App() {
   }, [page.title, page.app.name]);
 
   const brand = { '--v-accent': page.app.brand } as React.CSSProperties;
+  const mobile = useMediaQuery(MOBILE_QUERY);
 
   if (page.chrome === 'card') {
+    // config('vanda.auth_background'): the picture fills the screen, a veil keeps the card calm on it.
+    const background = page.app.authBackground === false ? null : (page.app.authBackground ?? defaultAuthBackground);
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-10 bg-bg px-4 py-12" style={brand}>
-        <Logo name={page.app.name} large />
-        <CardScreen page={page} />
+      <div
+        className={cx('relative flex min-h-screen flex-col items-center justify-center gap-10 bg-bg bg-cover bg-center px-4 py-12')}
+        style={{ ...brand, ...(background ? { backgroundImage: `url(${JSON.stringify(background)})` } : {}) }}
+      >
+        {background && <div aria-hidden="true" className="absolute inset-0 bg-(--v-auth-veil)" />}
+        <div className={cx('relative', background && 'rounded-2xl bg-surface/85 px-4 py-2.5 shadow-sm backdrop-blur-md')}>
+          <Logo name={page.app.name} large />
+        </div>
+        <div className="relative flex w-full justify-center">
+          <CardScreen page={page} glass={Boolean(background)} />
+        </div>
         <Toasts />
       </div>
     );
   }
 
+  // Phones get the app layout: a tab bar at the bottom and the whole menu in a sheet above it.
   return (
-    <div className="flex min-h-screen flex-wrap items-stretch bg-bg" style={brand}>
-      <Sidebar />
-      <main className="m-2 flex min-w-0 flex-[999_1_560px] flex-col rounded-[14px] border border-line bg-surface shadow-sm">
+    // overflow-x-clip: nothing too wide may widen the page (on a phone that zooms everything out).
+    <div className={cx('flex min-h-screen flex-col overflow-x-clip bg-bg', mobile && 'bg-surface pb-[calc(64px+env(safe-area-inset-bottom))]')} style={brand}>
+      <AlertStrips />
+      <div className="flex flex-1 items-stretch">
+      {!mobile && <Sidebar />}
+      <main
+        className={cx(
+          'flex min-w-0 flex-1 flex-col bg-surface',
+          mobile ? '[--v-gutter:16px]' : 'm-2 rounded-[14px] border border-line shadow-sm',
+        )}
+      >
         {page.app.user?.impersonator && (
-          <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-t-[13px] border-b border-line bg-warning-soft px-8 py-2 text-[13.5px] text-warning-fg">
+          <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-warning-soft px-4 py-2 text-[13.5px] text-warning-fg md:rounded-t-[13px] md:px-8">
             <Icon name="eye" />
             <span>{t('impersonating', { name: page.app.user.name })}</span>
             <button type="button" onClick={() => router.post(page.app.user!.impersonator!.stop)} className="font-medium underline underline-offset-3 hover:no-underline">
@@ -61,35 +86,51 @@ export function App() {
             </button>
           </div>
         )}
-        <header className="flex min-h-[61px] items-center justify-between gap-4 border-b border-line py-3 pr-5 pl-8">
-          <Breadcrumbs crumbs={crumbsFor(page)} />
+        <header
+          className={cx(
+            'flex items-center justify-between gap-4 border-b border-line',
+            mobile ? 'sticky top-0 z-20 min-h-[52px] bg-surface/95 py-2 pr-2 pl-4 backdrop-blur' : 'min-h-[61px] py-3 pr-5 pl-8',
+          )}
+        >
+          {mobile ? <MobileTopBar crumbs={crumbsFor(page)} name={page.app.name} /> : <Breadcrumbs crumbs={crumbsFor(page)} />}
           <NotificationsBell />
         </header>
 
         {/* A record's screen (with an avatar) gets the design's centred header with a rule under it. */}
-        <section className={cx('flex flex-wrap justify-between gap-4 px-8', page.avatar ? 'items-center gap-5 border-b border-line py-7' : 'items-end pt-7 pb-5')}>
+        <section
+          className={cx(
+            'flex flex-wrap justify-between gap-4',
+            mobile ? 'px-4' : 'px-8',
+            page.avatar ? cx('items-center gap-5 border-b border-line', mobile ? 'py-5' : 'py-7') : cx('items-end pb-5', mobile ? 'pt-5' : 'pt-7'),
+          )}
+        >
           <div className="flex min-w-0 items-center gap-4">
             {page.avatar && <Avatar initials={page.avatar.initials} hue={page.avatar.hue} image={page.avatar.image} size="lg" />}
             <div className="flex min-w-0 flex-col gap-1">
               <div className="flex flex-wrap items-center gap-2.5">
-                {page.title && <h1 className="text-[24px] leading-8 font-semibold tracking-[-0.015em]">{page.title}</h1>}
+                {page.title && <h1 className={cx('font-semibold tracking-[-0.015em]', mobile ? 'text-[20px] leading-7' : 'text-[24px] leading-8')}>{page.title}</h1>}
                 {page.badge && <NodeView node={page.badge} />}
               </div>
               {page.description && <p className="text-fg-2">{page.description}</p>}
             </div>
           </div>
-          {page.commandBar.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <NodeList nodes={page.commandBar} />
-            </div>
-          )}
+          {page.commandBar.length > 0 &&
+            (mobile ? (
+              <MobileCommandBar nodes={page.commandBar} />
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <NodeList nodes={page.commandBar} />
+              </div>
+            ))}
         </section>
 
-        <div className={cx('flex flex-col gap-4 px-8 pb-10', page.avatar && 'pt-8')}>
-          <NodeList nodes={page.layout} />
+        <div className={cx('flex flex-col gap-4', mobile ? 'px-4 pb-8' : 'px-8 pb-10', page.avatar && (mobile ? 'pt-5' : 'pt-8'))}>
+          <BlockList nodes={page.layout} />
         </div>
-        <UnsavedBar />
+        <UnsavedBar mobile={mobile} />
       </main>
+      </div>
+      {mobile && <MobileNav />}
       <Toasts />
       <Palette />
       <Inspector />
@@ -98,13 +139,17 @@ export function App() {
 }
 
 /** Sign-in style screens: a centred card; Enter runs the first primary button. */
-function CardScreen({ page }: { page: Page }) {
+function CardScreen({ page, glass = false }: { page: Page; glass?: boolean }) {
   const store = useStore();
   const primary = page.layout.find((node): node is UiNode & { action: ActionRef } => node.type === 'button' && node.variant === 'primary' && Boolean(node.action));
 
   return (
     <form
-      className="flex w-full max-w-[380px] flex-col gap-5 rounded-xl border border-line bg-surface p-8 shadow-card"
+      // On a picture the card turns to frosted glass, in tune with Vanda's liquid glass background.
+      className={cx(
+        'flex w-full max-w-[380px] flex-col gap-5 rounded-xl border p-8 shadow-card',
+        glass ? 'border-(--v-glass-border) bg-surface/80 shadow-pop backdrop-blur-xl' : 'border-line bg-surface',
+      )}
       onSubmit={(event) => {
         event.preventDefault();
         if (primary) void store.runAction(primary.id, primary.action);
@@ -158,94 +203,337 @@ function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
   );
 }
 
-function Logo({ name, large = false }: { name: string; large?: boolean }) {
+/**
+ * Vanda's orchid next to the panel's name; a panel called "Vanda" shows the full logo.
+ */
+function Logo({ name, large = false, compact = false }: { name: string; large?: boolean; compact?: boolean }) {
+  if (name === 'Vanda') {
+    return (
+      <div className={cx('flex items-center', !large && !compact && 'px-1.5 pt-1.5 pb-4')}>
+        <VandaLogo className={cx('w-auto text-fg', large ? 'h-9' : 'h-6')} />
+      </div>
+    );
+  }
+
   return (
-    <div className={cx('flex items-center gap-2.5', !large && 'px-1.5 pt-1 pb-3.5')}>
-      <span aria-hidden="true" className={cx('grid place-items-center rounded-lg bg-accent text-white', large ? 'size-8' : 'size-7')}>
-        <svg viewBox="0 0 24 24" className={large ? 'size-5' : 'size-[18px]'} fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 20C7 17 4.5 11 5 4.5c5 1.5 7.5 6.5 7 15.5ZM12 20c5-3 7.5-9 7-15.5-5 1.5-7.5 6.5-7 15.5Z" />
-        </svg>
+    <div className={cx('flex min-w-0 items-center gap-2', !large && !compact && 'px-1.5 pt-1 pb-3.5')}>
+      <VandaSymbol className={cx('w-auto shrink-0', large ? 'h-9' : 'h-7')} />
+      <span className={cx('truncate font-semibold tracking-[-0.01em]', large ? 'text-[18px]' : 'text-[15px]')}>{name}</span>
+    </div>
+  );
+}
+
+function menuGroups(menu: MenuItem[]): { title?: string; items: MenuItem[] }[] {
+  return menu.reduce<{ title?: string; items: MenuItem[] }[]>((acc, item) => {
+    const last = acc[acc.length - 1];
+    if (last && last.title === item.group) last.items.push(item);
+    else acc.push({ title: item.group, items: [item] });
+    return acc;
+  }, []);
+}
+
+/** Where a menu item is remembered as a favourite: its address, or its label when it has none. */
+const menuKey = (item: MenuItem) => item.href ?? item.label;
+
+/**
+ * The panel's menu with its groups; `large` gives the taller rows of the phone sheet.
+ * A group folds away under its title (remembered in this browser; the group of the current
+ * page stays open), and a star puts an item into «Favorites» at the top.
+ */
+function MenuLinks({ menu, large = false }: { menu: MenuItem[]; large?: boolean }) {
+  const [collapsed, toggleGroup] = useStoredList(COLLAPSED_GROUPS);
+  const [favorites, toggleFavorite] = useStoredList(FAVORITES);
+  const starred = favorites.map((key) => menu.find((item) => menuKey(item) === key)).filter((item): item is MenuItem => item !== undefined);
+  const groups = [...(starred.length > 0 ? [{ title: t('favorites'), items: starred, favorites: true }] : []), ...menuGroups(menu)];
+
+  return (
+    <nav aria-label={t('menu')} className="flex flex-col">
+      {groups.map((group, index) => {
+        const foldable = Boolean(group.title) && !('favorites' in group);
+        const open = !foldable || !collapsed.includes(group.title!) || group.items.some((item) => item.active);
+
+        return (
+          <div key={'favorites' in group ? '\u0000favorites' : (group.title ?? index)} className={cx('flex flex-col gap-0.5', 'favorites' in group && 'mb-1 border-b border-line pb-2.5')}>
+            {group.title &&
+              (foldable ? (
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  title={t('toggleGroup', { label: group.title })}
+                  onClick={() => toggleGroup(group.title!)}
+                  className="group/title mt-[18px] mb-1.5 flex items-center gap-1 rounded-md px-2.5 text-left text-[11.5px] font-semibold tracking-[0.06em] text-fg-3 uppercase hover:text-fg-2"
+                >
+                  {group.title}
+                  <Icon name="chevron-down" className={cx('size-3 opacity-0 transition-transform group-hover/title:opacity-100 group-focus-visible/title:opacity-100', !open && '-rotate-90 opacity-100')} />
+                </button>
+              ) : (
+                <div className={cx('mb-1.5 px-2.5 text-[11.5px] font-semibold tracking-[0.06em] text-fg-3 uppercase', index > 0 && 'mt-[18px]')}>{group.title}</div>
+              ))}
+            {open &&
+              group.items.map((item) => {
+                const isFavorite = favorites.includes(menuKey(item));
+                return (
+                  <div key={item.label} className="group/item relative">
+                    <Link
+                      href={item.href ?? '#'}
+                      prefetch
+                      aria-current={item.active ? 'page' : undefined}
+                      className={cx(
+                        'flex items-center gap-2.5 rounded-lg pl-2.5 font-medium text-fg-2 hover:bg-surface-2 hover:text-fg',
+                        large ? 'h-11 pr-9 text-[15px]' : 'h-[34px] pr-2.5 text-[14px]',
+                        item.active && 'bg-surface text-fg shadow-sm ring-1 ring-line [&_svg]:text-accent-fg',
+                      )}
+                    >
+                      <Icon name={item.icon} />
+                      <span className={cx('truncate', !large && 'group-focus-within/item:pr-6 group-hover/item:pr-6')}>{item.label}</span>
+                      {item.badge !== undefined && (
+                        <span
+                          className={cx(
+                            'ml-auto grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-surface-3 px-1.5 text-[11.5px] font-semibold text-fg-2',
+                            !large && 'group-focus-within/item:invisible group-hover/item:invisible',
+                          )}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                    {/* Phones have no hover: the star is always there, faint until it is on. */}
+                    <button
+                      type="button"
+                      aria-pressed={isFavorite}
+                      aria-label={t(isFavorite ? 'removeFavorite' : 'addFavorite', { label: item.label })}
+                      title={t(isFavorite ? 'removeFavorite' : 'addFavorite', { label: item.label })}
+                      onClick={() => toggleFavorite(menuKey(item))}
+                      className={cx(
+                        'absolute top-1/2 right-1 grid size-7 -translate-y-1/2 place-items-center rounded-md hover:bg-surface-3',
+                        isFavorite ? 'text-warning' : 'text-fg-3 hover:text-fg',
+                        large
+                          ? cx(!isFavorite && 'opacity-40', item.badge !== undefined && 'hidden')
+                          : 'opacity-0 group-focus-within/item:opacity-100 group-hover/item:opacity-100 focus-visible:opacity-100',
+                      )}
+                    >
+                      <Icon name="star" className={cx('size-3.5', isFavorite && 'fill-current')} />
+                    </button>
+                  </div>
+                );
+              })}
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** Red strips over the whole page that the panel itself raises (a weak password on production). */
+function AlertStrips() {
+  const alerts = useSnapshot((s) => s.page.app.alerts);
+  if (!alerts?.length) return null;
+
+  return alerts.map((alert) => (
+    <div
+      key={alert.text}
+      role="alert"
+      className={cx(
+        'flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2 text-center text-[13px] font-medium text-white',
+        alert.tone === 'danger' ? 'bg-danger' : 'bg-warning',
+      )}
+    >
+      <span className="flex items-center gap-2">
+        <Icon name="alert" className="size-4 shrink-0" />
+        {alert.text}
       </span>
-      <span className={cx('font-semibold tracking-[-0.01em]', large ? 'text-[18px]' : 'text-[15px]')}>{name}</span>
+      {alert.link && (
+        <Link href={alert.link.href} className="underline underline-offset-3 hover:no-underline">
+          {alert.link.label}
+        </Link>
+      )}
+    </div>
+  ));
+}
+
+/** The signed-in user with the sign-out button, at the bottom of the menu. */
+function UserCard() {
+  const user = useSnapshot((s) => s.page.app.user);
+  if (!user) return null;
+
+  return (
+    <div className="flex items-center gap-2.5 px-2 py-2">
+      <Avatar initials={user.avatar.initials} hue={user.avatar.hue} image={user.avatar.image} />
+      {/* With Panel::profile() the name leads to the user's own page. */}
+      {user.profile ? (
+        <Link href={user.profile} className="flex min-w-0 flex-grow flex-col rounded-md hover:text-accent-fg">
+          <span className="truncate text-[13.5px] font-medium">{user.name}</span>
+          <span className="truncate text-[12.5px] text-fg-3">{user.email}</span>
+        </Link>
+      ) : (
+        <span className="flex min-w-0 flex-grow flex-col">
+          <span className="truncate text-[13.5px] font-medium">{user.name}</span>
+          <span className="truncate text-[12.5px] text-fg-3">{user.email}</span>
+        </span>
+      )}
+      {user.logout && (
+        <button
+          type="button"
+          aria-label={t('logout')}
+          title={t('logout')}
+          onClick={() => router.post(user.logout!)}
+          className="grid size-9 shrink-0 place-items-center rounded-md text-fg-3 hover:bg-surface-2 hover:text-fg"
+        >
+          <Icon name="log-out" />
+        </button>
+      )}
     </div>
   );
 }
 
 function Sidebar() {
   const app = useSnapshot((s) => s.page.app);
-  const groups = app.menu.reduce<{ title?: string; items: MenuItem[] }[]>((acc, item) => {
-    const last = acc[acc.length - 1];
-    if (last && last.title === item.group) last.items.push(item);
-    else acc.push({ title: item.group, items: [item] });
-    return acc;
-  }, []);
 
   return (
-    <aside className="flex flex-[1_1_248px] flex-col gap-1 px-3 py-3.5 md:max-w-[248px]">
-      <Logo name={app.name} />
+    // The logo, search and the user stay in place; only a long menu scrolls between them
+    // (as one scrolling column, flex squeezed the search box to fit the screen).
+    <aside className="sticky top-0 flex h-screen w-[248px] shrink-0 flex-col">
+      <div className="flex shrink-0 flex-col gap-1 px-3 pt-3.5">
+        <Logo name={app.name} />
 
-      <button
-        type="button"
-        className="flex h-9 items-center gap-2 rounded-lg border border-line-strong bg-surface px-2.5 text-left text-fg-3 hover:border-fg-3 hover:text-fg-2"
-        aria-label={t('search')}
-        aria-keyshortcuts="Meta+K"
-        onClick={openPalette}
-      >
-        <Icon name="search" />
-        <span className="flex-grow text-[13.5px]">{t('search')}</span>
-        <Kbd>{formatHotkey('mod+k')}</Kbd>
-      </button>
+        <button
+          type="button"
+          className="flex h-9 items-center gap-2 rounded-lg border border-line-strong bg-surface px-2.5 text-left text-fg-3 hover:border-fg-3 hover:text-fg-2"
+          aria-label={t('search')}
+          aria-keyshortcuts="Meta+K"
+          onClick={openPalette}
+        >
+          <Icon name="search" />
+          <span className="flex-grow text-[13.5px]">{t('search')}</span>
+          <Kbd>{formatHotkey('mod+k')}</Kbd>
+        </button>
+      </div>
 
-      <nav aria-label={t('menu')} className="mt-2 flex flex-col">
-        {groups.map((group, index) => (
-          <div key={group.title ?? index} className="flex flex-col gap-0.5">
-            {group.title && <div className="mt-[18px] mb-1.5 px-2.5 text-[11.5px] font-semibold tracking-[0.06em] text-fg-3 uppercase">{group.title}</div>}
-            {group.items.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href ?? '#'}
-                prefetch
-                aria-current={item.active ? 'page' : undefined}
-                className={cx(
-                  'flex h-[34px] items-center gap-2.5 rounded-lg px-2.5 text-[14px] font-medium text-fg-2 hover:bg-surface-2 hover:text-fg',
-                  item.active && 'bg-surface text-fg shadow-sm ring-1 ring-line [&_svg]:text-accent-fg',
-                )}
-              >
-                <Icon name={item.icon} />
-                <span>{item.label}</span>
-                {item.badge !== undefined && (
-                  <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-surface-3 px-1.5 text-[11.5px] font-semibold text-fg-2">{item.badge}</span>
-                )}
-              </Link>
-            ))}
-          </div>
-        ))}
-      </nav>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-2 pb-4">
+        <MenuLinks menu={app.menu} />
+      </div>
 
-      <div className="mt-auto flex flex-col gap-2.5 pt-4">
+      <div className="flex shrink-0 flex-col gap-2.5 border-t border-line px-3 pt-3 pb-3.5">
         <ThemeSwitch />
-        {app.user && (
-          <div className="flex items-center gap-2.5 px-2 py-2">
-            <Avatar initials={app.user.avatar.initials} hue={app.user.avatar.hue} image={app.user.avatar.image} />
-            <span className="flex min-w-0 flex-grow flex-col">
-              <span className="truncate text-[13.5px] font-medium">{app.user.name}</span>
-              <span className="truncate text-[12.5px] text-fg-3">{app.user.email}</span>
-            </span>
-            {app.user.logout && (
-              <button
-                type="button"
-                aria-label={t('logout')}
-                title={t('logout')}
-                onClick={() => router.post(app.user!.logout!)}
-                className="grid size-7 shrink-0 place-items-center rounded-md text-fg-3 hover:bg-surface-2 hover:text-fg"
-              >
-                <Icon name="log-out" />
-              </button>
-            )}
-          </div>
-        )}
+        <UserCard />
       </div>
     </aside>
+  );
+}
+
+/** Phones: the way back (the nearest crumb with a link) instead of the whole trail. */
+function MobileTopBar({ crumbs, name }: { crumbs: Crumb[]; name: string }) {
+  // A crumb that leads to this very page (the menu item of a list) is no way back.
+  const here = window.location.pathname;
+  const back = [...crumbs.slice(0, -1)].reverse().find((crumb) => crumb.href && new URL(crumb.href, window.location.href).pathname !== here);
+
+  return back ? (
+    <Link href={back.href!} className="-ml-1.5 flex h-9 min-w-0 items-center gap-1 rounded-lg pr-2 pl-1 text-[14px] font-medium text-fg-2 hover:bg-surface-2 hover:text-fg">
+      <Icon name="chevron-left" className="size-5 shrink-0" />
+      <span className="truncate">{back.label}</span>
+    </Link>
+  ) : (
+    <Logo name={name} compact />
+  );
+}
+
+/** Phones: the primary buttons take the width, everything else goes into a "⋯" menu. */
+function MobileCommandBar({ nodes }: { nodes: UiNode[] }) {
+  const primary = nodes.filter((node) => ['button', 'link', 'modaltoggle'].includes(node.type) && node.variant === 'primary');
+  const rest = nodes.filter((node) => !primary.includes(node)).flatMap((node) => (node.type === 'dropdown' ? (node.children ?? []) : [node]));
+
+  return (
+    <div className="flex w-full gap-2">
+      {rest.length === 1 && primary.length === 0 ? (
+        <NodeView node={rest[0]!} />
+      ) : (
+        rest.length > 0 && <DropDownView node={{ type: 'dropdown', id: 'commandbar.more', icon: 'more', variant: 'secondary', children: rest } as UiNode} />
+      )}
+      {primary.map((node) => (
+        <div key={node.id} className="flex flex-1 [&>*]:w-full">
+          <NodeView node={node} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const tabClass = (active: boolean) =>
+  cx('flex min-w-0 flex-col items-center justify-center gap-1 text-[11px] font-medium', active ? 'text-accent-fg' : 'text-fg-3 hover:text-fg-2');
+
+/**
+ * Phones: a tab bar at the bottom, as in an app. The first three menu items, search and
+ * "Menu", which opens the whole menu in a sheet from the bottom.
+ */
+function MobileNav() {
+  const app = useSnapshot((s) => s.page.app);
+  const url = useSnapshot((s) => s.page.url);
+  const [open, setOpen] = useState(false);
+  const [favorites] = useStoredList(FAVORITES);
+  // The tab bar: items the app pinned (MenuItem::pinned()); else the user's favourites, topped up
+  // with the first items of the menu.
+  const appPinned = app.menu.filter((item) => item.pinned);
+  const starred = favorites.map((key) => app.menu.find((item) => menuKey(item) === key)).filter((item): item is MenuItem => item !== undefined);
+  const pinned = (appPinned.length > 0 ? appPinned : [...starred, ...app.menu.filter((item) => !starred.includes(item))]).slice(0, 3);
+  const inSheet = !pinned.some((item) => item.active);
+
+  // A link in the sheet opens another screen: the sheet goes away.
+  useEffect(() => setOpen(false), [url]);
+
+  return (
+    <>
+      <nav aria-label={t('menu')} className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+        <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${pinned.length + 2}, minmax(0, 1fr))` }}>
+          {pinned.map((item) => (
+            <Link key={item.label} href={item.href ?? '#'} prefetch aria-current={item.active ? 'page' : undefined} className={tabClass(Boolean(item.active))}>
+              <span className="relative">
+                <Icon name={item.icon} className="size-[22px]" />
+                {item.badge !== undefined && (
+                  <span className="absolute -top-1.5 left-3.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] leading-none font-semibold text-white">{item.badge}</span>
+                )}
+              </span>
+              <span className="max-w-full truncate px-1">{item.label}</span>
+            </Link>
+          ))}
+          <button type="button" onClick={openPalette} className={tabClass(false)}>
+            <Icon name="search" className="size-[22px]" />
+            <span>{t('find')}</span>
+          </button>
+          <button type="button" onClick={() => setOpen(true)} aria-expanded={open} className={tabClass(open || inSheet)}>
+            <Icon name="menu" className="size-[22px]" />
+            <span>{t('menuTab')}</span>
+          </button>
+        </div>
+      </nav>
+
+      <ModalOverlay
+        isOpen={open}
+        onOpenChange={setOpen}
+        isDismissable
+        className="fixed inset-0 z-40 bg-(--v-scrim) data-[entering]:animate-[vanda-fade-in_160ms_ease-out] motion-reduce:animate-none"
+      >
+        <Modal className="fixed inset-x-0 bottom-0 flex max-h-[88dvh] flex-col rounded-t-2xl bg-surface shadow-pop outline-none data-[entering]:animate-[vanda-sheet-in_220ms_cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:animate-none">
+          <Dialog aria-label={t('menu')} className="flex min-h-0 flex-col outline-none">
+            <div aria-hidden="true" className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-line-strong" />
+            <div className="flex shrink-0 items-center justify-between px-4 pt-2 pb-1">
+              <Logo name={app.name} compact />
+              <button type="button" onClick={() => setOpen(false)} aria-label={t('close')} className="grid size-9 place-items-center rounded-lg text-fg-3 hover:bg-surface-2 hover:text-fg">
+                <Icon name="x" />
+              </button>
+            </div>
+            <div className="min-h-0 overflow-y-auto overscroll-contain px-3 pb-3">
+              <MenuLinks menu={app.menu} large />
+            </div>
+            <div className="flex shrink-0 items-center justify-between gap-3 border-t border-line px-3 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))]">
+              <div className="min-w-0 flex-1">
+                <UserCard />
+              </div>
+              <ThemeSwitch />
+            </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </>
   );
 }
 
@@ -304,14 +592,22 @@ function ThemeSwitch() {
 function Toasts() {
   const toasts = useSnapshot((s) => s.toasts);
   const store = useStore();
+  // Toasts rise above the unsaved changes bar instead of covering its buttons.
+  const lifted = useUnsavedSave() !== null;
 
   return (
-    <div aria-live="polite" className="pointer-events-none fixed right-5 bottom-5 z-50 flex flex-col items-end gap-2.5">
+    <div
+      aria-live="polite"
+      className={cx(
+        'pointer-events-none fixed z-50 flex flex-col items-end gap-2.5 transition-[bottom] duration-200 max-md:inset-x-3 md:right-5',
+        lifted ? 'max-md:bottom-[calc(140px+env(safe-area-inset-bottom))] md:bottom-[88px]' : 'max-md:bottom-[calc(76px+env(safe-area-inset-bottom))] md:bottom-5',
+      )}
+    >
       {toasts.map((toast) => (
         <div
           key={toast.id}
           role={toast.tone === 'danger' ? 'alert' : 'status'}
-          className="pointer-events-auto flex w-[360px] max-w-[calc(100vw-40px)] items-start gap-2.5 rounded-xl border border-line bg-surface py-3 pr-3 pl-3.5 shadow-pop"
+          className="pointer-events-auto flex w-[360px] max-w-[calc(100vw-24px)] items-start max-md:w-full gap-2.5 rounded-xl border border-line bg-surface py-3 pr-3 pl-3.5 shadow-pop"
         >
           <span className={cx('mt-0.5', toast.tone === 'danger' ? 'text-danger' : 'text-success')}>
             <Icon name={toast.tone === 'danger' ? 'alert' : 'success'} />
@@ -327,19 +623,32 @@ function Toasts() {
 }
 
 /** "Unsaved changes · 3 fields · Discard · Save" at the bottom of a form, as in the design. */
-function UnsavedBar() {
+/** The save button the unsaved changes bar offers, while there are changes to save. */
+function useUnsavedSave(): ButtonNode | null {
+  const count = useSnapshot(dirtyCount);
+  const save = useSnapshot((s) => s.page.commandBar.find((node): node is ButtonNode => node.type === 'button' && node.variant === 'primary' && Boolean(node.action)));
+  return save?.action && count > 0 ? save : null;
+}
+
+function UnsavedBar({ mobile }: { mobile: boolean }) {
   const store = useStore();
   const count = useSnapshot(dirtyCount);
   const running = useSnapshot((s) => s.running !== null);
-  const save = useSnapshot((s) => s.page.commandBar.find((node): node is ButtonNode => node.type === 'button' && node.variant === 'primary' && Boolean(node.action)));
+  const save = useUnsavedSave();
 
-  if (!save?.action || count === 0) return null;
+  if (!save?.action) return null;
 
   return (
-    <div role="status" className="sticky bottom-4 z-20 mx-4 mt-2 mb-6 flex items-center gap-3 self-center rounded-xl border border-line bg-surface py-2 pr-2 pl-4 shadow-pop">
-      <span aria-hidden="true" className="size-2 rounded-full bg-warning" />
-      <span className="text-[14px] font-medium">{t('unsaved')}</span>
-      <span className="text-[13.5px] text-fg-3">{tn('changedFields', count)}</span>
+    <div
+      role="status"
+      className={cx(
+        'sticky z-20 mt-2 flex items-center gap-3 rounded-xl border border-line bg-surface py-2 pr-2 pl-4 shadow-pop',
+        mobile ? 'bottom-[calc(76px+env(safe-area-inset-bottom))] mx-3 mb-3' : 'bottom-4 mx-4 mb-6 self-center',
+      )}
+    >
+      <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-warning" />
+      <span className={cx('font-medium', mobile ? 'flex-1 text-[13.5px] leading-tight' : 'text-[14px]')}>{mobile ? tn('changedFields', count) : t('unsaved')}</span>
+      {!mobile && <span className="text-[13.5px] text-fg-3">{tn('changedFields', count)}</span>}
       <button
         type="button"
         className={buttonClass('ghost', 'sm')}

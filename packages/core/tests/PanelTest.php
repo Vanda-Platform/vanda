@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Vanda\Access\Impersonation;
 use Vanda\Layouts\Persona;
 use Vanda\Layouts\Tone;
+use Vanda\Navigation\MenuItem;
 use Vanda\Navigation\SearchResult;
 use Vanda\Notifications\PanelMessage;
 use Vanda\Schema\SchemaContext;
@@ -102,4 +103,12 @@ it('shows a person\'s photo wherever the person appears', function () {
 
     $this->getJson('/admin/showcase', ['X-Vanda' => 'true'])
         ->assertJsonPath('app.user.avatar', ['name' => 'Vera Mironova', 'initials' => 'VM', 'hue' => crc32('Vera Mironova') % 6, 'image' => "/photos/{$this->admin->id}.png"]);
+});
+
+it('marks pinned menu items for the phone tab bar', function () {
+    $pinned = MenuItem::make('Tickets')->href('/panel/tickets')->icon('ticket')->pinned()->toArray();
+    $plain = MenuItem::make('Users')->href('/panel/users')->toArray();
+
+    expect($pinned)->toBe(['label' => 'Tickets', 'href' => '/panel/tickets', 'icon' => 'ticket', 'pinned' => true])
+        ->and($plain)->not->toHaveKey('pinned');
 });

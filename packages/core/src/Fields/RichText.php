@@ -8,13 +8,15 @@ use Vanda\Schema\SchemaContext;
 use Vanda\Support\Html;
 
 /**
- * Formatted text (Tiptap): headings, lists, quotes, links, images, tables and alignment.
- * The value is HTML, cleaned on the server to what the editor produces:
+ * Formatted text: headings, colours, lists, quotes, links, images, tables, video.
+ * The value is HTML, cleaned on the server to what the editor produces (Vanda\Support\Html):
  *
  *     RichText::make('form.content')->label('Text'),
  *     RichText::make('form.body')->embeds(['rutube.ru', 'youtube.com']),   // allow video players
+ *     RichText::make('form.body')->uploads(),                              // images from the computer
  *     RichText::make('form.note')->tags(['p', 'strong', 'em', 'a']),       // a stricter set
  *
+ * The editor is told the same tags and styles, so it never offers what the server would drop.
  * Text the user did not change is saved as it was, so old markup (from Quill, say) is never
  * lost by just opening and saving a record. Markup the visual editor cannot keep opens in
  * HTML mode with a warning instead of being dropped silently.
@@ -30,6 +32,9 @@ final class RichText extends Field
     private array $embeds = [];
 
     private bool $htmlMode = true;
+
+    /** Megabytes per image uploaded into the text; null when uploads are off. */
+    private ?float $uploads = null;
 
     public function type(): string
     {
@@ -84,6 +89,28 @@ final class RichText extends Field
         return $this;
     }
 
+    /**
+     * Images can be uploaded into the text (pasted, dropped or chosen in the image dialog).
+     * They are stored like Upload files, through the screen's own URL, and the text keeps
+     * their address ("/storage/2026/01/15/abc.jpg").
+     */
+    public function uploads(float $maxMegabytes = 5): static
+    {
+        $this->uploads = $maxMegabytes;
+
+        return $this;
+    }
+
+    /**
+     * The Upload that stores images for this text, or null when ->uploads() is off.
+     */
+    public function uploader(): ?Upload
+    {
+        return $this->uploads === null
+            ? null
+            : Upload::make($this->path())->image()->maxSize($this->uploads)->group('richtext')->target(UploadTarget::RelativeUrl);
+    }
+
     public function sanitize(mixed $value, mixed $current = null): string
     {
         if (! is_string($value)) {
@@ -95,11 +122,20 @@ final class RichText extends Field
 
     protected function fieldProperties(SchemaContext $context): array
     {
+        $elements = $this->tags ?? Html::TAGS;
+        if ($this->embeds !== []) {
+            $elements['iframe'] = Html::IFRAME;
+        }
+
         return [
             'minHeight' => $this->minHeight,
             'embeds' => $this->embeds,
             'htmlMode' => $this->htmlMode,
-            'tags' => array_keys($this->tags ?? Html::TAGS),
+            'tags' => array_keys($elements),
+            // The editor's schema: tag => attributes and the CSS properties the server keeps.
+            'elements' => $elements,
+            'styles' => array_keys(Html::STYLES),
+            'uploads' => $this->uploads === null ? null : $this->uploads * 1024 * 1024,
         ];
     }
 }

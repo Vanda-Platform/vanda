@@ -1,5 +1,6 @@
 import {
   AlignCenter,
+  AlignJustify,
   AlignLeft,
   AlignRight,
   Archive,
@@ -43,7 +44,12 @@ import {
   Globe,
   GripVertical,
   Hammer,
+  Heading2,
+  Heading3,
+  Heading4,
+  Highlighter,
   Image,
+  ImagePlus,
   Info,
   Italic,
   LayoutDashboard,
@@ -59,18 +65,26 @@ import {
   Mail,
   Map as MapIcon,
   MapPin,
+  Maximize2,
   Megaphone,
+  Menu as MenuIcon,
   MessageSquare,
+  Minimize2,
   Minus,
   Monitor,
   Moon,
   Network,
   Package,
+  Palette,
+  PanelLeft,
+  PanelTop,
   Pencil,
   Plus,
   QrCode,
   Quote,
   Redo2,
+  RemoveFormatting,
+  Replace,
   RotateCcw,
   RotateCw,
   Save,
@@ -78,14 +92,21 @@ import {
   Send,
   Settings,
   Shield,
+  SquareCode,
+  Star,
   Strikethrough,
+  Subscript,
   Sun,
+  Superscript,
   Table,
+  TableCellsMerge,
+  TableCellsSplit,
   Tag,
   Ticket,
   Trash2,
   TriangleAlert,
   Truck,
+  Type,
   Underline,
   Undo2,
   Upload,
@@ -97,12 +118,14 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 /** Icon names accepted by ->icon() in PHP. */
 const ICONS: Record<string, LucideIcon> = {
   'arrow-down': ArrowDown,
   'arrow-up': ArrowUp,
   sort: ArrowUpDown,
+  star: Star,
   bell: Bell,
   bold: Bold,
   calendar: Calendar,
@@ -194,7 +217,27 @@ const ICONS: Record<string, LucideIcon> = {
   'rotate-left': RotateCcw,
   'zoom-in': ZoomIn,
   'zoom-out': ZoomOut,
+  'subscript': Subscript,
+  'superscript': Superscript,
+  'palette': Palette,
+  'highlighter': Highlighter,
+  'eraser': RemoveFormatting,
+  'align-justify': AlignJustify,
+  'maximize': Maximize2,
+  'minimize': Minimize2,
+  'cells-merge': TableCellsMerge,
+  'cells-split': TableCellsSplit,
+  'replace': Replace,
+  'type': Type,
+  'image-plus': ImagePlus,
+  'header-row': PanelTop,
+  'header-column': PanelLeft,
+  'code-block': SquareCode,
+  'heading-2': Heading2,
+  'heading-3': Heading3,
+  'heading-4': Heading4,
   map: MapIcon,
+  menu: MenuIcon,
   clock: Clock,
 };
 
@@ -215,6 +258,13 @@ export function cx(...classes: (string | false | null | undefined)[]): string {
 export const invalidClass = 'border-danger focus:border-danger ring-3 ring-[color-mix(in_oklch,var(--v-danger)_16%,transparent)]';
 
 /** Shared look of text inputs, select triggers and pickers. */
+/**
+ * A field marked ->readonly(): it shows its value like text on a quiet ground, without the frame
+ * and the chevrons of something to change (a disabled field is dimmed instead).
+ */
+export const readonlyClass =
+  'border-transparent bg-surface-2/70 shadow-none cursor-default focus:border-transparent focus:ring-0 disabled:bg-surface-2/70 disabled:text-fg disabled:cursor-default data-[disabled]:text-fg';
+
 export const controlClass = cx(
   'h-9 w-full rounded-lg border border-line-strong bg-surface px-2.5 text-[14px] text-fg shadow-sm transition',
   'placeholder:text-fg-3 focus:outline-none focus:border-accent focus:ring-3 focus:ring-ring',
@@ -271,7 +321,8 @@ export function Kbd({ children, inverted = false }: { children: string; inverted
   return (
     <kbd
       className={cx(
-        'inline-flex h-[18px] items-center rounded border px-[5px] font-mono text-[11px] font-medium',
+        // Phones have no keyboard shortcuts to hint at.
+        'inline-flex h-[18px] items-center rounded border px-[5px] font-mono text-[11px] font-medium max-md:hidden',
         inverted ? 'border-white/25 bg-white/15 text-white/90' : 'border-line bg-surface-2 text-fg-3',
       )}
     >
@@ -295,4 +346,22 @@ export function matchesHotkey(event: KeyboardEvent, hotkey: string): boolean {
   const key = parts[parts.length - 1];
   const mod = parts.includes('mod');
   return event.key.toLowerCase() === key && (!mod || (isMac ? event.metaKey : event.ctrlKey)) && event.shiftKey === parts.includes('shift');
+}
+
+/** Phones and narrow windows: below Tailwind's md breakpoint (768px). */
+export const MOBILE_QUERY = '(max-width: 767.98px)';
+
+/** Follows a media query, e.g. useMediaQuery(MOBILE_QUERY). */
+export function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+
+  useEffect(() => {
+    const list = window.matchMedia(query);
+    const update = () => setMatches(list.matches);
+    update();
+    list.addEventListener('change', update);
+    return () => list.removeEventListener('change', update);
+  }, [query]);
+
+  return matches;
 }

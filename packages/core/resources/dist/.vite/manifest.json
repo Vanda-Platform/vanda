@@ -1,14 +1,14 @@
 {
   "../../node_modules/@codemirror/lang-html/dist/index.js": {
-    "file": "vanda-dist-CE72vw8d.js",
+    "file": "vanda-dist-BITcqwCC.js",
     "name": "dist",
     "src": "../../node_modules/@codemirror/lang-html/dist/index.js",
     "isDynamicEntry": true,
     "imports": [
       "_vanda-dist-Do6jKs5V.js",
       "_vanda-dist-DnsJOdTm.js",
-      "_vanda-dist-CYRtjc0B.js",
-      "_vanda-dist-BnCUQ1MI.js"
+      "_vanda-dist-Dhwje-0O.js",
+      "_vanda-dist-3C8zZMjd.js"
     ]
   },
   "../../node_modules/@codemirror/lang-json/dist/index.js": {
@@ -22,7 +22,7 @@
     ]
   },
   "../../node_modules/@codemirror/lang-markdown/dist/index.js": {
-    "file": "vanda-dist-EcjrVcGi.js",
+    "file": "vanda-dist-BNSWV1VN.js",
     "name": "dist",
     "src": "../../node_modules/@codemirror/lang-markdown/dist/index.js",
     "isDynamicEntry": true,
@@ -33,7 +33,7 @@
     ]
   },
   "../../node_modules/@codemirror/lang-php/dist/index.js": {
-    "file": "vanda-dist-C6EsBNxR.js",
+    "file": "vanda-dist-Gqnt-qDu.js",
     "name": "dist",
     "src": "../../node_modules/@codemirror/lang-php/dist/index.js",
     "isDynamicEntry": true,
@@ -44,7 +44,7 @@
     ]
   },
   "../../node_modules/@codemirror/lang-sql/dist/index.js": {
-    "file": "vanda-dist--kKxvOF5.js",
+    "file": "vanda-dist-Dn5xW92o.js",
     "name": "dist",
     "src": "../../node_modules/@codemirror/lang-sql/dist/index.js",
     "isDynamicEntry": true,
@@ -64,37 +64,45 @@
       "_vanda-dist-DnsJOdTm.js"
     ]
   },
-  "_vanda-Dialog-B77FouOv.js": {
-    "file": "vanda-Dialog-B77FouOv.js",
+  "_vanda-Dialog-qfRK5U92.js": {
+    "file": "vanda-Dialog-qfRK5U92.js",
     "name": "Dialog",
     "imports": [
-      "_vanda-ui-Uu1Cz2eG.js"
+      "_vanda-ui-Db1vBhiB.js"
     ]
   },
-  "_vanda-combo-DMT5pOl8.js": {
-    "file": "vanda-combo-DMT5pOl8.js",
+  "_vanda-Modal-owhAkHG4.js": {
+    "file": "vanda-Modal-owhAkHG4.js",
+    "name": "Modal",
+    "imports": [
+      "_vanda-Dialog-qfRK5U92.js",
+      "_vanda-ui-Db1vBhiB.js"
+    ]
+  },
+  "_vanda-combo-DrpLLQTO.js": {
+    "file": "vanda-combo-DrpLLQTO.js",
     "name": "combo",
     "imports": [
-      "_vanda-ui-Uu1Cz2eG.js",
-      "_vanda-Dialog-B77FouOv.js",
-      "_vanda-store-CJZ39FLl.js"
+      "_vanda-ui-Db1vBhiB.js",
+      "_vanda-Dialog-qfRK5U92.js",
+      "_vanda-store-Yf18qqha.js"
     ]
   },
-  "_vanda-dist-BnCUQ1MI.js": {
-    "file": "vanda-dist-BnCUQ1MI.js",
+  "_vanda-dist-3C8zZMjd.js": {
+    "file": "vanda-dist-3C8zZMjd.js",
     "name": "dist",
     "imports": [
-      "_vanda-ui-Uu1Cz2eG.js",
+      "_vanda-ui-Db1vBhiB.js",
       "_vanda-dist-Do6jKs5V.js",
       "_vanda-dist-DnsJOdTm.js",
       "src/nodes/code.tsx"
     ]
   },
-  "_vanda-dist-CYRtjc0B.js": {
-    "file": "vanda-dist-CYRtjc0B.js",
+  "_vanda-dist-Dhwje-0O.js": {
+    "file": "vanda-dist-Dhwje-0O.js",
     "name": "dist",
     "imports": [
-      "_vanda-ui-Uu1Cz2eG.js",
+      "_vanda-ui-Db1vBhiB.js",
       "_vanda-dist-Do6jKs5V.js",
       "_vanda-dist-DnsJOdTm.js"
     ]
@@ -114,27 +122,32 @@
     "file": "vanda-preload-helper-DclECHGd.js",
     "name": "preload-helper"
   },
-  "_vanda-store-CJZ39FLl.js": {
-    "file": "vanda-store-CJZ39FLl.js",
+  "_vanda-store-Yf18qqha.js": {
+    "file": "vanda-store-Yf18qqha.js",
     "name": "store",
     "imports": [
-      "_vanda-ui-Uu1Cz2eG.js"
+      "_vanda-ui-Db1vBhiB.js"
     ]
   },
-  "_vanda-ui-Uu1Cz2eG.js": {
-    "file": "vanda-ui-Uu1Cz2eG.js",
+  "_vanda-ui-Db1vBhiB.js": {
+    "file": "vanda-ui-Db1vBhiB.js",
     "name": "ui"
   },
+  "src/assets/auth-background.webp": {
+    "file": "vanda-auth-background-E9F-Tzy7.webp",
+    "src": "src/assets/auth-background.webp"
+  },
   "src/main.tsx": {
-    "file": "vanda-BMgWOJYC.js",
+    "file": "vanda-CWR9hYoN.js",
     "name": "main",
     "src": "src/main.tsx",
     "isEntry": true,
     "imports": [
-      "_vanda-store-CJZ39FLl.js",
-      "_vanda-ui-Uu1Cz2eG.js",
-      "_vanda-Dialog-B77FouOv.js",
-      "_vanda-combo-DMT5pOl8.js",
+      "_vanda-store-Yf18qqha.js",
+      "_vanda-ui-Db1vBhiB.js",
+      "_vanda-Dialog-qfRK5U92.js",
+      "_vanda-Modal-owhAkHG4.js",
+      "_vanda-combo-DrpLLQTO.js",
       "_vanda-preload-helper-DclECHGd.js"
     ],
     "dynamicImports": [
@@ -145,34 +158,37 @@
       "src/nodes/tree.tsx",
       "src/nodes/charts.tsx",
       "src/nodes/map.tsx"
+    ],
+    "assets": [
+      "vanda-auth-background-E9F-Tzy7.webp"
     ]
   },
   "src/nodes/charts.tsx": {
-    "file": "vanda-charts-B3QTAoYj.js",
+    "file": "vanda-charts-ClcJT6PN.js",
     "name": "charts",
     "src": "src/nodes/charts.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vanda-ui-Uu1Cz2eG.js",
-      "_vanda-store-CJZ39FLl.js"
+      "_vanda-ui-Db1vBhiB.js",
+      "_vanda-store-Yf18qqha.js"
     ]
   },
   "src/nodes/code.tsx": {
-    "file": "vanda-code-BYmiqzrY.js",
+    "file": "vanda-code-BT8RBsuQ.js",
     "name": "code",
     "src": "src/nodes/code.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_vanda-dist-DnsJOdTm.js",
-      "_vanda-ui-Uu1Cz2eG.js",
-      "_vanda-combo-DMT5pOl8.js",
+      "_vanda-ui-Db1vBhiB.js",
+      "_vanda-combo-DrpLLQTO.js",
       "_vanda-preload-helper-DclECHGd.js"
     ],
     "dynamicImports": [
       "../../node_modules/@codemirror/lang-json/dist/index.js",
       "../../node_modules/@codemirror/lang-html/dist/index.js",
-      "_vanda-dist-CYRtjc0B.js",
-      "_vanda-dist-BnCUQ1MI.js",
+      "_vanda-dist-Dhwje-0O.js",
+      "_vanda-dist-3C8zZMjd.js",
       "../../node_modules/@codemirror/lang-php/dist/index.js",
       "../../node_modules/@codemirror/lang-sql/dist/index.js",
       "../../node_modules/@codemirror/lang-markdown/dist/index.js",
@@ -180,65 +196,68 @@
     ]
   },
   "src/nodes/cropper.tsx": {
-    "file": "vanda-cropper-B7_9mR7y.js",
+    "file": "vanda-cropper-PBOrP4Af.js",
     "name": "cropper",
     "src": "src/nodes/cropper.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vanda-ui-Uu1Cz2eG.js",
-      "_vanda-Dialog-B77FouOv.js",
-      "src/main.tsx"
+      "_vanda-ui-Db1vBhiB.js",
+      "_vanda-Dialog-qfRK5U92.js",
+      "_vanda-Modal-owhAkHG4.js"
     ]
   },
   "src/nodes/dates.tsx": {
-    "file": "vanda-dates-DHMOWfbY.js",
+    "file": "vanda-dates-TEIBMI6m.js",
     "name": "dates",
     "src": "src/nodes/dates.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vanda-ui-Uu1Cz2eG.js",
-      "_vanda-Dialog-B77FouOv.js",
-      "_vanda-combo-DMT5pOl8.js"
+      "_vanda-ui-Db1vBhiB.js",
+      "_vanda-Dialog-qfRK5U92.js",
+      "_vanda-combo-DrpLLQTO.js"
     ]
   },
   "src/nodes/map.tsx": {
-    "file": "vanda-map-gSrq2CFq.js",
+    "file": "vanda-map-Bx9wXe_B.js",
     "name": "map",
     "src": "src/nodes/map.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vanda-ui-Uu1Cz2eG.js",
-      "_vanda-combo-DMT5pOl8.js"
+      "_vanda-ui-Db1vBhiB.js",
+      "_vanda-combo-DrpLLQTO.js"
     ]
   },
   "src/nodes/richtext.tsx": {
-    "file": "vanda-richtext-Cf7HJ-t-.js",
+    "file": "vanda-richtext-duWYGKy7.js",
     "name": "richtext",
     "src": "src/nodes/richtext.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_vanda-dist-DnsJOdTm.js",
-      "_vanda-ui-Uu1Cz2eG.js",
-      "_vanda-Dialog-B77FouOv.js",
+      "_vanda-ui-Db1vBhiB.js",
+      "_vanda-Dialog-qfRK5U92.js",
+      "_vanda-Modal-owhAkHG4.js",
+      "_vanda-store-Yf18qqha.js",
       "src/nodes/code.tsx",
-      "_vanda-combo-DMT5pOl8.js"
+      "_vanda-combo-DrpLLQTO.js",
+      "src/main.tsx"
     ]
   },
   "src/nodes/tree.tsx": {
-    "file": "vanda-tree-CNJca4PI.js",
+    "file": "vanda-tree-KvRmnRSJ.js",
     "name": "tree",
     "src": "src/nodes/tree.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vanda-store-CJZ39FLl.js",
-      "_vanda-ui-Uu1Cz2eG.js",
-      "_vanda-Dialog-B77FouOv.js",
+      "_vanda-store-Yf18qqha.js",
+      "_vanda-ui-Db1vBhiB.js",
+      "_vanda-Dialog-qfRK5U92.js",
       "src/main.tsx",
-      "_vanda-combo-DMT5pOl8.js"
+      "_vanda-combo-DrpLLQTO.js"
     ]
   },
   "style.css": {
-    "file": "vanda-B1DKhGyI.css",
+    "file": "vanda-CPECJgNl.css",
     "src": "style.css"
   }
 }

@@ -46,6 +46,24 @@ return [
     ],
 
     /*
+     * The picture behind the sign-in card: null for Vanda's liquid glass, a URL of your own
+     * (e.g. '/images/auth.webp' from your public folder: wide, 2560 px or more, calm in the middle,
+     * where the card sits), or false for the plain background.
+     */
+    'auth_background' => env('VANDA_AUTH_BACKGROUND'),
+
+    /*
+     * The tab icon: a URL of your own, or null for Vanda's orchid.
+     */
+    'favicon' => env('VANDA_FAVICON'),
+
+    /*
+     * The red strip about a weak password: null shows it on production only (APP_ENV=production),
+     * true or false everywhere or nowhere.
+     */
+    'weak_password_banner' => env('VANDA_WEAK_PASSWORD_BANNER'),
+
+    /*
      * Map fields: the tile server, the address search (a Nominatim-compatible URL, or null to
      * turn search off) and where an empty map opens. The browser calls these servers itself.
      */

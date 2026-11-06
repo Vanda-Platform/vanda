@@ -9,9 +9,10 @@ use DOMElement;
 use DOMNode;
 
 /**
- * Keeps only the HTML a rich text editor produces: text formatting, headings, lists, quotes,
- * code, links, images, tables and text alignment. Scripts, styles, event handlers and
- * javascript: links are removed, so content saved from a RichText field is safe to print.
+ * Keeps only the HTML a rich text editor produces: text formatting, colours, headings,
+ * lists, quotes, code, links and anchors, images, tables and alignment. Scripts, event handlers,
+ * javascript: links and any CSS beyond Html::STYLES are removed, so content saved from a RichText
+ * field is safe to print.
  *
  *     Html::clean($html);                                   // the editor's tags (Html::TAGS)
  *     Html::clean($html, embedHosts: ['rutube.ru']);        // plus <iframe> from these hosts
@@ -24,19 +25,54 @@ final class Html
 {
     /** Tags the editor produces and the attributes kept on them. */
     public const TAGS = [
-        'p' => ['style'], 'br' => [], 'hr' => [],
-        'h1' => ['style'], 'h2' => ['style'], 'h3' => ['style'], 'h4' => ['style'],
-        'strong' => [], 'b' => [], 'em' => [], 'i' => [], 'u' => [], 's' => [], 'code' => [], 'mark' => [], 'sub' => [], 'sup' => [],
-        'blockquote' => [], 'pre' => [], 'ul' => [], 'ol' => ['start'], 'li' => [],
-        'a' => ['href', 'target', 'rel'],
-        'img' => ['src', 'alt', 'title', 'width', 'height'],
-        'figure' => [], 'figcaption' => [],
-        'table' => [], 'colgroup' => [], 'col' => ['style'], 'thead' => [], 'tbody' => [], 'tfoot' => [], 'tr' => [],
-        'th' => ['colspan', 'rowspan', 'colwidth', 'style'], 'td' => ['colspan', 'rowspan', 'colwidth', 'style'],
+        'p' => ['style'], 'br' => [], 'hr' => [], 'span' => ['style'],
+        'h1' => ['style'], 'h2' => ['style'], 'h3' => ['style'], 'h4' => ['style'], 'h5' => ['style'], 'h6' => ['style'],
+        'strong' => [], 'b' => [], 'em' => [], 'i' => [], 'u' => [], 's' => [], 'del' => [], 'ins' => [],
+        'code' => [], 'mark' => [], 'sub' => [], 'sup' => [], 'small' => [],
+        'blockquote' => ['style'], 'pre' => [], 'ul' => ['style'], 'ol' => ['start', 'style'], 'li' => ['style'],
+        'a' => ['href', 'target', 'rel', 'title', 'id'],
+        'img' => ['src', 'alt', 'title', 'width', 'height', 'style'],
+        'figure' => ['style'], 'figcaption' => [],
+        'table' => ['border', 'style'], 'caption' => [], 'colgroup' => [], 'col' => ['span', 'style'],
+        'thead' => [], 'tbody' => [], 'tfoot' => [], 'tr' => ['style'],
+        'th' => ['colspan', 'rowspan', 'scope', 'colwidth', 'style'], 'td' => ['colspan', 'rowspan', 'colwidth', 'style'],
     ];
 
+    /**
+     * CSS kept in a style attribute, with the values allowed: colours, alignment, sizes, indents,
+     * list markers, image float and table borders. Nothing that loads a URL or runs code.
+     */
+    public const STYLES = [
+        'color' => self::COLOR,
+        'background-color' => self::COLOR,
+        'text-align' => '/^(left|right|center|justify)$/i',
+        'text-decoration' => '/^(none|underline|line-through)( (underline|line-through))?$/i',
+        'font-weight' => '/^(normal|bold|[1-9]00)$/i',
+        'font-style' => '/^(normal|italic)$/i',
+        'font-size' => '/^\d{1,3}(\.\d{1,2})?(px|em|rem|%)$/i',
+        'width' => self::LENGTH,
+        'height' => self::LENGTH,
+        'min-width' => self::LENGTH,
+        'max-width' => self::LENGTH,
+        'padding-left' => self::LENGTH,
+        'margin-left' => self::LENGTH,
+        'margin-right' => self::LENGTH,
+        'float' => '/^(left|right|none)$/i',
+        'display' => '/^(block|inline|inline-block)$/i',
+        'vertical-align' => '/^(top|middle|bottom|baseline|text-top|text-bottom)$/i',
+        'list-style-type' => '/^(none|disc|circle|square|decimal|lower-alpha|upper-alpha|lower-latin|upper-latin|lower-roman|upper-roman|lower-greek)$/i',
+        'border-collapse' => '/^(collapse|separate)$/i',
+        'border-width' => self::LENGTH,
+        'border-style' => '/^(none|solid|dashed|dotted|double)$/i',
+        'border-color' => self::COLOR,
+    ];
+
+    private const COLOR = '/^(#[0-9a-f]{3,8}|rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(,\s*(0|1|0?\.\d+)\s*)?\)|[a-z]{3,20})$/i';
+
+    private const LENGTH = '/^(0|auto|\d{1,4}(\.\d{1,3})?(px|%|em|rem))$/i';
+
     /** Kept on <iframe> when its host is allowed. */
-    private const IFRAME = ['src', 'width', 'height', 'allow', 'allowfullscreen', 'frameborder', 'title'];
+    public const IFRAME = ['src', 'width', 'height', 'allow', 'allowfullscreen', 'frameborder', 'title'];
 
     /** Removed together with everything inside them. */
     private const DROP = ['script', 'style', 'object', 'embed', 'template', 'noscript', 'svg', 'math', 'form', 'input', 'textarea', 'select', 'button', 'link', 'meta', 'base'];
@@ -136,7 +172,9 @@ final class Html
                 $name = strtolower($attribute->nodeName);
                 $value = $attribute->nodeValue ?? '';
 
-                if (! in_array($name, $tags[$tag], true) || (in_array($name, ['href', 'src'], true) && ! self::safeUrl($value))) {
+                if (! in_array($name, $tags[$tag], true)
+                    || (in_array($name, ['href', 'src'], true) && ! self::safeUrl($value))
+                    || ($name === 'id' && preg_match('/^[a-z][\w-]{0,63}$/i', $value) !== 1)) {
                     $child->removeAttribute($attribute->nodeName);
                 } elseif ($name === 'style') {
                     $style = self::safeStyle($value);
@@ -147,11 +185,19 @@ final class Html
             if ($tag === 'a' && $child->getAttribute('target') === '_blank') {
                 $child->setAttribute('rel', 'noopener noreferrer');
             }
+
+            // A span is kept only for its style (a colour, say); without one it is just noise.
+            if ($tag === 'span' && ! $child->hasAttributes()) {
+                while ($child->firstChild !== null) {
+                    $node->insertBefore($child->firstChild, $child);
+                }
+                $node->removeChild($child);
+            }
         }
     }
 
     /**
-     * Only text alignment and column widths survive in a style attribute.
+     * Only the properties of Html::STYLES with a value their pattern accepts survive.
      */
     private static function safeStyle(string $style): string
     {
@@ -159,10 +205,11 @@ final class Html
         foreach (explode(';', $style) as $declaration) {
             [$property, $value] = array_map('trim', explode(':', $declaration, 2) + [1 => '']);
             $property = strtolower($property);
-            if ($property === 'text-align' && in_array(strtolower($value), ['left', 'right', 'center', 'justify'], true)) {
-                $kept[] = 'text-align: '.strtolower($value);
-            } elseif (in_array($property, ['width', 'min-width'], true) && preg_match('/^\d{1,4}(px|%)$/', $value) === 1) {
-                $kept[] = $property.': '.$value;
+            $value = preg_replace('/\s+/', ' ', $value) ?? '';
+            $pattern = self::STYLES[$property] ?? null;
+
+            if ($pattern !== null && $value !== '' && preg_match($pattern, $value) === 1) {
+                $kept[$property] = $property.': '.$value;
             }
         }
 

@@ -16,6 +16,11 @@ final class AssetController
         'css' => 'text/css; charset=utf-8',
         'map' => 'application/json',
         'woff2' => 'font/woff2',
+        'webp' => 'image/webp',
+        'avif' => 'image/avif',
+        'png' => 'image/png',
+        'jpg' => 'image/jpeg',
+        'svg' => 'image/svg+xml',
     ];
 
     public function __invoke(string $file): BinaryFileResponse

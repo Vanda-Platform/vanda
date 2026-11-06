@@ -3,7 +3,7 @@ import { Button as AriaButton, ComboBox, Group, Input, ListBox, ListBoxItem, Pop
 import { t } from '../i18n';
 import { useStore } from '../store';
 import { options as fetchOptions } from '../transport';
-import { controlClass, cx, Icon, invalidClass, Spinner } from '../ui';
+import { controlClass, cx, Icon, invalidClass, readonlyClass, Spinner } from '../ui';
 import type { FieldNode, Option } from '../types';
 import { FieldFrame, useField } from './fields';
 
@@ -131,7 +131,7 @@ export function ComboField({ node, remote = false }: { node: ComboNode; remote?:
         isDisabled={field.disabled}
         isInvalid={Boolean(field.error)}
       >
-        <Group className={cx(controlClass, 'flex h-auto min-h-9 flex-wrap items-center gap-1.5 py-1 pr-1 focus-within:border-accent focus-within:ring-3 focus-within:ring-ring', field.error && invalidClass)}>
+        <Group className={cx(controlClass, 'flex h-auto min-h-9 flex-wrap items-center gap-1.5 py-1 pr-1 focus-within:border-accent focus-within:ring-3 focus-within:ring-ring', field.error && invalidClass, field.readonly && readonlyClass)}>
           {node.multiple &&
             values.map((value) => (
               <span key={String(value)} className="inline-flex h-6 items-center gap-1 rounded-md border border-line bg-surface-2 pr-0.5 pl-2 text-[13px] font-medium">
@@ -156,9 +156,11 @@ export function ComboField({ node, remote = false }: { node: ComboNode; remote?:
                 <Icon name="x" />
               </button>
             )}
-            <AriaButton className="grid size-7 place-items-center rounded-md hover:bg-surface-2 hover:text-fg">
-              <Icon name="chevron-down" />
-            </AriaButton>
+            {!field.readonly && (
+              <AriaButton className="grid size-7 place-items-center rounded-md hover:bg-surface-2 hover:text-fg">
+                <Icon name="chevron-down" />
+              </AriaButton>
+            )}
           </span>
         </Group>
         <Popover className={popoverClass}>

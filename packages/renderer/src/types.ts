@@ -59,6 +59,8 @@ export interface MenuItem {
   group?: string;
   badge?: string | number;
   active?: boolean;
+  /** MenuItem::pinned(): one of the (at most three) tabs of the phone's tab bar. */
+  pinned?: boolean;
 }
 
 export interface Crumb {
@@ -88,7 +90,11 @@ export interface Page {
     search?: string;
     /** The bell: Vanda's notification endpoints and the unread count. */
     notifications?: { url: string; read: string; unread: number } | null;
-    user: { name: string; email: string; avatar: { initials: string; hue: number; image?: string }; logout?: string; impersonator?: { name: string; stop: string } } | null;
+    user: { name: string; email: string; avatar: { initials: string; hue: number; image?: string }; logout?: string; impersonator?: { name: string; stop: string }; profile?: string } | null;
+    /** config('vanda.auth_background'): a URL, null for Vanda's own picture, false for none. */
+    authBackground?: string | false | null;
+    /** Strips across the top of every page, e.g. a weak password on production. */
+    alerts?: { tone: string; text: string; link?: { label: string; href: string } }[];
   };
 }
 

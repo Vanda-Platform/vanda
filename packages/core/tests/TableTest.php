@@ -58,11 +58,11 @@ it('lets the user pick only the allowed page sizes', function () {
         ->and(table('?perPage=1000')['rows'])->toHaveCount(2);
 });
 
-it('describes hideable columns', function () {
+it('describes hideable columns and the ones left out on phones', function () {
     expect(table()['columns'])->toBe([
         ['name' => 'name', 'label' => 'Name', 'sortable' => true],
         ['name' => 'email', 'label' => 'Email', 'hideable' => true],
-        ['name' => 'country', 'label' => 'Country', 'hideable' => true, 'hidden' => true],
+        ['name' => 'country', 'label' => 'Country', 'hideable' => true, 'hidden' => true, 'mobile' => false],
     ]);
 });
 

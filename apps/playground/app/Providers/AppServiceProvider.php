@@ -56,6 +56,7 @@ class AppServiceProvider extends ServiceProvider
 
         // The photo from the user card next to the name in the sidebar.
         Panel::userAvatar(fn (User $user) => $user->avatarUrl());
+        Panel::profile(fn (User $user) => Panel::url(UserEditScreen::class, ['user' => $user]));
 
         // ⌘K finds people and pages; results that lead to screens the user may not open are hidden.
         Panel::search(fn (string $query) => User::query()->with('attachments')

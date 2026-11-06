@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSnapshot } from './store';
+import { useCopy } from './copy';
 import { t } from './i18n';
-import { buttonClass } from './ui';
+import { buttonClass, Icon } from './ui';
 
 interface Picked {
   id: string;
@@ -20,7 +21,7 @@ export function Inspector() {
   const screen = useSnapshot((s) => s.page.screen);
   const url = useSnapshot((s) => s.page.url);
   const [picked, setPicked] = useState<Picked | null>(null);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopy();
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -32,7 +33,6 @@ export function Inspector() {
       if (!element?.dataset.vandaSource) return;
       event.preventDefault();
       event.stopPropagation();
-      setCopied(false);
       setPicked({
         id: element.dataset.vandaNode ?? '',
         type: element.dataset.vandaType ?? '',
@@ -80,10 +80,9 @@ export function Inspector() {
       <button
         type="button"
         className={buttonClass('secondary', 'sm')}
-        onClick={() => {
-          void navigator.clipboard.writeText(context).then(() => setCopied(true));
-        }}
+        onClick={() => void copy(context)}
       >
+        <Icon name={copied ? 'check' : 'copy'} />
         {copied ? t('copied') : t('copyForAi')}
       </button>
     </div>

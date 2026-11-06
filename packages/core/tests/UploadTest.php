@@ -114,3 +114,16 @@ it('uploads into a repeater row and keeps only own files there', function () {
 
     expect($screen->node('slides')['fields'][1]['files'][0])->toMatchArray(['id' => $mine, 'name' => 'slide.jpg', 'value' => $mine]);
 });
+
+it('uploads images into a rich text that allows it, and only images', function () {
+    $response = upload('body', UploadedFile::fake()->image('chart.png', 800, 600))->assertOk();
+
+    expect($response->json('value'))->toStartWith('/storage/')->toEndWith('.png')
+        ->and(Attachment::query()->findOrFail($response->json('id'))->group)->toBe('richtext');
+
+    upload('body', UploadedFile::fake()->create('notes.pdf', 10, 'application/pdf'))->assertStatus(422);
+    upload('body', UploadedFile::fake()->image('huge.jpg')->size(2048))->assertStatus(422);
+    upload('note', UploadedFile::fake()->image('chart.png'))->assertNotFound();
+
+    expect(Panel::test(UploadScreen::class)->node('body'))->toMatchArray(['type' => 'richtext', 'uploads' => 1048576]);
+});

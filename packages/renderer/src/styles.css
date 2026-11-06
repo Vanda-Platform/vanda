@@ -34,6 +34,9 @@
   --v-shadow: 0 1px 2px rgb(24 24 27 / 0.04), 0 4px 14px rgb(24 24 27 / 0.06);
   --v-shadow-lg: 0 16px 40px rgb(24 24 27 / 0.16), 0 2px 8px rgb(24 24 27 / 0.06);
   --v-scrim: rgb(24 24 27 / 0.36);
+  /* Over the sign-in picture: a light veil by day, a deep one at night so the picture does not glare. */
+  --v-auth-veil: oklch(0.98 0.01 165 / 0.06);
+  --v-glass-border: rgb(255 255 255 / 0.6);
   --v-code-keyword: #7c3aed;
   --v-code-string: #0f766e;
   --v-code-number: #c2410c;
@@ -69,6 +72,8 @@
   --v-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 16px rgb(0 0 0 / 0.3);
   --v-shadow-lg: 0 20px 48px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.04);
   --v-scrim: rgb(0 0 0 / 0.6);
+  --v-auth-veil: oklch(0.14 0.02 165 / 0.62);
+  --v-glass-border: rgb(255 255 255 / 0.1);
   --v-code-keyword: #c4b5fd;
   --v-code-string: #5eead4;
   --v-code-number: #fdba74;
@@ -138,6 +143,14 @@
   }
 }
 
+/* The phone menu sheet slides up over a fading scrim. */
+@keyframes vanda-sheet-in {
+  from { transform: translateY(100%); }
+}
+@keyframes vanda-fade-in {
+  from { opacity: 0; }
+}
+
 @keyframes vanda-spin {
   to {
     transform: rotate(360deg);
@@ -179,6 +192,34 @@
 .vanda-prose img { max-width: 100%; height: auto; border-radius: 8px; }
 .vanda-prose iframe { display: block; width: 100%; max-width: 640px; height: auto; aspect-ratio: 16 / 9; border: 0; border-radius: 8px; }
 .vanda-prose:focus { outline: none; }
+
+/* The rich text editor (Tiptap): find matches, table column resizing, picture handles. */
+.vanda-editor .vanda-match { background: color-mix(in oklch, var(--v-warning) 35%, transparent); border-radius: 2px; }
+.vanda-editor .vanda-match-current { background: color-mix(in oklch, var(--v-accent) 35%, transparent); outline: 1px solid var(--v-accent); }
+.vanda-editor table { table-layout: fixed; }
+.vanda-editor td, .vanda-editor th { position: relative; }
+.vanda-editor .column-resize-handle { position: absolute; top: 0; right: -2px; bottom: -2px; width: 4px; background: var(--v-accent); pointer-events: none; }
+.vanda-editor.resize-cursor { cursor: col-resize; }
+.vanda-editor .selectedCell::after { content: ''; position: absolute; inset: 0; z-index: 2; background: color-mix(in oklch, var(--v-accent) 14%, transparent); pointer-events: none; }
+.vanda-editor iframe { pointer-events: none; }
+.vanda-editor .ProseMirror-selectednode > iframe, .vanda-editor iframe.ProseMirror-selectednode { outline: 2px solid var(--v-accent); }
+.vanda-editor [data-resize-container] { width: fit-content; max-width: 100%; vertical-align: bottom; }
+.vanda-editor [data-resize-container].ProseMirror-selectednode { outline: none; }
+.vanda-editor [data-resize-container]:has(img[style*="float: left"]) { float: left; margin-right: 1em; }
+.vanda-editor [data-resize-container]:has(img[style*="float: right"]) { float: right; margin-left: 1em; }
+.vanda-editor [data-resize-container]:has(img[style*="margin-left: auto"]) { margin-left: auto; margin-right: auto; }
+.vanda-editor [data-resize-container] img { border-radius: 8px; }
+.vanda-editor .ProseMirror-selectednode img, .vanda-editor img.ProseMirror-selectednode { outline: 2px solid var(--v-accent); outline-offset: 1px; }
+.vanda-editor [data-resize-handle] { z-index: 3; opacity: 0; transition: opacity 120ms; }
+.vanda-editor [data-resize-container]:hover [data-resize-handle], .vanda-editor .ProseMirror-selectednode [data-resize-handle], .vanda-editor [data-resize-state="true"] [data-resize-handle] { opacity: 1; }
+.vanda-editor [data-resize-handle$="-left"], .vanda-editor [data-resize-handle$="-right"] { width: 12px; height: 12px; margin: -5px; border: 2px solid var(--v-accent); border-radius: 4px; background: var(--v-surface); }
+.vanda-editor [data-resize-handle="top-left"], .vanda-editor [data-resize-handle="bottom-right"] { cursor: nwse-resize; }
+.vanda-editor [data-resize-handle="top-right"], .vanda-editor [data-resize-handle="bottom-left"] { cursor: nesw-resize; }
+.vanda-editor [data-resize-handle="left"], .vanda-editor [data-resize-handle="right"] { width: 8px; cursor: ew-resize; }
+.vanda-editor [data-resize-handle="top"], .vanda-editor [data-resize-handle="bottom"] { height: 8px; cursor: ns-resize; }
+@media (pointer: coarse) {
+  .vanda-editor [data-resize-handle$="-left"], .vanda-editor [data-resize-handle$="-right"] { width: 20px; height: 20px; margin: -9px; }
+}
 
 /* Native checkboxes in tables, drawn like .o-check of the design. */
 .vanda-check {

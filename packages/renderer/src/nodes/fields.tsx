@@ -17,7 +17,7 @@ import {
 import { getPath, isTrue } from '../expr';
 import { t } from '../i18n';
 import { nodeAttributes, useSnapshot, useStore } from '../store';
-import { controlClass, cx, Icon, invalidClass, Spinner } from '../ui';
+import { controlClass, cx, Icon, invalidClass, readonlyClass, Spinner } from '../ui';
 import type { FieldNode, Option } from '../types';
 import { ComboField } from './combo';
 import { maskedChange } from '../mask';
@@ -29,12 +29,17 @@ export function useField(node: FieldNode) {
   const state = useSnapshot((s) => s.page.state);
   const pending = useSnapshot((s) => s.pending.has(node.id));
 
+  const readonly = Boolean(node.readonly);
+
   return {
     value,
     error: errors?.[0],
     pending,
-    required: Boolean(node.required) || (node.requiredWhen !== undefined && isTrue(node.requiredWhen, state)),
-    disabled: Boolean(node.disabled) || (node.disabledWhen !== undefined && isTrue(node.disabledWhen, state)) || node.computed !== undefined,
+    required: !readonly && (Boolean(node.required) || (node.requiredWhen !== undefined && isTrue(node.requiredWhen, state))),
+    /** Nothing may change the value: disabled, read-only or computed. */
+    disabled: readonly || Boolean(node.disabled) || (node.disabledWhen !== undefined && isTrue(node.disabledWhen, state)) || node.computed !== undefined,
+    /** Shown as a value (readonlyClass), not dimmed; text inputs keep their text selectable. */
+    readonly,
     setValue: (next: unknown) => store.setValue(node.path, next),
   };
 }
@@ -111,12 +116,12 @@ export function InputField({
       max={node.max}
       step={node.step}
       maxLength={node.maxLength}
-      disabled={field.disabled}
-      readOnly={node.readonly}
+      disabled={field.disabled && !field.readonly}
+      readOnly={field.readonly}
       required={field.required}
       aria-invalid={field.error ? true : undefined}
       aria-describedby={field.error ? `${id}-error` : node.help ? `${id}-help` : undefined}
-      className={cx(controlClass, field.error && invalidClass, (node.prefix || node.suffix) && 'shadow-none', node.prefix && 'rounded-l-none', node.suffix && 'rounded-r-none')}
+      className={cx(controlClass, field.error && invalidClass, field.readonly && readonlyClass, (node.prefix || node.suffix) && 'shadow-none', node.prefix && 'rounded-l-none', node.suffix && 'rounded-r-none')}
     />
   );
 
@@ -169,9 +174,10 @@ export function PasswordField({ node }: { node: FieldNode & { strength?: boolean
           value={value}
           autoComplete={node.strength ? 'new-password' : 'current-password'}
           onChange={(event) => field.setValue(event.target.value)}
-          disabled={field.disabled}
+          disabled={field.disabled && !field.readonly}
+          readOnly={field.readonly}
           aria-invalid={field.error ? true : undefined}
-          className={cx(controlClass, 'pr-10', field.error && invalidClass)}
+          className={cx(controlClass, 'pr-10', field.error && invalidClass, field.readonly && readonlyClass)}
         />
         <button
           type="button"
@@ -210,10 +216,10 @@ export function TextAreaField({ node }: { node: FieldNode & { rows?: number; max
         onChange={(event) => field.setValue(event.target.value)}
         placeholder={node.placeholder}
         maxLength={node.maxLength}
-        disabled={field.disabled}
-        readOnly={node.readonly}
+        disabled={field.disabled && !field.readonly}
+        readOnly={field.readonly}
         aria-invalid={field.error ? true : undefined}
-        className={cx(controlClass, 'h-auto resize-y py-2 leading-relaxed', field.error && invalidClass)}
+        className={cx(controlClass, 'h-auto resize-y py-2 leading-relaxed', field.error && invalidClass, field.readonly && 'resize-none', field.readonly && readonlyClass)}
       />
     </FieldFrame>
   );
@@ -239,6 +245,7 @@ function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multipl
     controlClass,
     'flex items-center justify-between gap-2 text-left data-[focus-visible]:border-accent data-[focus-visible]:ring-3 data-[focus-visible]:ring-ring',
     field.error && invalidClass,
+    field.readonly && readonlyClass,
   );
   const list = (
     <Popover className={popoverClass}>
@@ -282,7 +289,7 @@ function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multipl
                 </span>
               ))}
             </span>
-            <Icon name="chevron-down" className="size-4 shrink-0 text-fg-3" />
+            {!field.readonly && <Icon name="chevron-down" className="size-4 shrink-0 text-fg-3" />}
           </AriaButton>
           {list}
         </AriaSelect>
@@ -314,7 +321,7 @@ function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multipl
           )}
           <span className="flex items-center gap-2 text-fg-3">
             {field.pending && <Spinner className="size-3" />}
-            <Icon name="chevron-down" />
+            {!field.readonly && <Icon name="chevron-down" />}
           </span>
         </AriaButton>
         {list}

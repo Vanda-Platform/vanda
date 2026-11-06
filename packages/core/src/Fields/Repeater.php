@@ -26,7 +26,9 @@ final class Repeater extends Field
 
     private ?int $max = null;
 
-    private bool $table = false;
+    private ?RepeaterLayout $layout = null;
+
+    private ?string $itemLabel = null;
 
     public function type(): string
     {
@@ -66,14 +68,67 @@ final class Repeater extends Field
     }
 
     /**
+     * How rows are drawn; by default chosen from the fields (see RepeaterLayout).
+     *
+     *     Repeater::make('form.slides')->layout(RepeaterLayout::Blocks)
+     */
+    public function layout(RepeaterLayout $layout): static
+    {
+        $this->layout = $layout;
+
+        return $this;
+    }
+
+    /**
      * Rows as a table with the labels as column headers (see Matrix), for short values.
-     * A field without a label keeps its path as the header.
+     * The same as ->layout(RepeaterLayout::Table).
      */
     public function table(bool $table = true): static
     {
-        $this->table = $table;
+        $this->layout = $table ? RepeaterLayout::Table : null;
 
         return $this;
+    }
+
+    /**
+     * The name of one row in the Blocks layout: "Вариант" gives "Вариант 1", "Вариант 2".
+     */
+    public function itemLabel(string $label): static
+    {
+        $this->itemLabel = $label;
+
+        return $this;
+    }
+
+    /**
+     * The layout in use: the one set, or one field → List, up to four short fields → Table,
+     * otherwise Blocks.
+     */
+    public function resolvedLayout(): RepeaterLayout
+    {
+        if ($this->layout !== null) {
+            return $this->layout;
+        }
+
+        $short = array_filter($this->fields, static fn (Field $field) => self::isShort($field));
+
+        return match (true) {
+            count($this->fields) === 1 && $short !== [] => RepeaterLayout::List,
+            count($this->fields) <= 4 && count($short) === count($this->fields) => RepeaterLayout::Table,
+            default => RepeaterLayout::Blocks,
+        };
+    }
+
+    /**
+     * A field that fits one line of a table or a list.
+     */
+    private static function isShort(Field $field): bool
+    {
+        return match (true) {
+            $field instanceof Select, $field instanceof Relation => ! $field->isMultiple(),
+            default => $field instanceof Input || $field instanceof DateTimer || $field instanceof Switcher
+                || $field instanceof CheckBox || $field instanceof Color || $field instanceof Label,
+        };
     }
 
     /**
@@ -120,7 +175,8 @@ final class Repeater extends Field
             }, $this->fields),
             'addLabel' => $this->addLabel,
             'max' => $this->max,
-            'table' => $this->table,
+            'layout' => $this->resolvedLayout()->value,
+            'itemLabel' => $this->itemLabel,
         ];
     }
 

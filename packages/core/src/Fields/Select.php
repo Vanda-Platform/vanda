@@ -98,6 +98,11 @@ final class Select extends Field
         return $this;
     }
 
+    public function isMultiple(): bool
+    {
+        return $this->multiple;
+    }
+
     /** Adds a search box to the list of options. */
     public function searchable(bool $searchable = true): static
     {

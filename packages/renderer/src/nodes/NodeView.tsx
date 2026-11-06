@@ -1,12 +1,14 @@
 import { lazy, Suspense, type ComponentType } from 'react';
 import { isTrue } from '../expr';
 import { useSnapshot } from '../store';
-import type { UiNode } from '../types';
+import type { FieldNode, UiNode } from '../types';
+import { cx } from '../ui';
 import { ButtonView, DropDownView, LinkView, ModalToggleView } from './actions';
 import { ComboField } from './combo';
 import {
   CheckboxField,
   ColorField,
+  FieldFrame,
   InputField,
   LabelField,
   NumberRangeField,
@@ -106,11 +108,58 @@ export function NodeView({ node, compact = false }: { node: UiNode; compact?: bo
   }
 
   return (
-    <Suspense fallback={<div aria-busy="true" className="h-9 animate-pulse rounded-lg bg-surface-2" />}>
+    <Suspense fallback={<Placeholder node={node} />}>
       <Component node={node} compact={compact} />
     </Suspense>
   );
 }
+
+const pulse = 'animate-pulse rounded-lg bg-surface-2 motion-reduce:animate-none';
+
+/**
+ * What a lazy component shows while its chunk loads: its label and a box of the size it will
+ * have, so the page does not jump when the editor, map or chart arrives.
+ */
+function Placeholder({ node }: { node: UiNode }) {
+  const sized = node as FieldNode & { minHeight?: number; height?: number; title?: string; description?: string; span?: number };
+  const field = (height: number) => (
+    <FieldFrame node={sized} inputId={`${node.id}-loading`} required={false}>
+      <div aria-busy="true" className={pulse} style={{ height }} />
+    </FieldFrame>
+  );
+
+  switch (node.type) {
+    case 'richtext':
+      return field((sized.minHeight ?? 200) + RICHTEXT_CHROME);
+    case 'code':
+      return field((sized.minHeight ?? 160) + CODE_CHROME);
+    case 'markdown':
+      return field((sized.minHeight ?? 160) + MARKDOWN_CHROME);
+    case 'map':
+      return field((sized.height ?? 300) + MAP_CHROME);
+    case 'chart':
+      return (
+        <section aria-busy="true" className={cx('flex min-w-0 flex-col gap-4 rounded-xl border border-line bg-surface p-5 shadow-sm', CHART_SPANS[sized.span ?? 1])}>
+          <div className="flex flex-col gap-0.5">
+            <h2 className="text-[15px] font-semibold">{sized.title}</h2>
+            {sized.description && <span className="text-[13.5px] text-fg-3">{sized.description}</span>}
+          </div>
+          <div className={pulse} style={{ height: sized.height ?? 220 }} />
+        </section>
+      );
+    case 'treetable':
+      return <div aria-busy="true" className={cx(pulse, 'h-48')} />;
+    default:
+      return 'path' in node ? field(36) : <div aria-busy="true" className={cx(pulse, 'h-9')} />;
+  }
+}
+
+/** Height of each lazy editor around its text area: toolbars, tabs, borders (measured in the browser). */
+const RICHTEXT_CHROME = 100;
+const CODE_CHROME = 28;
+const MARKDOWN_CHROME = 39;
+const MAP_CHROME = 97;
+const CHART_SPANS: Record<number, string> = { 2: 'md:col-span-2', 3: 'md:col-span-3', 4: 'md:col-span-4' };
 
 export function NodeList({ nodes }: { nodes: UiNode[] }) {
   return nodes.map((node) => <NodeView key={node.id} node={node} />);

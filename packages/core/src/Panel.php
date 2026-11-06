@@ -69,6 +69,38 @@ final class Panel
     }
 
     /**
+     * The tab icon: config('vanda.favicon') (a URL) or Vanda's orchid in the brand colour,
+     * inlined so it needs no request and no cache busting.
+     */
+    public static function favicon(): string
+    {
+        $custom = config('vanda.favicon');
+        if (is_string($custom) && $custom !== '') {
+            return $custom;
+        }
+
+        // The orchid takes the panel's brand colour, as in the menu.
+        $svg = (string) file_get_contents(__DIR__.'/../resources/images/vanda-symbol.svg');
+        $brand = (string) config('vanda.brand', '#12805C');
+        $svg = preg_match('/^#[0-9a-f]{3,8}$/i', $brand) === 1 ? str_replace('#12805C', $brand, $svg) : $svg;
+
+        return 'data:image/svg+xml;base64,'.base64_encode($svg);
+    }
+
+    /**
+     * The signed-in user's own page: their name in the menu leads there, and so does the
+     * "change password" link of the weak password warning.
+     *
+     *     Panel::profile(fn (User $user) => Panel::url(UserProfileScreen::class));
+     *
+     * @param Closure(mixed $user): ?string $resolver
+     */
+    public static function profile(Closure $resolver): void
+    {
+        app(Shell::class)->profile($resolver);
+    }
+
+    /**
      * Where to go after signing in: config('vanda.home'), else the first menu item.
      */
     public static function home(): string

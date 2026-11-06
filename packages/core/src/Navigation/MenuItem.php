@@ -29,6 +29,8 @@ final class MenuItem
 
     private int|string|null $badge = null;
 
+    private bool $pinned = false;
+
     private function __construct(private readonly string $label) {}
 
     public static function make(string $label): self
@@ -85,6 +87,19 @@ final class MenuItem
         return $this;
     }
 
+    /**
+     * One of the tabs at the bottom of the phone screen (three at most; without pinned items
+     * the user's favourites or the first three items are used):
+     *
+     *     MenuItem::make('Tickets')->icon('ticket')->to(TicketListScreen::class)->pinned()
+     */
+    public function pinned(bool $pinned = true): self
+    {
+        $this->pinned = $pinned;
+
+        return $this;
+    }
+
     public function isAllowed(): bool
     {
         return ($this->ability === null || Gate::allows($this->ability))
@@ -123,6 +138,7 @@ final class MenuItem
             'group' => $this->group,
             'badge' => $this->badge,
             'active' => $active,
+            'pinned' => $this->pinned,
         ], static fn ($value) => $value !== null && $value !== false);
     }
 }

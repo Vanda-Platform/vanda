@@ -26,6 +26,8 @@ final class TD
     /** null: always shown; true/false: the user may hide it, shown by default or not */
     private ?bool $shownByDefault = null;
 
+    private bool $onPhones = true;
+
     private function __construct(
         private readonly string $name,
         private readonly string $label,
@@ -105,6 +107,19 @@ final class TD
         return $this;
     }
 
+    /**
+     * Left out of the row cards on phones, where every column becomes a line of the card;
+     * for details that only matter on a wide screen:
+     *
+     *     TD::make('email', 'Email')->hideOnMobile()
+     */
+    public function hideOnMobile(bool $hide = true): self
+    {
+        $this->onPhones = ! $hide;
+
+        return $this;
+    }
+
     public function isSortable(): bool
     {
         return $this->sortable;
@@ -134,6 +149,7 @@ final class TD
             'sortable' => $this->sortable ?: null,
             'hideable' => $this->shownByDefault === null ? null : true,
             'hidden' => $this->shownByDefault === false ? true : null,
+            'mobile' => $this->onPhones ? null : false,
         ], static fn ($value) => $value !== null);
     }
 

@@ -132,8 +132,8 @@ final class ShowcaseScreen extends Screen
                         Select::make('form.categories')->label('Разделы каталога')->multiple()
                             ->tree(fn () => Page::query()->orderBy('position')->get(['id', 'title', 'parent_id']), label: 'title'),
                     ]),
-                    Layout::section('Форматированный текст', 'Tiptap: заголовки, списки, цитаты, ссылки. HTML чистится на сервере.')->schema([
-                        RichText::make('form.content')->label('Описание'),
+                    Layout::section('Форматированный текст', 'Tiptap: цвета, таблицы, картинки с компьютера, видео, поиск и «/» для вставки блоков. HTML чистится на сервере.')->schema([
+                        RichText::make('form.content')->label('Описание')->uploads(5)->embeds(['rutube.ru', 'youtube.com']),
                     ]),
                     Layout::section('Markdown и код', 'CodeMirror 6, языки подгружаются по требованию.')->schema([
                         Markdown::make('form.notes')->label('Заметки'),

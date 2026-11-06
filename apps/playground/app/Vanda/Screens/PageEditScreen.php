@@ -6,8 +6,6 @@ use App\Enums\PageStatus;
 use App\Models\Page;
 use App\Vanda\Forms\PageForm;
 use Vanda\Actions\Button;
-use Vanda\Actions\Link;
-use Vanda\Actions\Variant;
 use Vanda\Attributes\Action;
 use Vanda\Attributes\Can;
 use Vanda\Fields\Code;
@@ -61,7 +59,6 @@ final class PageEditScreen extends Screen
     public function commandBar(): iterable
     {
         return [
-            Link::make('К списку')->icon('chevron-left')->variant(Variant::Ghost)->to(PageListScreen::class),
             Button::make('Сохранить')->icon('save')->primary()->hotkey('mod+s')->action($this->save(...)),
         ];
     }

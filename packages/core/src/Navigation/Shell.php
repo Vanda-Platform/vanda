@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Vanda\Navigation;
 
 use Closure;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Vanda\Access\Impersonation;
+use Vanda\Auth\WeakPassword;
 use Vanda\Layouts\Avatar;
 
 /**
@@ -22,6 +24,8 @@ final class Shell
 
     private ?Closure $userAvatar = null;
 
+    private ?Closure $profile = null;
+
     /**
      * @param Closure(): iterable<MenuItem> $items
      */
@@ -33,6 +37,11 @@ final class Shell
     /**
      * @param Closure(mixed $user): ?string $resolver
      */
+    public function profile(Closure $resolver): void
+    {
+        $this->profile = $resolver;
+    }
+
     public function userAvatar(Closure $resolver): void
     {
         $this->userAvatar = $resolver;
@@ -93,6 +102,7 @@ final class Shell
         return [
             'name' => config('vanda.name', 'Vanda'),
             'brand' => config('vanda.brand', '#12805C'),
+            'authBackground' => config('vanda.auth_background'),
             'search' => $user !== null && $this->search !== [] && Route::has('vanda.search') ? route('vanda.search') : null,
             'notifications' => $this->notifications($user),
             'menu' => array_map(static fn (MenuItem $item, int $index) => $item->toArray($index === $active), $items, array_keys($items)),
@@ -102,8 +112,30 @@ final class Shell
                 'avatar' => Avatar::make((string) ($user->name ?? $user->email ?? ''))->image($this->userAvatar ? ($this->userAvatar)($user) : null)->toArray(),
                 'logout' => Route::has('vanda.logout') ? route('vanda.logout') : null,
                 'impersonator' => $this->impersonator(),
+                'profile' => $this->profile ? ($this->profile)($user) : null,
             ]),
+            'alerts' => $this->alerts($user),
         ];
+    }
+
+    /**
+     * Strips across the top of every page: for now, a weak password on production.
+     *
+     * @return list<array{tone: string, text: string, link?: array{label: string, href: string}}>
+     */
+    private function alerts(mixed $user): array
+    {
+        if (! $user instanceof Authenticatable || ! WeakPassword::shouldWarn($user)) {
+            return [];
+        }
+
+        $profile = $this->profile ? ($this->profile)($user) : null;
+
+        return [array_filter([
+            'tone' => 'danger',
+            'text' => __('vanda::auth.weak_password'),
+            'link' => $profile ? ['label' => __('vanda::auth.change_password'), 'href' => $profile] : null,
+        ])];
     }
 
     /**

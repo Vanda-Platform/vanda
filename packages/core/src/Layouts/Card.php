@@ -9,15 +9,15 @@ use Vanda\Schema\SchemaContext;
 use Vanda\Schema\ValidationScope;
 
 /**
- * A block with its title on top and the content below, full width:
+ * A block with its title inside the card, on top of the content, full width:
  *
  *     Layout::card('Questions', 'Shown to clients in this order')
  *         ->commands([ModalToggle::make('Add question')->icon('plus')->modal('question')])
  *         ->schema([$this->questionsTable()]),
  *
- * Unlike Layout::section() (title on the left, a form beside it) a card suits tables, lists
- * and anything wide. Buttons given to ->commands() sit in the card header, next to what
- * they act on, and validate only this card's fields.
+ * Unlike Layout::section() (title above the card, buttons at its bottom: forms) a card suits
+ * tables, lists and anything wide. Buttons given to ->commands() sit in the card header,
+ * next to what they act on, and validate only this card's fields.
  */
 final class Card extends Node implements ValidationScope
 {
