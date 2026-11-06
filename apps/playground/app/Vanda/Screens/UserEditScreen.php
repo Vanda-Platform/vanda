@@ -175,6 +175,7 @@ final class UserEditScreen extends Screen
     #[Action]
     public function save(): Result
     {
+        $created = ! $this->user->exists;
         $data = $this->form->only('name', 'email', 'phone', 'country', 'city', 'vat', 'timezone');
         $data['permissions'] = Permissions::clean($this->form->permissions);
 
@@ -189,7 +190,8 @@ final class UserEditScreen extends Screen
         $this->user->replaceRoles($this->form->roles);
         $this->user->syncAttachments($this->form->avatar, 'avatar');
 
-        return Result::toast('Пользователь сохранён')->redirect(UserListScreen::class);
+        // Saving keeps the user on the record; a new record opens at its own address.
+        return $created ? Result::toast('Пользователь добавлен')->redirect(self::class, ['user' => $this->user]) : Result::toast('Пользователь сохранён');
     }
 
     #[Action(validate: false)]

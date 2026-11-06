@@ -14,7 +14,7 @@ use Vanda\Support\Patch;
 
 /**
  * Drives a screen through the same pipeline as the browser, without HTTP or HTML.
- * Created with Vanda::test(Screen::class, [...route parameters]).
+ * Created with Panel::test(Screen::class, [...route parameters]).
  */
 final class ScreenTester
 {
@@ -55,6 +55,18 @@ final class ScreenTester
         $this->errors = array_filter([...$this->errors, ...$response['errors']]);
 
         return $this;
+    }
+
+    /**
+     * What a Relation field offers for the typed text, as the browser would ask:
+     *
+     *     ->options('form.client_id', 'ivan')   // [['value' => 3, 'label' => 'Ivan Petrov'], ...]
+     *
+     * @return list<array{value: int|string, label: string}>
+     */
+    public function options(string $path, string $query = ''): array
+    {
+        return $this->runtime()->options($this->page['state'], $path, $query)['options'];
     }
 
     /**

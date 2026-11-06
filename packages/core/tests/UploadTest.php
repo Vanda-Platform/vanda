@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Storage;
 use Vanda\Attachments\Attachment;
 use Vanda\Tests\Fixtures\UploadScreen;
 use Vanda\Tests\Fixtures\User;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 beforeEach(function () {
     Storage::fake('public');
@@ -50,7 +50,7 @@ it('keeps only files that were already there or that this user uploaded', functi
     $mine = upload('files', UploadedFile::fake()->create('a.txt', 1, 'text/plain'))->json('id');
     $foreign = Attachment::query()->create(['name' => 'x', 'original_name' => 'x.pdf', 'mime' => 'application/pdf', 'path' => '2026/', 'user_id' => 999])->id;
 
-    Vanda::test(UploadScreen::class)
+    Panel::test(UploadScreen::class)
         ->set('files', [$foreign, $mine, 'junk'])->assertSet('files', [$mine])
         ->set('cover', $foreign)->assertSet('cover', null);
 });
@@ -58,8 +58,59 @@ it('keeps only files that were already there or that this user uploaded', functi
 it('describes the files already in the field', function () {
     $id = upload('files', UploadedFile::fake()->create('a.txt', 1, 'text/plain'))->json('id');
 
-    $field = Vanda::test(UploadScreen::class)->set('files', [$id])->call('save')->node('files');
+    $field = Panel::test(UploadScreen::class)->set('files', [$id])->call('save')->node('files');
 
     expect($field)->toMatchArray(['type' => 'upload', 'multiple' => true, 'accept' => '.pdf,.txt', 'maxFiles' => 2, 'maxSize' => 10485760])
         ->and($field['files'][0])->toMatchArray(['id' => $id, 'name' => 'a.txt', 'size' => 1024]);
+});
+
+it('keeps the URL of the file when the field targets URLs', function () {
+    $response = upload('photo', UploadedFile::fake()->image('cover.jpg', 556, 322))->assertOk();
+    $url = $response->json('value');
+    $foreign = Attachment::query()->create(['name' => 'theirs', 'original_name' => 'x.jpg', 'mime' => 'image/jpeg', 'extension' => 'jpg', 'path' => 'photos/', 'disk' => 'public', 'user_id' => 999]);
+
+    expect($url)->toStartWith('/storage/photos/')->toEndWith('.jpg')
+        ->and(Attachment::query()->findOrFail($response->json('id'))->path)->toBe('photos/');
+
+    Panel::test(UploadScreen::class)
+        ->set('photo', '/storage/legacy/old-photo.jpg')->assertSet('photo', '/storage/legacy/old-photo.jpg')
+        ->set('photo', $url)->assertSet('photo', $url)
+        ->set('photo', '/storage/photos/theirs.jpg')->assertSet('photo', null)
+        ->set('photo', '/etc/passwd')->assertSet('photo', null);
+
+    expect($foreign->exists)->toBeTrue();
+});
+
+it('describes a stored URL even without an attachment behind it', function () {
+    expect(Panel::test(UploadScreen::class)->node('photo')['files'])->toBe([[
+        'name' => 'old-photo.jpg', 'mime' => 'image/jpeg', 'extension' => 'jpg', 'url' => '/storage/legacy/old-photo.jpg', 'value' => '/storage/legacy/old-photo.jpg',
+    ]]);
+});
+
+it('sends the crops from the code to the browser', function () {
+    expect(Panel::test(UploadScreen::class)->node('photo'))->toMatchArray([
+        'crop' => [
+            ['mode' => 'size', 'width' => 556, 'height' => 322, 'label' => 'Preview'],
+            ['mode' => 'ratio', 'width' => 1, 'height' => 1, 'label' => 'Square', 'maxWidth' => 1200, 'minWidth' => 300, 'minHeight' => 300],
+        ],
+        'customCrop' => true,
+    ])->and(Panel::test(UploadScreen::class)->node('cover'))->not->toHaveKey('crop');
+});
+
+it('uploads into a repeater row and keeps only own files there', function () {
+    $mine = upload('slides.0.image', UploadedFile::fake()->image('slide.jpg'))->assertOk()->json('value');
+    $foreign = Attachment::query()->create(['name' => 'x', 'original_name' => 'x.jpg', 'mime' => 'image/jpeg', 'path' => '2026/', 'user_id' => 999])->id;
+
+    upload('slides.x.image', UploadedFile::fake()->image('slide.jpg'))->assertNotFound();
+    upload('slides.0.title', UploadedFile::fake()->image('slide.jpg'))->assertNotFound();
+
+    $screen = Panel::test(UploadScreen::class)
+        ->set('slides', [['title' => 'One', 'image' => $mine], ['title' => 'Two', 'image' => $foreign]])
+        ->assertSet('slides', [['title' => 'One', 'image' => $mine], ['title' => 'Two', 'image' => null]])
+        // Rows swapped: the file moves with its row.
+        ->set('slides', [['title' => 'Two'], ['title' => 'One', 'image' => $mine]])
+        ->assertSet('slides', [['title' => 'Two'], ['title' => 'One', 'image' => $mine]])
+        ->call('save');
+
+    expect($screen->node('slides')['fields'][1]['files'][0])->toMatchArray(['id' => $mine, 'name' => 'slide.jpg', 'value' => $mine]);
 });

@@ -117,6 +117,7 @@ final class PageEditScreen extends Screen
         $this->page->syncAttachments($this->form->cover, 'cover');
         $this->page->syncAttachments($this->form->files, 'files');
 
-        return Result::toast('Страница сохранена')->redirect(PageListScreen::class);
+        // Saving keeps the user on the record; a new record opens at its own address.
+        return $isNew ? Result::toast('Страница добавлена')->redirect(self::class, ['page' => $this->page]) : Result::toast('Страница сохранена');
     }
 }

@@ -3,17 +3,25 @@
 namespace App\Vanda\Screens;
 
 use App\Models\Page;
+use App\Models\User;
 use App\Vanda\Forms\ShowcaseForm;
 use Vanda\Actions\Button;
 use Vanda\Attributes\Action;
 use Vanda\Fields\CheckBox;
 use Vanda\Fields\Code;
+use Vanda\Fields\Crop;
 use Vanda\Fields\CodeLanguage;
 use Vanda\Fields\Color;
 use Vanda\Fields\DateRange;
 use Vanda\Fields\DateTimer;
 use Vanda\Fields\Input;
 use Vanda\Fields\KeyValue;
+use Vanda\Fields\Label;
+use Vanda\Fields\Map;
+use Vanda\Fields\Matrix;
+use Vanda\Fields\Relation;
+use Vanda\Fields\TimeZone;
+use Vanda\Fields\Utm;
 use Vanda\Fields\Markdown;
 use Vanda\Fields\NumberRange;
 use Vanda\Fields\Password;
@@ -26,6 +34,7 @@ use Vanda\Fields\Select;
 use Vanda\Fields\Switcher;
 use Vanda\Fields\TextArea;
 use Vanda\Fields\Upload;
+use Vanda\Fields\UploadTarget;
 use Vanda\Actions\Link;
 use Vanda\Layouts\ActionRow;
 use Vanda\Layouts\Alert;
@@ -132,6 +141,45 @@ final class ShowcaseScreen extends Screen
                     ]),
                     Layout::section('Загрузка файлов', 'Файлы ложатся в таблицу attachments, как в Orchid.')->schema([
                         Upload::make('form.attachments')->label('Вложения')->multiple()->maxFiles(5)->accept('image/*,.pdf,.xlsx'),
+                    ]),
+                    Layout::section('Картинка с обрезкой', 'Размеры заданы в коде; свои размеры пользователь вводит в окне обрезки, браузер их запоминает. В поле хранится URL, как Cropper ->targetRelativeUrl().')->schema([
+                        Upload::make('form.cover')->label('Обложка')->image()->maxSize(5)
+                            ->target(UploadTarget::RelativeUrl)
+                            ->crop(
+                                Crop::size(556, 322)->label('Превью'),
+                                Crop::ratio(16, 9)->label('Баннер')->maxWidth(1920)->minSize(640, 360),
+                                Crop::ratio(1, 1)->label('Квадрат')->maxWidth(1200),
+                            )
+                            ->customCrop(),
+                        Repeater::make('form.slides')->label('Слайды')->addLabel('Добавить слайд')->fields([
+                            Input::make('title')->label('Подпись'),
+                            Upload::make('image')->label('Картинка')->image()->crop(Crop::size(1200, 400)->label('Слайд')),
+                        ]),
+                    ]),
+                ],
+                'Из Orchid' => [
+                    Layout::section('Выбор записей', 'Relation ищет по таблице на сервере, пока пользователь печатает: годится для тысяч записей.')->schema([
+                        Relation::make('form.manager')->label('Менеджер')->model(User::class, 'name')->searchColumns('name', 'email')
+                            ->display(fn (User $user) => "{$user->name} · {$user->email}"),
+                        Relation::make('form.watchers')->label('Наблюдатели')->model(User::class, 'name')->multiple(),
+                        Select::make('form.labels')->label('Метки')->multiple()->allowCustom()
+                            ->options(['кофе' => 'кофе', 'чай' => 'чай', 'десерты' => 'десерты'])
+                            ->help('Можно выбрать из списка или добавить свою'),
+                        TimeZone::make('form.timezone')->label('Часовой пояс'),
+                    ]),
+                    Layout::section('Таблица значений', 'Matrix — Repeater в виде таблицы.')->schema([
+                        Matrix::make('form.prices', ['Объём' => 'volume', 'Цена, ₽' => 'price'])->label('Цены')->addLabel('Добавить цену'),
+                    ]),
+                    Layout::section('Место на карте', 'Клик по карте, перетаскивание метки, координаты или поиск адреса.')->schema([
+                        Map::make('form.location')->label('Точка самовывоза')->zoom(15),
+                    ]),
+                    Layout::section('Прочее')->schema([
+                        Layout::grid([
+                            Input::make('form.phone')->label('Телефон')->mask('+7 (999) 999-99-99'),
+                            DateTimer::make('form.opensAt')->label('Открытие')->timeOnly(),
+                        ]),
+                        Utm::make('form.campaignLink')->label('Ссылка в рассылке'),
+                        Label::make('form.code')->label('Код акции')->help('Label показывает значение, но не даёт его менять'),
                     ]),
                 ],
                 'Просмотр' => [

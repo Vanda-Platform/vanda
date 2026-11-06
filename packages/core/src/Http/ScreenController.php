@@ -13,7 +13,8 @@ use Vanda\Screen\ScreenRuntime;
 
 /**
  * Serves every route registered with Route::screen():
- * GET renders the page (HTML shell or JSON IR), POST runs a reaction or an action.
+ * GET renders the page (HTML shell or JSON IR), POST runs a reaction or an action,
+ * stores an upload or finds the options of a Relation field.
  */
 final class ScreenController
 {
@@ -48,6 +49,7 @@ final class ScreenController
 
         return match ($payload['type'] ?? null) {
             'react' => new JsonResponse($runtime->react($client)),
+            'options' => new JsonResponse($runtime->options($client, (string) ($payload['field'] ?? ''), (string) ($payload['query'] ?? ''))),
             'action' => new JsonResponse(...$this->flip($runtime->act(
                 (string) ($payload['action'] ?? ''),
                 (array) ($payload['args'] ?? []),
@@ -57,7 +59,7 @@ final class ScreenController
                 (bool) ($payload['bulk'] ?? false),
                 isset($payload['inputs']) ? (array) $payload['inputs'] : null,
             ))),
-            default => abort(400, 'Unknown Vanda request type. Expected "react" or "action".'),
+            default => abort(400, 'Unknown Vanda request type. Expected "react", "action" or "options".'),
         };
     }
 

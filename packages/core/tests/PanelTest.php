@@ -11,7 +11,7 @@ use Vanda\Schema\SchemaContext;
 use Vanda\Tests\Fixtures\ProfileScreen;
 use Vanda\Tests\Fixtures\ShowcaseScreen;
 use Vanda\Tests\Fixtures\User;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 beforeEach(function () {
     $this->admin = User::query()->create(['name' => 'Vera Mironova', 'email' => 'vera@example.com']);
@@ -19,14 +19,14 @@ beforeEach(function () {
 });
 
 it('puts an avatar and a status badge into the screen header', function () {
-    $page = Vanda::test(ProfileScreen::class, ['user' => $this->anna])->page();
+    $page = Panel::test(ProfileScreen::class, ['user' => $this->anna])->page();
 
     expect($page['avatar'])->toBe(['name' => 'Anna Smirnova', 'initials' => 'AS', 'hue' => crc32('Anna Smirnova') % 6, 'image' => '/photos/1.png'])
         ->and($page['badge'])->toMatchArray(['type' => 'badge', 'id' => 'header.badge', 'label' => 'Active', 'tone' => 'success', 'dot' => true]);
 });
 
 it('describes option hints, the avatar upload, action rows and an empty table', function () {
-    $screen = Vanda::test(ProfileScreen::class, ['user' => $this->anna]);
+    $screen = Panel::test(ProfileScreen::class, ['user' => $this->anna]);
 
     expect($screen->node('timezone')['options'])->toBe([['value' => 'Europe/Berlin', 'label' => 'Europe/Berlin', 'hint' => 'UTC+01:00']])
         ->and($screen->node('photo'))->toMatchArray(['type' => 'upload', 'accept' => 'image/*', 'avatar' => ['initials' => 'AS', 'hue' => crc32('Anna Smirnova') % 6]])
@@ -97,7 +97,7 @@ it('shows a person\'s photo wherever the person appears', function () {
     expect($persona)->toMatchArray(['initials' => 'AS', 'image' => '/photos/anna.png'])
         ->and($result)->toMatchArray(['initials' => 'AS', 'image' => '/photos/anna.png']);
 
-    Vanda::userAvatar(fn (User $user) => "/photos/{$user->id}.png");
+    Panel::userAvatar(fn (User $user) => "/photos/{$user->id}.png");
     $this->actingAs($this->admin);
 
     $this->getJson('/admin/showcase', ['X-Vanda' => 'true'])

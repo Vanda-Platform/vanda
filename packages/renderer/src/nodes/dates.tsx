@@ -1,4 +1,4 @@
-import { parseDate, parseDateTime, type CalendarDate, type CalendarDateTime } from '@internationalized/date';
+import { parseDate, parseDateTime, parseTime, type CalendarDate, type CalendarDateTime, type Time } from '@internationalized/date';
 import { useId } from 'react';
 import {
   Button as AriaButton,
@@ -14,6 +14,7 @@ import {
   Heading,
   Popover,
   RangeCalendar,
+  TimeField,
 } from 'react-aria-components';
 import { controlClass, cx, Icon, invalidClass } from '../ui';
 import type { FieldNode } from '../types';
@@ -60,7 +61,47 @@ function DateSegments() {
   );
 }
 
-export function DateField({ node }: { node: FieldNode & { withTime?: boolean; min?: string; max?: string } }) {
+function toTime(value: unknown): Time | null {
+  if (typeof value !== 'string' || value === '') return null;
+  try {
+    return parseTime(value.slice(0, 5));
+  } catch {
+    return null;
+  }
+}
+
+/** DateTimer::timeOnly(): hours and minutes, "14:30". */
+function TimeOnlyField({ node }: { node: FieldNode }) {
+  const id = useId();
+  const field = useField(node);
+
+  return (
+    <FieldFrame node={node} inputId={id} required={field.required} error={field.error}>
+      <TimeField
+        id={id}
+        aria-label={node.label ?? node.path}
+        value={toTime(field.value)}
+        onChange={(value) => field.setValue(value ? value.toString().slice(0, 5) : null)}
+        hourCycle={24}
+        shouldForceLeadingZeros
+        isDisabled={field.disabled}
+        isInvalid={Boolean(field.error)}
+      >
+        <Group className={cx(controlClass, 'flex w-32 items-center gap-1', field.error && invalidClass)}>
+          <DateSegments />
+          <Icon name="clock" className="size-4 text-fg-3" />
+        </Group>
+      </TimeField>
+    </FieldFrame>
+  );
+}
+
+export function DateField({ node }: { node: FieldNode & { withTime?: boolean; timeOnly?: boolean; min?: string; max?: string } }) {
+  if (node.timeOnly) return <TimeOnlyField node={node} />;
+  return <DatePickerField node={node} />;
+}
+
+function DatePickerField({ node }: { node: FieldNode & { withTime?: boolean; min?: string; max?: string } }) {
   const id = useId();
   const field = useField(node);
   const withTime = Boolean(node.withTime);

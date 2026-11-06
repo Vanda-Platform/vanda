@@ -14,6 +14,7 @@ use Illuminate\Support\ServiceProvider;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Vanda\Access\PermissionRegistry;
 use Vanda\Auth\LoginScreen;
+use Vanda\Console\AdminCommand;
 use Vanda\Console\InspectCommand;
 use Vanda\Console\ScreensCommand;
 use Vanda\Http\AssetController;
@@ -69,11 +70,11 @@ final class VandaServiceProvider extends ServiceProvider
             }
 
             $handler->renderable(function (HttpExceptionInterface $exception, Request $request) {
-                if ($request->expectsJson() || $request->header('X-Vanda') === 'true' || ! Vanda::isPanelRequest($request)) {
+                if ($request->expectsJson() || $request->header('X-Vanda') === 'true' || ! Panel::isPanelRequest($request)) {
                     return null;
                 }
 
-                $home = rescue(static fn () => Vanda::home(), url('/'), report: false);
+                $home = rescue(static fn () => Panel::home(), url('/'), report: false);
 
                 return response()->view('vanda::error', ['status' => $exception->getStatusCode(), 'home' => $home], $exception->getStatusCode(), $exception->getHeaders());
             });
@@ -101,7 +102,7 @@ final class VandaServiceProvider extends ServiceProvider
          *     });
          */
         Route::macro('vanda', function (string $prefix, Closure $routes) {
-            Vanda::registerPrefix($prefix);
+            Panel::registerPrefix($prefix);
             Route::middleware(config('vanda.middleware', ['web']))->prefix($prefix)->group(function () use ($routes) {
                 Route::screen('login', LoginScreen::class)->name('vanda.login')->middleware(RedirectIfAuthenticated::class);
                 Route::post('logout', LogoutController::class)->name('vanda.logout');
@@ -116,7 +117,7 @@ final class VandaServiceProvider extends ServiceProvider
         });
 
         if ($this->app->runningInConsole()) {
-            $this->commands([InspectCommand::class, ScreensCommand::class]);
+            $this->commands([AdminCommand::class, InspectCommand::class, ScreensCommand::class]);
         }
     }
 }

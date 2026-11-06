@@ -1,0 +1,23 @@
+{
+    "name": "vanda/orchid-compat",
+    "description": "Orchid 14 classes that models and services of an Orchid project use (Filterable, AsSource, Attachable, Attachment, File, platform User and Role), implemented on top of Vanda, plus the old platform.* route names and config('platform.prefix'). Lets an Orchid application drop orchid/platform without touching its models and services.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "vanda/core": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Orchid\\": "src/",
+            "Vanda\\OrchidCompat\\": "compat/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Vanda\\OrchidCompat\\OrchidCompatServiceProvider"
+            ]
+        }
+    }
+}

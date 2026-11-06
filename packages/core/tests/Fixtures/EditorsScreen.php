@@ -20,6 +20,8 @@ final class EditorsScreen extends Screen
 {
     public string $content = '';
 
+    public string $article = '<p><span style="color: red">Old</span> markup</p>';
+
     public string $notes = '';
 
     public string $settings = '';
@@ -39,6 +41,7 @@ final class EditorsScreen extends Screen
     {
         return [
             RichText::make('content')->minHeight(120),
+            RichText::make('article')->embeds(['rutube.ru']),
             Markdown::make('notes'),
             Code::make('settings')->language(CodeLanguage::Json)->lineNumbers(false),
             Chart::line('Revenue')->labels(['Mon', 'Tue'])->series('This week', [1, 2.5])->unit('₽')->span(2),

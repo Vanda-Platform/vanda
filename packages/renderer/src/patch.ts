@@ -30,12 +30,21 @@ export function applyPatches(page: Page, patches: PatchOp[]): Page {
 }
 
 export function setPath(state: State, path: string, value: unknown): State {
-  const [head, ...rest] = path.split('.') as [string, ...string[]];
-  if (rest.length === 0) return { ...state, [head]: value };
+  return setIn(state, path.split('.'), value) as State;
+}
 
-  const child = state[head];
-  const base = child !== null && typeof child === 'object' && !Array.isArray(child) ? (child as State) : {};
-  return { ...state, [head]: setPath(base, rest.join('.'), value) };
+/** Immutable set that keeps lists as lists: "form.rows.1.title" changes one row, not the whole list. */
+function setIn(container: unknown, keys: string[], value: unknown): unknown {
+  const [head, ...rest] = keys as [string, ...string[]];
+  const copy: Record<string, unknown> | unknown[] = Array.isArray(container)
+    ? [...container]
+    : container !== null && typeof container === 'object'
+      ? { ...(container as Record<string, unknown>) }
+      : /^\d+$/.test(head)
+        ? []
+        : {};
+  (copy as Record<string, unknown>)[head] = rest.length === 0 ? value : setIn((copy as Record<string, unknown>)[head], rest, value);
+  return copy;
 }
 
 function replaceNode(nodes: UiNode[], id: string, replacement: UiNode | null): UiNode[] {

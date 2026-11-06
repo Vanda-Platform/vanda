@@ -7,6 +7,7 @@ namespace Vanda\Layouts;
 use Vanda\Actions\Button;
 use Vanda\Schema\Node;
 use Vanda\Schema\SchemaContext;
+use Vanda\Schema\ValidationScope;
 
 /**
  * A dialog opened by ModalToggle. A button in its footer validates only the
@@ -16,7 +17,7 @@ use Vanda\Schema\SchemaContext;
  *         ->schema([Input::make('quick.name')->label('Name')])
  *         ->buttons([Button::make('Save')->primary()->action($this->saveQuick(...))])
  */
-final class Modal extends Node
+final class Modal extends Node implements ValidationScope
 {
     /** @var list<Node> */
     private array $schema = [];
@@ -80,6 +81,11 @@ final class Modal extends Node
     public function children(): array
     {
         return [...$this->schema, ...$this->buttons];
+    }
+
+    public function scopes(Node $button): bool
+    {
+        return true;
     }
 
     protected function properties(SchemaContext $context): array

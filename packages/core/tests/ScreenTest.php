@@ -7,7 +7,7 @@ use Vanda\Screen\Screen;
 use Vanda\Tests\Fixtures\User;
 use Vanda\Tests\Fixtures\UserEditScreen;
 use Vanda\Tests\Fixtures\UserListScreen;
-use Vanda\Vanda;
+use Vanda\Panel;
 use Vanda\VandaException;
 
 beforeEach(function () {
@@ -36,13 +36,13 @@ it('renders the HTML shell with the embedded page', function () {
     $this->get('/admin/users')
         ->assertOk()
         ->assertSee('data-page="app"', false)
-        ->assertSee(Vanda::entry()['script'], false)
-        ->assertSee(Vanda::entry()['styles'][0], false);
+        ->assertSee(Panel::entry()['script'], false)
+        ->assertSee(Panel::entry()['styles'][0], false);
 });
 
 it('hides server-hidden buttons and links to other screens', function () {
-    $create = Vanda::test(UserEditScreen::class)->page();
-    $list = Vanda::test(UserListScreen::class)->page();
+    $create = Panel::test(UserEditScreen::class)->page();
+    $list = Panel::test(UserListScreen::class)->page();
 
     expect(array_column($create['commandBar'], 'id'))->toBe(['action.save'])
         ->and($create['title'])->toBe('Create user')

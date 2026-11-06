@@ -11,7 +11,7 @@ use Vanda\Screen\ScreenRegistry;
 /**
  * A record found by the ⌘K palette:
  *
- *     Vanda::search(fn (string $query) => User::where('name', 'like', "%{$query}%")->limit(5)->get()
+ *     Panel::search(fn (string $query) => User::where('name', 'like', "%{$query}%")->limit(5)->get()
  *         ->map(fn (User $user) => SearchResult::make($user->name)->subtitle($user->email)
  *             ->to(UserEditScreen::class, ['user' => $user])->avatar($user->name)));
  *

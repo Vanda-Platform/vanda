@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
+use Vanda\Tests\Fixtures\RequiredScreen;
 use Vanda\Tests\Fixtures\User;
 use Vanda\Tests\Fixtures\UserEditScreen;
 use Vanda\Tests\Fixtures\UserListScreen;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 beforeEach(function () {
     $this->user = User::query()->create(['name' => 'Anna', 'email' => 'anna@example.com', 'country' => 'RU', 'city' => 1]);
@@ -13,7 +14,7 @@ beforeEach(function () {
 });
 
 it('validates Form rules before the action runs', function () {
-    Vanda::test(UserEditScreen::class, ['user' => $this->user])
+    Panel::test(UserEditScreen::class, ['user' => $this->user])
         ->set('form.email', 'igor@example.com')
         ->call('save')
         ->assertHasErrors(['form.email']);
@@ -22,18 +23,18 @@ it('validates Form rules before the action runs', function () {
 });
 
 it('requires a field only while requiredWhen is true and the field is shown', function () {
-    Vanda::test(UserEditScreen::class, ['user' => $this->user])
+    Panel::test(UserEditScreen::class, ['user' => $this->user])
         ->set('form.country', 'DE')
         ->call('save')
         ->assertHasErrors(['form.vat']);
 
-    Vanda::test(UserEditScreen::class, ['user' => $this->user])
+    Panel::test(UserEditScreen::class, ['user' => $this->user])
         ->set('form.country', 'RU')
         ->set('form.city', 2)
         ->call('save')
         ->assertHasNoErrors()
         ->assertToast('User saved')
-        ->assertRedirect(Vanda::url(UserListScreen::class));
+        ->assertRedirect(Panel::url(UserListScreen::class));
 
     expect($this->user->fresh()->city)->toBe(2);
 });
@@ -50,7 +51,7 @@ it('ignores browser values for locked, disabled and unrendered paths', function 
     $save = collect($page['commandBar'])->firstWhere('id', 'action.save')['action'];
     $this->postJson($url, ['type' => 'action', 'action' => 'save', 'token' => $save['token'], 'snapshot' => $page['snapshot'], 'state' => $state])
         ->assertOk()
-        ->assertJsonPath('redirect', Vanda::url(UserListScreen::class));
+        ->assertJsonPath('redirect', Panel::url(UserListScreen::class));
 
     expect($this->user->fresh()->name)->toBe('Anna K.')
         ->and(User::query()->find(2)->name)->toBe('Igor');
@@ -76,4 +77,16 @@ it('describes a screen for agents with vanda:inspect', function () {
         ->expectsOutputToContain('resetCity() ← form.country')
         ->expectsOutputToContain('dependsOn: form.country')
         ->assertSuccessful();
+});
+
+it('validates a field marked ->required() even without explicit rules, with an array state', function () {
+    Panel::test(RequiredScreen::class)
+        ->call('save')
+        ->assertHasErrors(['item.company']);
+
+    Panel::test(RequiredScreen::class)
+        ->set('item.company', 'Acme')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertToast('Saved');
 });

@@ -74,13 +74,15 @@ final class RoleEditScreen extends Screen
     #[Action]
     public function save(): Result
     {
+        $created = ! $this->role->exists;
         $this->role->fill([
             'name' => $this->form->name,
             'slug' => $this->form->slug,
             'permissions' => Permissions::clean($this->form->permissions),
         ])->save();
 
-        return Result::toast('Роль сохранена')->redirect(RoleListScreen::class);
+        // Saving keeps the user on the record; a new record opens at its own address.
+        return $created ? Result::toast('Роль добавлена')->redirect(self::class, ['role' => $this->role]) : Result::toast('Роль сохранена');
     }
 
     #[Action(validate: false)]

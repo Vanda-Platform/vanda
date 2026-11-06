@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Vanda\Attachments\Attachment;
 use Vanda\Layouts\Avatar;
+use Symfony\Component\Mime\MimeTypes;
 use Vanda\Schema\SchemaContext;
 
 /**
@@ -24,6 +25,14 @@ use Vanda\Schema\SchemaContext;
  *
  * Files are sent to the screen's own URL, so its #[Can] and middleware apply,
  * and are checked against this field's rules on the server.
+ *
+ * A picture kept as a URL in the model's own column, cropped in the browser first
+ * (Orchid's Cropper with targetRelativeUrl()):
+ *
+ *     Upload::make('form.photo')->image()
+ *         ->target(UploadTarget::RelativeUrl)          // "/storage/2026/01/15/abc.jpg"
+ *         ->crop(Crop::size(556, 322)->label('Preview'), Crop::ratio(1, 1)->label('Square'))
+ *         ->customCrop(),                               // the user may pick other proportions
  */
 final class Upload extends Field
 {
@@ -41,6 +50,15 @@ final class Upload extends Field
     private ?string $group = null;
 
     private ?string $avatar = null;
+
+    private UploadTarget $target = UploadTarget::Id;
+
+    /** @var list<Crop> */
+    private array $crops = [];
+
+    private bool $customCrop = false;
+
+    private ?string $directory = null;
 
     public function type(): string
     {
@@ -115,6 +133,49 @@ final class Upload extends Field
         return $this;
     }
 
+    /**
+     * What the field keeps: the attachment id (default) or the file's URL, for a model
+     * that stores the picture's address in its own column.
+     */
+    public function target(UploadTarget $target): static
+    {
+        $this->target = $target;
+
+        return $this;
+    }
+
+    /**
+     * Images are cropped in the browser before they are uploaded; the user picks one of these.
+     * An image already in the field can be cropped again.
+     */
+    public function crop(Crop ...$crops): static
+    {
+        $this->crops = array_values($crops);
+
+        return $this;
+    }
+
+    /**
+     * Besides the crops from the code, the user may crop freely, type their own proportions
+     * or size (remembered in their browser), or upload the image as it is.
+     */
+    public function customCrop(bool $allowed = true): static
+    {
+        $this->customCrop = $allowed;
+
+        return $this;
+    }
+
+    /**
+     * Folder on the disk instead of the dated one ("2026/01/15/"), e.g. 'posts'.
+     */
+    public function directory(string $directory): static
+    {
+        $this->directory = $directory;
+
+        return $this;
+    }
+
     /** Never stored: a web server could run them, or they rewrite its rules. */
     private const FORBIDDEN = ['php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phtml', 'phar', 'pht', 'phps', 'cgi', 'pl', 'asp', 'aspx', 'jsp', 'htaccess', 'htpasswd'];
 
@@ -138,7 +199,53 @@ final class Upload extends Field
             throw ValidationException::withMessages(['file' => [__('vanda::upload.type', ['types' => $this->accept])]]);
         }
 
-        return Attachment::store($file, $this->disk ?? (string) config('vanda.attachments.disk', 'public'), $this->group, Auth::id() === null ? null : (int) Auth::id());
+        return Attachment::store($file, $this->disk ?? (string) config('vanda.attachments.disk', 'public'), $this->group, Auth::id() === null ? null : (int) Auth::id(), $this->directory);
+    }
+
+    /**
+     * What this field keeps for the attachment: its id or its URL (see target()).
+     */
+    public function valueOf(Attachment $attachment): int|string|null
+    {
+        return match ($this->target) {
+            UploadTarget::Id => $attachment->id,
+            UploadTarget::Url => $attachment->storageUrl(),
+            UploadTarget::RelativeUrl => ($url = $attachment->storageUrl()) === null ? null : (string) parse_url($url, PHP_URL_PATH),
+        };
+    }
+
+    /**
+     * What the browser shows for these values: name, size, type and link of every file.
+     * A URL with no attachment behind it (stored before Vanda) is shown by its file name.
+     *
+     * @param list<mixed> $values
+     * @return list<array<string, mixed>>
+     */
+    public function describe(array $values): array
+    {
+        $values = $this->normalize($values);
+        $found = [];
+        foreach ($this->attachmentsFor($values) as $attachment) {
+            $found[(string) $this->valueOf($attachment)] = $attachment;
+        }
+
+        return array_values(array_map(function (int|string $value) use ($found): array {
+            $attachment = $found[(string) $value] ?? null;
+            if ($attachment !== null) {
+                return [...$attachment->toUpload(), 'value' => $value];
+            }
+
+            $name = basename((string) parse_url((string) $value, PHP_URL_PATH));
+            $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+
+            return [
+                'name' => $name,
+                'mime' => MimeTypes::getDefault()->getMimeTypes($extension)[0] ?? 'application/octet-stream',
+                'extension' => $extension === '' ? null : $extension,
+                'url' => is_string($value) ? $value : null,
+                'value' => $value,
+            ];
+        }, array_filter($values, static fn ($value) => is_string($value) || isset($found[(string) $value]))));
     }
 
     /**
@@ -147,37 +254,78 @@ final class Upload extends Field
      *
      * @return int|list<int>|null
      */
-    public function sanitize(mixed $value, mixed $current = null): int|array|null
+    public function sanitize(mixed $value, mixed $current = null): int|string|array|null
     {
-        $ids = array_values(array_unique(array_map('intval', array_filter((array) $value, 'is_numeric'))));
-        $known = array_map('intval', (array) $current);
-        $fresh = array_diff($ids, $known);
+        $values = $this->normalize((array) $value);
+        $known = $this->normalize((array) $current);
+        $fresh = array_values(array_diff($values, $known));
 
         if ($fresh !== []) {
-            $own = Attachment::query()->whereKey($fresh)->where('user_id', Auth::id())->pluck('id')->map('intval')->all();
-            $ids = array_values(array_filter($ids, static fn (int $id) => in_array($id, $known, true) || in_array($id, $own, true)));
+            $own = array_map(fn (Attachment $attachment) => $this->valueOf($attachment), array_filter(
+                $this->attachmentsFor($fresh),
+                static fn (Attachment $attachment) => $attachment->user_id === (Auth::id() === null ? null : (int) Auth::id()),
+            ));
+            $values = array_values(array_filter($values, static fn (int|string $item) => in_array($item, $known, true) || in_array($item, $own, true)));
         }
 
         if ($this->maxFiles !== null) {
-            $ids = array_slice($ids, 0, $this->maxFiles);
+            $values = array_slice($values, 0, $this->maxFiles);
         }
 
-        return $this->multiple ? $ids : ($ids[0] ?? null);
+        return $this->multiple ? $values : ($values[0] ?? null);
     }
 
     protected function fieldProperties(SchemaContext $context): array
     {
-        $ids = array_map('intval', array_filter((array) data_get($context->state, $this->path()), 'is_numeric'));
-        $files = $ids === [] ? [] : Attachment::query()->whereKey($ids)->get()->sortBy(static fn (Attachment $file) => array_search($file->id, $ids, true))->values();
-
         return [
             'multiple' => $this->multiple,
             'accept' => $this->accept,
             'maxSize' => $this->maxSize * 1024 * 1024,
             'maxFiles' => $this->maxFiles,
             'avatar' => $this->avatar === null ? null : ['initials' => Avatar::initials($this->avatar), 'hue' => Avatar::hue($this->avatar)],
-            'files' => array_map(static fn (Attachment $file) => $file->toUpload(), is_array($files) ? $files : $files->all()),
+            'files' => $this->describe((array) data_get($context->state, $this->path())),
+            'crop' => $this->crops === [] ? null : array_map(static fn (Crop $crop) => $crop->toSchema(), $this->crops),
+            'customCrop' => $this->customCrop,
         ];
+    }
+
+    /**
+     * Ids as integers, URLs as non-empty strings, each once.
+     *
+     * @param array<mixed> $values
+     * @return list<int|string>
+     */
+    private function normalize(array $values): array
+    {
+        $values = $this->target === UploadTarget::Id
+            ? array_map('intval', array_filter($values, 'is_numeric'))
+            : array_filter($values, static fn ($value) => is_string($value) && $value !== '');
+
+        return array_values(array_unique($values));
+    }
+
+    /**
+     * Attachments behind these values. A URL is matched by the stored file name, then compared whole.
+     *
+     * @param list<int|string> $values
+     * @return list<Attachment>
+     */
+    private function attachmentsFor(array $values): array
+    {
+        if ($values === []) {
+            return [];
+        }
+
+        if ($this->target === UploadTarget::Id) {
+            return Attachment::query()->whereKey($values)->get()->all();
+        }
+
+        $names = array_map(static fn ($url) => pathinfo((string) parse_url((string) $url, PHP_URL_PATH), PATHINFO_FILENAME), $values);
+
+        return array_values(array_filter(
+            Attachment::query()->whereIn('name', array_unique($names))->get()->all(),
+            fn (Attachment $attachment) => in_array($this->valueOf($attachment), $values, true),
+        ));
     }
 
     /**

@@ -10,7 +10,7 @@ use Vanda\Layouts\Layout;
 use Vanda\Layouts\TD;
 use Vanda\Layouts\Tone;
 use Vanda\Screen\Screen;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 #[Can('platform.roles')]
 final class RoleListScreen extends Screen
@@ -36,7 +36,7 @@ final class RoleListScreen extends Screen
             Layout::table()
                 ->query(fn () => Role::query()->withCount('users'))
                 ->defaultSort('name')
-                ->rowLink(fn (Role $role) => Vanda::url(RoleEditScreen::class, ['role' => $role]))
+                ->rowLink(fn (Role $role) => Panel::url(RoleEditScreen::class, ['role' => $role]))
                 ->columns([
                     TD::make('name', 'Название')->sortable(),
                     TD::make('slug', 'Код')->muted(),

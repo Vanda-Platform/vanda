@@ -19,6 +19,8 @@ import { t } from '../i18n';
 import { nodeAttributes, useSnapshot, useStore } from '../store';
 import { controlClass, cx, Icon, invalidClass, Spinner } from '../ui';
 import type { FieldNode, Option } from '../types';
+import { ComboField } from './combo';
+import { maskedChange } from '../mask';
 
 export function useField(node: FieldNode) {
   const store = useStore();
@@ -64,7 +66,7 @@ export function FieldFrame({
             {required && <span className="text-danger-fg" aria-hidden="true">*</span>}
           </legend>
         ) : (
-          <label htmlFor={inputId} className="flex items-center gap-1 text-[13px] font-medium text-fg">
+          <label htmlFor={inputId} className={cx('flex items-center gap-1 text-[13px] font-medium text-fg', node.labelHidden && 'sr-only')}>
             {node.label}
             {required && <span className="text-danger-fg" aria-hidden="true">*</span>}
           </label>
@@ -89,7 +91,11 @@ export function FieldFrame({
 
 const text = (value: unknown) => (value === null || value === undefined ? '' : String(value));
 
-export function InputField({ node }: { node: FieldNode & { inputType?: string; prefix?: string; suffix?: string; maxLength?: number } }) {
+export function InputField({
+  node,
+}: {
+  node: FieldNode & { inputType?: string; prefix?: string; suffix?: string; maxLength?: number; mask?: string; suggestions?: string[]; min?: number; max?: number; step?: number };
+}) {
   const id = useId();
   const field = useField(node);
   const input = (
@@ -97,8 +103,13 @@ export function InputField({ node }: { node: FieldNode & { inputType?: string; p
       id={id}
       type={node.inputType ?? 'text'}
       value={text(field.value)}
-      onChange={(event) => field.setValue(event.target.value)}
-      placeholder={node.placeholder}
+      onChange={(event) => field.setValue(node.mask ? maskedChange(node.mask, text(field.value), event.target.value) : event.target.value)}
+      placeholder={node.placeholder ?? (node.mask ? node.mask.replace(/[9a*]/g, '_') : undefined)}
+      inputMode={node.mask && !/[a*]/.test(node.mask) ? 'numeric' : undefined}
+      list={node.suggestions ? `${id}-list` : undefined}
+      min={node.min}
+      max={node.max}
+      step={node.step}
       maxLength={node.maxLength}
       disabled={field.disabled}
       readOnly={node.readonly}
@@ -111,6 +122,13 @@ export function InputField({ node }: { node: FieldNode & { inputType?: string; p
 
   return (
     <FieldFrame node={node} inputId={id} required={field.required} error={field.error}>
+      {node.suggestions && (
+        <datalist id={`${id}-list`}>
+          {node.suggestions.map((suggestion) => (
+            <option key={suggestion} value={suggestion} />
+          ))}
+        </datalist>
+      )}
       {node.prefix || node.suffix ? (
         <div className="flex">
           {node.prefix && <span className="flex items-center rounded-l-lg border border-r-0 border-line-strong bg-surface-2 px-2.5 text-fg-2">{node.prefix}</span>}
@@ -205,7 +223,13 @@ const popoverClass = 'min-w-(--trigger-width) overflow-auto rounded-xl border bo
 const optionClass =
   'flex h-8 cursor-pointer items-center justify-between gap-3 rounded-md px-2 text-[14px] text-fg outline-none data-[focused]:bg-surface-2 data-[selected]:font-medium data-[selected]:text-accent-fg';
 
-export function SelectField({ node }: { node: FieldNode & { options?: Option[]; multiple?: boolean } }) {
+export function SelectField({ node }: { node: FieldNode & { options?: Option[]; multiple?: boolean; searchable?: boolean; allowCustom?: boolean } }) {
+  // Long lists and custom values need a text box to type into.
+  if (node.searchable || node.allowCustom) return <ComboField node={node} />;
+  return <PlainSelect node={node} />;
+}
+
+function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multiple?: boolean } }) {
   const id = useId();
   const field = useField(node);
   const options = node.options ?? [];
@@ -505,6 +529,21 @@ export function ColorField({ node }: { node: FieldNode & { presets?: string[] } 
           ))}
         </div>
       )}
+    </FieldFrame>
+  );
+}
+
+/** Label::make(): a value among the fields that is only shown, never sent. */
+export function LabelField({ node }: { node: FieldNode & { text?: string } }) {
+  const id = useId();
+  const value = useSnapshot((s) => getPath(s.page.state, node.path));
+  const shown = node.text ?? (value === null || value === undefined || value === '' ? null : Array.isArray(value) ? value.join(', ') : String(value));
+
+  return (
+    <FieldFrame node={node} inputId={id} required={false}>
+      <output id={id} className={cx('min-h-9 py-2 text-[14px] break-words', shown === null && 'text-fg-3')}>
+        {shown ?? '—'}
+      </output>
     </FieldFrame>
   );
 }

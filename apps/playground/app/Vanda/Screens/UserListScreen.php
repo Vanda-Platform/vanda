@@ -23,7 +23,7 @@ use Vanda\Layouts\TD;
 use Vanda\Layouts\View;
 use Vanda\Screen\Result;
 use Vanda\Screen\Screen;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 #[Can('platform.users')]
 final class UserListScreen extends Screen
@@ -78,7 +78,7 @@ final class UserListScreen extends Screen
                 ])
                 ->defaultSort('id', 'desc')
                 ->paginate(10, [25, 50])
-                ->rowLink(fn (User $user) => Vanda::url(UserEditScreen::class, ['user' => $user]))
+                ->rowLink(fn (User $user) => Panel::url(UserEditScreen::class, ['user' => $user]))
                 ->exportable('users.csv')
                 ->emptyText('Никого не нашлось')
                 ->columns([

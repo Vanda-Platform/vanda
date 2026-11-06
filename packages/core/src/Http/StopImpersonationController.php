@@ -6,7 +6,7 @@ namespace Vanda\Http;
 
 use Illuminate\Http\RedirectResponse;
 use Vanda\Access\Impersonation;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 /**
  * "Back to my account" in the impersonation banner.
@@ -17,6 +17,6 @@ final class StopImpersonationController
     {
         Impersonation::stop();
 
-        return redirect()->to(Vanda::home());
+        return redirect()->to(Panel::home());
     }
 }

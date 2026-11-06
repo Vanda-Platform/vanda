@@ -19,7 +19,7 @@ use Vanda\Access\Impersonation;
 use Vanda\Access\PermissionGroup;
 use Vanda\Navigation\MenuItem;
 use Vanda\Navigation\SearchResult;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -38,7 +38,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Carbon::setLocale(config('app.locale'));
 
-        Vanda::permissions(fn () => [
+        Panel::permissions(fn () => [
             PermissionGroup::make('Доступ')
                 ->add('platform.users', 'Пользователи')
                 ->add('platform.roles', 'Роли')
@@ -55,20 +55,20 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // The photo from the user card next to the name in the sidebar.
-        Vanda::userAvatar(fn (User $user) => $user->avatarUrl());
+        Panel::userAvatar(fn (User $user) => $user->avatarUrl());
 
         // ⌘K finds people and pages; results that lead to screens the user may not open are hidden.
-        Vanda::search(fn (string $query) => User::query()->with('attachments')
+        Panel::search(fn (string $query) => User::query()->with('attachments')
             ->where(fn ($where) => $where->where('name', 'like', "%{$query}%")->orWhere('email', 'like', "%{$query}%"))
             ->limit(5)->get()
             ->map(fn (User $user) => SearchResult::make($user->name)->subtitle($user->email)->avatar($user->name, $user->avatarUrl())->group('Пользователи')
                 ->to(UserEditScreen::class, ['user' => $user])));
 
-        Vanda::search(fn (string $query) => Page::query()->where('title', 'like', "%{$query}%")->limit(5)->get()
+        Panel::search(fn (string $query) => Page::query()->where('title', 'like', "%{$query}%")->limit(5)->get()
             ->map(fn (Page $page) => SearchResult::make($page->title)->icon('file')->group('Страницы')
                 ->to(PageEditScreen::class, ['page' => $page])));
 
-        Vanda::menu(fn () => [
+        Panel::menu(fn () => [
             MenuItem::make('Обзор')->icon('dashboard')->to(DashboardScreen::class),
             MenuItem::make('Пользователи')->icon('users')->group('Доступ')->badge(User::query()->count())->to(UserListScreen::class),
             MenuItem::make('Роли')->icon('shield')->group('Доступ')->to(RoleListScreen::class),

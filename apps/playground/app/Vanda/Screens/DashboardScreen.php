@@ -15,7 +15,7 @@ use Vanda\Layouts\Persona;
 use Vanda\Layouts\TD;
 use Vanda\Layouts\Tone;
 use Vanda\Screen\Screen;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 final class DashboardScreen extends Screen
 {
@@ -55,7 +55,7 @@ final class DashboardScreen extends Screen
             Layout::section('Новые пользователи', 'Последние пять учётных записей')->schema([
                 Layout::table()
                     ->rows(fn () => User::query()->with('attachments')->latest('id')->limit(5)->get())
-                    ->rowLink(fn (User $user) => Vanda::url(UserEditScreen::class, ['user' => $user]))
+                    ->rowLink(fn (User $user) => Panel::url(UserEditScreen::class, ['user' => $user]))
                     ->columns([
                         TD::make('name', 'Пользователь')->render(fn (User $user) => Persona::make($user->name)->subtitle($user->email)->image($user->avatarUrl())),
                         TD::make('status', 'Статус')->render(fn (User $user) => Badge::make($user->status->label(), $user->status->tone())->dot()),

@@ -63,4 +63,34 @@ final class ShowcaseForm extends Form
 
     /** @var list<int> */
     public array $attachments = [];
+
+    /** The cover's address, as a model column keeps it (Upload::target(UploadTarget::RelativeUrl)). */
+    public ?string $cover = null;
+
+    /** @var list<array{title?: string, image?: int}> */
+    public array $slides = [['title' => 'Обжарка недели']];
+
+    public ?int $manager = null;
+
+    /** @var list<int> */
+    public array $watchers = [];
+
+    /** @var list<string> */
+    public array $labels = ['кофе'];
+
+    /** @var list<array{volume?: string, price?: string}> */
+    public array $prices = [['volume' => '250 г', 'price' => '890'], ['volume' => '1 кг', 'price' => '2 990']];
+
+    /** @var array{lat: float, lng: float}|null */
+    public ?array $location = ['lat' => 55.7539, 'lng' => 37.6208];
+
+    public ?string $campaignLink = 'https://kofe.example/sale?utm_source=newsletter';
+
+    public string $code = 'PRM-2026-0042';
+
+    public ?string $timezone = 'Europe/Moscow';
+
+    public ?string $phone = null;
+
+    public ?string $opensAt = '09:00';
 }

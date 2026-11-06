@@ -63,7 +63,7 @@ interface EditorProps {
   placeholder?: string;
 }
 
-function CodeEditor({ id, label, value, onChange, language, minHeight, lineNumbers, wrap, disabled, placeholder }: EditorProps) {
+export function CodeEditor({ id, label, value, onChange, language, minHeight, lineNumbers, wrap, disabled, placeholder }: EditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const slots = useMemo(() => ({ language: new Compartment(), editable: new Compartment() }), []);

@@ -70,6 +70,15 @@ export function createStore(initial: Page) {
     setTimeout(() => set({ toasts: snapshot.toasts.filter((toast) => toast.id !== id) }), 5000);
   };
 
+  /** A toast an action left before it redirected (sessionStorage, so a full page load keeps it too). */
+  const showFlash = () => {
+    const raw = sessionStorage.getItem(FLASH_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(FLASH_KEY);
+    const toast = JSON.parse(raw) as { message: string; tone: string };
+    pushToast(toast.message, toast.tone);
+  };
+
   const insideModal = (nodeId: string, modalId: string) => {
     const modal = nodes().find((node) => node.type === 'modal' && node.id === modalId);
     return modal !== undefined && walk(modal.children ?? []).some((node) => node.id === nodeId);
@@ -116,6 +125,8 @@ export function createStore(initial: Page) {
       inflight?.abort();
       const next = withComputed(page);
       set({ page: next, errors: {}, pending: new Set(), running: null, modal: null, baseline: next.state });
+      // The page an action redirected to: the store lives on across Inertia visits, so its toast shows here.
+      showFlash();
     },
 
     setValue(path: string, value: unknown) {
@@ -196,14 +207,8 @@ export function createStore(initial: Page) {
       set({ toasts: snapshot.toasts.filter((toast) => toast.id !== id) });
     },
 
-    /** Shows a toast left by an action that redirected here. */
-    showFlash() {
-      const raw = sessionStorage.getItem(FLASH_KEY);
-      if (!raw) return;
-      sessionStorage.removeItem(FLASH_KEY);
-      const toast = JSON.parse(raw) as { message: string; tone: string };
-      pushToast(toast.message, toast.tone);
-    },
+    /** Shows a toast left by an action that redirected here (also after a full page load). */
+    showFlash,
   };
 }
 

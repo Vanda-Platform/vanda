@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Vanda\Tests\Fixtures\User;
 use Vanda\Tests\Fixtures\UserEditScreen;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 beforeEach(function () {
     $this->user = User::query()->create(['name' => 'Anna', 'email' => 'anna@example.com', 'country' => 'RU', 'city' => 1]);
@@ -12,7 +12,7 @@ beforeEach(function () {
 });
 
 it('re-resolves only dependent nodes and runs #[Updated] hooks', function () {
-    Vanda::test(UserEditScreen::class, ['user' => $this->user])
+    Panel::test(UserEditScreen::class, ['user' => $this->user])
         ->assertHidden('form.vat')
         ->set('form.country', 'DE')
         ->assertSet('form.city', null)
@@ -21,7 +21,7 @@ it('re-resolves only dependent nodes and runs #[Updated] hooks', function () {
 });
 
 it('validates live fields as the user types', function () {
-    Vanda::test(UserEditScreen::class, ['user' => $this->user])
+    Panel::test(UserEditScreen::class, ['user' => $this->user])
         ->set('form.email', 'not-an-email')
         ->assertHasErrors(['form.email'])
         ->set('form.email', 'igor@example.com')

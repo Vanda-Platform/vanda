@@ -1,4 +1,4 @@
-import type { ActionRef, ActionResponse, Page, ReactResponse, State } from './types';
+import type { ActionRef, ActionResponse, Option, Page, ReactResponse, State } from './types';
 
 /**
  * Reactions and actions: Vanda's JSON protocol on the screen's own URL.
@@ -38,6 +38,11 @@ async function post<T>(page: Page, body: unknown, signal?: AbortSignal): Promise
   return { status: response.status, data: (await response.json()) as T };
 }
 
+/** Records of a Relation field matching the typed text (Relation::search() on the server). */
+export function options(page: Page, field: string, query: string, signal?: AbortSignal) {
+  return post<{ options: Option[] }>(page, { type: 'options', snapshot: page.snapshot, state: page.state, field, query }, signal);
+}
+
 export function react(page: Page, state: State, signal: AbortSignal) {
   return post<ReactResponse>(page, { type: 'react', snapshot: page.snapshot, state }, signal);
 }
@@ -61,12 +66,15 @@ export function act(page: Page, node: string, action: ActionRef, ids?: string[],
 }
 
 export interface UploadResult {
-  id: number;
+  /** Missing for a URL stored before Vanda with no attachment behind it. */
+  id?: number;
   name: string;
-  size: number;
+  size?: number | null;
   mime: string;
   extension?: string | null;
   url?: string | null;
+  /** What the field keeps: the id or the URL (Upload::target()). */
+  value: number | string;
 }
 
 /**

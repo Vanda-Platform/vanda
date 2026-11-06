@@ -22,7 +22,7 @@ use Vanda\Screen\ActionCall;
  *         ->parentKey('parent_id')
  *         ->orderBy('position')
  *         ->columns([TD::make('title', 'Title'), TD::make('path', 'Address')->muted()])
- *         ->rowLink(fn (Page $page) => Vanda::url(PageEditScreen::class, ['page' => $page]))
+ *         ->rowLink(fn (Page $page) => Panel::url(PageEditScreen::class, ['page' => $page]))
  *         ->reorderable($this->move(...))
  *
  * The first column holds the expand toggle. With ->reorderable() rows can be dragged

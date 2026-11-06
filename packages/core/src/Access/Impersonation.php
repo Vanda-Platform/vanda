@@ -19,7 +19,7 @@ use Vanda\VandaException;
  *     {
  *         Impersonation::loginAs($this->user);
  *
- *         return Result::redirectTo(Vanda::home());
+ *         return Result::redirectTo(Panel::home());
  *     }
  */
 final class Impersonation

@@ -6,11 +6,12 @@ namespace Vanda\Layouts;
 
 use Vanda\Schema\Node;
 use Vanda\Schema\SchemaContext;
+use Vanda\Schema\ValidationScope;
 
 /**
  * A titled block: description on the left, content in a card on the right.
  */
-final class Section extends Node
+final class Section extends Node implements ValidationScope
 {
     /** @var list<Node> */
     private array $schema = [];
@@ -44,7 +45,8 @@ final class Section extends Node
     }
 
     /**
-     * Buttons shown under the card, e.g. a "Save" that only saves this section.
+     * Buttons under the card. Their actions validate only this section's fields,
+     * so one screen can hold several independent forms (profile and password).
      *
      * @param list<Node> $buttons
      */
@@ -58,6 +60,11 @@ final class Section extends Node
     public function children(): array
     {
         return [...$this->schema, ...$this->commands];
+    }
+
+    public function scopes(Node $button): bool
+    {
+        return in_array($button, $this->commands, true);
     }
 
     protected function properties(SchemaContext $context): array

@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Vanda\Navigation\Shell;
 
 /**
- * Records for the ⌘K palette from every Vanda::search() provider.
+ * Records for the ⌘K palette from every Panel::search() provider.
  */
 final class SearchController
 {

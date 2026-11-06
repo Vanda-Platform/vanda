@@ -16,7 +16,7 @@ use Vanda\Tests\Fixtures\ShowcaseScreen;
 use Vanda\Tests\Fixtures\User;
 use Vanda\Tests\Fixtures\UserEditScreen;
 use Vanda\Tests\Fixtures\UserListScreen;
-use Vanda\Vanda;
+use Vanda\Panel;
 use Vanda\VandaServiceProvider;
 
 abstract class TestCase extends Orchestra
@@ -75,12 +75,12 @@ abstract class TestCase extends Orchestra
         parent::setUp();
         Node::$captureSource = true;
 
-        Vanda::permissions(fn () => [
+        Panel::permissions(fn () => [
             PermissionGroup::make('System')
                 ->add('platform.users', 'Users')
                 ->add('platform.users.delete', 'Delete users'),
         ]);
-        Vanda::menu(fn () => [
+        Panel::menu(fn () => [
             MenuItem::make('Secured')->to(SecuredScreen::class),
             MenuItem::make('Showcase')->to(ShowcaseScreen::class),
         ]);

@@ -44,4 +44,15 @@ return [
     'attachments' => [
         'disk' => env('VANDA_ATTACHMENTS_DISK', 'public'),
     ],
+
+    /*
+     * Map fields: the tile server, the address search (a Nominatim-compatible URL, or null to
+     * turn search off) and where an empty map opens. The browser calls these servers itself.
+     */
+    'map' => [
+        'tiles' => env('VANDA_MAP_TILES', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+        'attribution' => '&copy; OpenStreetMap',
+        'geocoder' => env('VANDA_MAP_GEOCODER', 'https://nominatim.openstreetmap.org/search'),
+        'center' => [55.7558, 37.6173],
+    ],
 ];

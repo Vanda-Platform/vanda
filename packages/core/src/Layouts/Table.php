@@ -64,6 +64,9 @@ final class Table extends Node
     /** @var list<Button> */
     private array $bulkActions = [];
 
+    /** @var list<Node> */
+    private array $commands = [];
+
     private ?Closure $rowActions = null;
 
     private ?Closure $rowLink = null;
@@ -185,6 +188,24 @@ final class Table extends Node
     }
 
     /**
+     * Buttons on the table's toolbar, next to search and export: "Add question" belongs
+     * to the questions table, not to the screen header.
+     *
+     * @param list<Button|Link|ModalToggle|DropDown> $buttons
+     */
+    public function commands(array $buttons): self
+    {
+        $this->commands = array_values($buttons);
+
+        return $this;
+    }
+
+    public function children(): array
+    {
+        return $this->commands;
+    }
+
+    /**
      * A "⋯" menu at the end of every row.
      *
      * @param Closure(mixed $row): list<Button|Link|ModalToggle> $actions
@@ -289,6 +310,7 @@ final class Table extends Node
         return [
             'columns' => array_map(static fn (TD $column) => $column->header(), $this->columns),
             'rows' => $rows,
+            'commandIds' => array_map(static fn (Node $node) => $node->getId(), array_filter($this->commands, static fn (Node $node) => $node->isVisible())),
             'pagination' => $pagination,
             'sort' => $sort,
             'search' => $this->searchable === [] ? null : ['value' => $search, 'placeholder' => $this->searchPlaceholder],

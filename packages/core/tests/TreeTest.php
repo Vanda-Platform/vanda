@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 use Vanda\Screen\ScreenRuntime;
 use Vanda\Tests\Fixtures\TreeScreen;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 beforeEach(fn () => TreeScreen::$moves = []);
 
 it('lists tree rows parents first, siblings in order, orphans at the top level', function () {
-    $tree = Vanda::test(TreeScreen::class)->node('layout.0');
+    $tree = Panel::test(TreeScreen::class)->node('layout.0');
 
     expect(array_map(fn (array $row) => [$row['key'], $row['parent'] ?? null, $row['depth']], $tree['rows']))->toBe([
         ['1', null, 0],
@@ -23,7 +23,7 @@ it('lists tree rows parents first, siblings in order, orphans at the top level',
 });
 
 it('passes the values of a move from the browser to the action', function () {
-    Vanda::test(TreeScreen::class)
+    Panel::test(TreeScreen::class)
         ->callWithInput('move', ['id' => 5, 'parent' => null, 'position' => 1])
         ->assertToast('Moved');
 
@@ -32,7 +32,7 @@ it('passes the values of a move from the browser to the action', function () {
 
 it('accepts only the signed input names and scalar values', function () {
     $runtime = ScreenRuntime::boot(TreeScreen::class, [], '/tree');
-    $move = Vanda::test(TreeScreen::class)->node('layout.0')['move'];
+    $move = Panel::test(TreeScreen::class)->node('layout.0')['move'];
 
     [$status] = $runtime->act('move', ['id' => 5, 'parent' => [1], 'position' => 0, 'extra' => 'x'], $move['token'], [], inputs: $move['inputs']);
     expect($status)->toBe(200)
@@ -43,7 +43,7 @@ it('accepts only the signed input names and scalar values', function () {
 });
 
 it('describes a tree select with parents and an excluded branch, keeping the order of the records', function () {
-    $select = Vanda::test(TreeScreen::class)->node('parent');
+    $select = Panel::test(TreeScreen::class)->node('parent');
 
     expect($select['type'])->toBe('treeselect')
         ->and($select['searchable'])->toBeTrue()
@@ -58,7 +58,7 @@ it('describes a tree select with parents and an excluded branch, keeping the ord
 });
 
 it('drops tree select values that are excluded or unknown', function () {
-    Vanda::test(TreeScreen::class)
+    Panel::test(TreeScreen::class)
         ->set('parent', 5)->assertSet('parent', null)
         ->set('parent', '4')->assertSet('parent', 4)
         ->set('sections', [2, '3', 42, 'x'])->assertSet('sections', [2, 3]);

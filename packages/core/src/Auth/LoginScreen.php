@@ -18,7 +18,7 @@ use Vanda\Fields\Password;
 use Vanda\Screen\Chrome;
 use Vanda\Screen\Result;
 use Vanda\Screen\Screen;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 /**
  * The sign-in page, itself an ordinary Vanda screen. Registered by Route::vanda().
@@ -84,6 +84,6 @@ final class LoginScreen extends Screen
             $request->session()->regenerate();
         }
 
-        return Result::redirectTo(redirect()->intended(Vanda::home())->getTargetUrl());
+        return Result::redirectTo(redirect()->intended(Panel::home())->getTargetUrl());
     }
 }

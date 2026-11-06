@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { router } from '@inertiajs/react';
+import { useState, type MouseEvent } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { t } from '../i18n';
 import { walk } from '../patch';
-import { nodeAttributes, useSnapshot, useStore } from '../store';
+import { isInternal, nodeAttributes, useSnapshot, useStore } from '../store';
 import { Avatar, buttonClass, cx, Icon } from '../ui';
 import type { UiNode } from '../types';
 import type { ButtonNode } from './actions';
@@ -40,6 +41,37 @@ export function SectionView({ node }: { node: UiNode & { title: string; descript
             <NodeList nodes={buttons} />
           </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Layout::card(): title on top, buttons in the header, content below, full width.
+ * Tables inside bleed to the card's edges (24px gutter).
+ */
+export function CardView({ node }: { node: UiNode & { title: string; description?: string; commandIds?: string[] } }) {
+  const commands = new Set(node.commandIds ?? []);
+  const content = (node.children ?? []).filter((child) => !commands.has(child.id));
+  const buttons = (node.children ?? []).filter((child) => commands.has(child.id));
+
+  return (
+    <section className="flex min-w-0 flex-col rounded-xl border border-line bg-surface shadow-sm" {...nodeAttributes(node)}>
+      <header className="flex flex-wrap items-start justify-between gap-3 px-6 pt-5">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 className="text-[15px] leading-[22px] font-semibold">{node.title}</h2>
+          {node.description && <p className="text-[13.5px] text-fg-2">{node.description}</p>}
+        </div>
+        {buttons.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {buttons.map((child) => (
+              <NodeView key={child.id} node={child} compact />
+            ))}
+          </div>
+        )}
+      </header>
+      <div className="flex flex-col gap-5 p-6 pt-5 [--v-gutter:24px]">
+        <NodeList nodes={content} />
       </div>
     </section>
   );
@@ -328,4 +360,22 @@ export function ActionRowView({ node }: { node: UiNode & { title: string; descri
       </div>
     </div>
   );
+}
+
+/**
+ * Layout::view(): HTML a Blade view rendered on the server. It is set as markup, so its
+ * scripts do not run; links to panel pages open through Inertia like any other link.
+ */
+export function ViewIsland({ node }: { node: UiNode & { html: string; plain?: boolean } }) {
+  const onClick = (event: MouseEvent<HTMLDivElement>) => {
+    const link = (event.target as HTMLElement).closest('a');
+    const href = link?.getAttribute('href') ?? undefined;
+    if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (link.target && link.target !== '_self') return;
+    if (link.hasAttribute('download') || !isInternal(href) || href.startsWith('#')) return;
+    event.preventDefault();
+    router.visit(href);
+  };
+
+  return <div className={cx('min-w-0', !node.plain && 'vanda-prose')} onClick={onClick} dangerouslySetInnerHTML={{ __html: node.html }} {...nodeAttributes(node)} />;
 }

@@ -56,24 +56,31 @@ final class Tree
     }
 
     /**
-     * Fields a button validates: inside a modal, only that modal's fields;
-     * anywhere else, every field that is not inside a modal.
+     * Fields a button validates: inside a modal, only that modal's fields; a button given to
+     * a section's or card's ->commands(), only that block's fields; anywhere else, every
+     * field that is not inside a modal.
      *
      * @return list<Field>
      */
     public function fieldsInScope(?string $triggerId): array
     {
-        $modal = null;
-        foreach ($this->ancestors[(string) $triggerId] ?? [] as $ancestor) {
-            if ($ancestor instanceof Modal) {
-                $modal = $ancestor;
+        $trigger = $this->nodes[(string) $triggerId] ?? null;
+        $scope = null;
+        foreach (array_reverse($this->ancestors[(string) $triggerId] ?? []) as $ancestor) {
+            if ($trigger !== null && $ancestor instanceof ValidationScope && $ancestor->scopes($trigger)) {
+                $scope = $ancestor;
+                break;
             }
         }
 
-        return array_values(array_filter($this->fields(), function (Field $field) use ($modal): bool {
-            $modals = array_filter($this->ancestors[(string) $field->getId()] ?? [], static fn (Node $node) => $node instanceof Modal);
+        return array_values(array_filter($this->fields(), function (Field $field) use ($scope): bool {
+            $ancestors = $this->ancestors[(string) $field->getId()] ?? [];
 
-            return $modal === null ? $modals === [] : in_array($modal, $modals, true);
+            if ($scope !== null) {
+                return in_array($scope, $ancestors, true);
+            }
+
+            return array_filter($ancestors, static fn (Node $node) => $node instanceof Modal) === [];
         }));
     }
 

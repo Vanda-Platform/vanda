@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Vanda\Access\Role;
 use Vanda\Tests\Fixtures\ShowcaseScreen;
 use Vanda\Tests\Fixtures\User;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 beforeEach(function () {
     User::query()->create(['name' => 'Anna', 'email' => 'anna@example.com']);
@@ -14,7 +14,7 @@ beforeEach(function () {
 });
 
 it('describes tabs, modals, repeaters and permissions in the IR', function () {
-    $page = Vanda::test(ShowcaseScreen::class)->page();
+    $page = Panel::test(ShowcaseScreen::class)->page();
     $types = array_column($page['layout'], 'type');
 
     expect($types)->toBe(['tabs', 'keyvalue', 'permissions', 'modal', 'modaltoggle', 'table'])
@@ -27,25 +27,25 @@ it('describes tabs, modals, repeaters and permissions in the IR', function () {
 });
 
 it('validates only the modal when its button is pressed, and only the page otherwise', function () {
-    Vanda::test(ShowcaseScreen::class)
+    Panel::test(ShowcaseScreen::class)
         ->call('saveQuick', from: 'action.saveQuick')
         ->assertHasErrors(['quick.title'])
         ->call('save')
         ->assertHasErrors(['form.name']);
 
-    $tester = Vanda::test(ShowcaseScreen::class)->set('quick.title', 'Hello')->call('saveQuick', from: 'action.saveQuick');
+    $tester = Panel::test(ShowcaseScreen::class)->set('quick.title', 'Hello')->call('saveQuick', from: 'action.saveQuick');
     expect($tester->lastResult()['toast']['message'])->toBe('Quick saved: Hello');
 });
 
 it('fills a modal through a load action and asks the browser to open it', function () {
-    $tester = Vanda::test(ShowcaseScreen::class)->call('loadQuick', ['id' => 7]);
+    $tester = Panel::test(ShowcaseScreen::class)->call('loadQuick', ['id' => 7]);
 
     expect($tester->lastResult()['openModal'])->toBe('quick')
         ->and($tester->page()['state']['quick']['title'])->toBe('Item 7');
 });
 
 it('cleans structured values from the browser and validates repeater rows', function () {
-    $tester = Vanda::test(ShowcaseScreen::class)
+    $tester = Panel::test(ShowcaseScreen::class)
         ->set('form.name', 'Kit')
         ->set('form.specs', [['name' => 'Weight', 'value' => '1 kg', 'hack' => 'x'], ['value' => 'no name'], ['name' => 'a'], ['name' => 'b']])
         ->set('form.utm', [['key' => 'utm_source', 'value' => 'mail', 'extra' => 1], 'junk'])
@@ -72,7 +72,20 @@ it('searches, sorts and paginates a table from the URL', function () {
 it('runs bulk actions for the selected ids only through a bulk token', function () {
     $ids = User::query()->whereIn('name', ['Anna', 'Igor'])->pluck('id')->map(fn ($id) => (string) $id)->all();
 
-    Vanda::test(ShowcaseScreen::class)->callBulk('deleteMany', $ids)->assertToast('Deleted 2');
+    Panel::test(ShowcaseScreen::class)->callBulk('deleteMany', $ids)->assertToast('Deleted 2');
 
     expect(User::query()->pluck('name')->all())->toBe(['Maria']);
+});
+
+it('validates only the section or card whose command button was pressed', function () {
+    Vanda\Panel::test(Vanda\Tests\Fixtures\ProfileFormsScreen::class)
+        ->set('profile.name', 'Vera')
+        ->call('saveProfile', from: 'action.saveProfile')
+        ->assertHasNoErrors()
+        ->assertToast('Profile saved')
+        ->call('savePassword', from: 'action.savePassword')
+        ->assertHasErrors(['password.current']);
+
+    $card = Vanda\Panel::test(Vanda\Tests\Fixtures\ProfileFormsScreen::class)->node('layout.1');
+    expect($card)->toMatchArray(['type' => 'card', 'title' => 'Password', 'commandIds' => ['action.savePassword']]);
 });

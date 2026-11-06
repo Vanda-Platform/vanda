@@ -30,6 +30,8 @@ export interface FieldNode extends BaseNode {
   requiredWhen?: ExprNode;
   disabledWhen?: ExprNode;
   computed?: ExprNode;
+  /** Set by the renderer for a field in a table cell: the column header already names it. */
+  labelHidden?: boolean;
 }
 
 export interface Option {

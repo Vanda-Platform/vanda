@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
-    @foreach (\Vanda\Vanda::entry()['styles'] as $style)
+    @foreach (\Vanda\Panel::entry()['styles'] as $style)
     <link rel="stylesheet" href="{{ $style }}">
     @endforeach
     <script>

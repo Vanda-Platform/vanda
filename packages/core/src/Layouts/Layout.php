@@ -17,6 +17,26 @@ final class Layout
     }
 
     /**
+     * Server-rendered HTML from a Blade view (see BladeView):
+     *
+     *     Layout::view('admin.orders.summary', fn () => ['orders' => $this->orders]),
+     *
+     * @param array<string, mixed>|\Closure(): array<string, mixed> $data
+     */
+    public static function view(string $view, array|\Closure $data = []): BladeView
+    {
+        return BladeView::make($view, $data);
+    }
+
+    /**
+     * A full-width block: title on top, content below, buttons in the header.
+     */
+    public static function card(string $title, ?string $description = null): Card
+    {
+        return Card::make($title, $description);
+    }
+
+    /**
      * @param list<Node> $nodes
      */
     public static function grid(array $nodes, int $columns = 2): Grid

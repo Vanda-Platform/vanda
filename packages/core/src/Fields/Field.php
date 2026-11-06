@@ -6,6 +6,7 @@ namespace Vanda\Fields;
 
 use Closure;
 use Vanda\Schema\Expr;
+use Vanda\Schema\Get;
 use Vanda\Schema\Node;
 use Vanda\Schema\SchemaContext;
 
@@ -85,6 +86,9 @@ abstract class Field extends Node
     }
 
     /** Marks the field as required in the UI. Add the `required` rule to validate it. */
+    /**
+     * Shows the star and validates the field as `required` on the server.
+     */
     public function required(bool $required = true): static
     {
         $this->required = $required;
@@ -155,6 +159,11 @@ abstract class Field extends Node
         return $this->liveValidation;
     }
 
+    public function isRequired(): bool
+    {
+        return $this->required;
+    }
+
     public function requiredWhen(Expr $condition): static
     {
         $this->requiredWhen = $condition;
@@ -196,6 +205,17 @@ abstract class Field extends Node
     public function sanitize(mixed $value, mixed $current = null): mixed
     {
         return $value;
+    }
+
+    /**
+     * Rules the field checks by itself on top of ->rules(): a Select accepts only its
+     * options, a Relation only records of its query. Run with every validating action.
+     *
+     * @return list<mixed>
+     */
+    public function implicitRules(Get $get): array
+    {
+        return [];
     }
 
     /**

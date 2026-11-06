@@ -6,7 +6,7 @@ namespace Vanda\Http;
 
 use Illuminate\Http\Request;
 use Inertia\Middleware;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 /**
  * Inertia handles navigation between screens (history, prefetch, progress).
@@ -21,6 +21,6 @@ final class InertiaMiddleware extends Middleware
      */
     public function version(Request $request): ?string
     {
-        return Vanda::entry()['version'];
+        return Panel::entry()['version'];
     }
 }

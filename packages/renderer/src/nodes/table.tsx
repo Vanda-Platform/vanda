@@ -66,6 +66,8 @@ type TableNode = UiNode & {
   bulk?: ButtonNode[];
   export?: string;
   empty?: UiNode;
+  /** Ids of children that are toolbar buttons (Table::commands()). */
+  commandIds?: string[];
 };
 
 /** Visit the same screen with changed query parameters, keeping scroll and local state. */
@@ -162,7 +164,8 @@ export function TableView({ node }: { node: TableNode }) {
   };
 
   const hideable = columns.filter((column) => column.hideable);
-  const toolbar = node.search || filters.length > 0 || hideable.length > 0 || node.export;
+  const commands = (node.children ?? []).filter((child) => node.commandIds?.includes(child.id));
+  const toolbar = node.search || filters.length > 0 || hideable.length > 0 || node.export || commands.length > 0;
   const exportUrl = useMemo(() => {
     if (!node.export) return null;
     const url = new URL(window.location.href);
@@ -285,6 +288,10 @@ export function TableView({ node }: { node: TableNode }) {
               {t('export')}
             </a>
           )}
+
+          {commands.map((child) => (
+            <NodeView key={child.id} node={child} compact />
+          ))}
         </div>
       )}
 

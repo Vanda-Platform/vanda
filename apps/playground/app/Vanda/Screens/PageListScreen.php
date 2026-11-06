@@ -15,7 +15,7 @@ use Vanda\Layouts\Text;
 use Vanda\Navigation\Crumb;
 use Vanda\Screen\Result;
 use Vanda\Screen\Screen;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 #[Can('platform.pages')]
 final class PageListScreen extends Screen
@@ -61,7 +61,7 @@ final class PageListScreen extends Screen
                 ->orderBy('position')
                 ->searchable()
                 ->expanded(1)
-                ->rowLink(fn (Page $page) => Vanda::url(PageEditScreen::class, ['page' => $page]))
+                ->rowLink(fn (Page $page) => Panel::url(PageEditScreen::class, ['page' => $page]))
                 ->columns([
                     TD::make('title', 'Название'),
                     TD::make('path', 'Адрес')->render(fn (Page $page) => Text::make($page->path($this->pages()))->mono()->muted()),
@@ -71,7 +71,7 @@ final class PageListScreen extends Screen
                 ])
                 ->rowActions(fn (Page $page) => [
                     Link::make('Редактировать')->icon('pencil')->to(PageEditScreen::class, ['page' => $page]),
-                    Link::make('Добавить вложенную')->icon('plus')->href(Vanda::url(PageEditScreen::class).'?parent='.$page->id),
+                    Link::make('Добавить вложенную')->icon('plus')->href(Panel::url(PageEditScreen::class).'?parent='.$page->id),
                     Button::make('Удалить')->icon('trash')->danger()
                         ->confirm("Страница «{$page->title}» и все вложенные будут удалены.", 'Удалить страницу?', 'Удалить')
                         ->action($this->delete(...), ['page' => $page]),

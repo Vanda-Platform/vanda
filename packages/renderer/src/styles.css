@@ -170,6 +170,14 @@
 .vanda-prose hr { border: 0; border-top: 1px solid var(--v-line); margin: 1.4em 0; }
 .vanda-prose strong, .vanda-prose b { font-weight: 600; }
 .vanda-prose .ProseMirror-selectednode { outline: 2px solid var(--v-accent); }
+.vanda-prose table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
+.vanda-prose th, .vanda-prose td { border: 1px solid var(--v-line); padding: 0.4em 0.6em; text-align: left; vertical-align: top; }
+.vanda-prose th { background: var(--v-surface-2); font-weight: 600; }
+.vanda-prose td > p, .vanda-prose th > p { margin: 0; }
+.vanda-prose .tableWrapper { overflow-x: auto; }
+.vanda-prose .selectedCell { background: var(--v-accent-soft); }
+.vanda-prose img { max-width: 100%; height: auto; border-radius: 8px; }
+.vanda-prose iframe { display: block; width: 100%; max-width: 640px; height: auto; aspect-ratio: 16 / 9; border: 0; border-radius: 8px; }
 .vanda-prose:focus { outline: none; }
 
 /* Native checkboxes in tables, drawn like .o-check of the design. */

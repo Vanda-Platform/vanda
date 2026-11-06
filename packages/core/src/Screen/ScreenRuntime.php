@@ -18,12 +18,14 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 use Vanda\Access\Authorizer;
 use Vanda\Attributes\Updated;
 use Vanda\Fields\Field;
+use Vanda\Fields\Relation;
 use Vanda\Fields\Repeater;
 use Vanda\Fields\Upload;
 use Vanda\Form\Form;
 use Vanda\Navigation\Crumb;
 use Vanda\Navigation\Shell;
 use Vanda\Layouts\Table;
+use Vanda\Schema\Get;
 use Vanda\Schema\Node;
 use Vanda\Schema\SchemaContext;
 use Vanda\Schema\Tree;
@@ -125,9 +127,8 @@ final class ScreenRuntime
      */
     public function upload(string $path, ?UploadedFile $file): array
     {
-        $field = $this->tree()->find($path);
-
-        if (! $field instanceof Upload || ! $field->isEditable() || ! $this->tree()->isShown($field, $this->state())) {
+        $field = $this->editableField($path);
+        if (! $field instanceof Upload) {
             throw new HttpException(404, "There is no editable Upload field [{$path}] on ".$this->screen::class.'.');
         }
 
@@ -137,7 +138,51 @@ final class ScreenRuntime
             return [422, ['errors' => [$path => $exception->validator->errors()->all()]]];
         }
 
-        return [200, $attachment->toUpload()];
+        return [200, [...$attachment->toUpload(), 'value' => $field->valueOf($attachment)]];
+    }
+
+    /**
+     * Records of a Relation field matching what the user typed (JSON request with type=options).
+     * The browser's values are applied first, so the field's query can read the other fields.
+     *
+     * @param array<string, mixed> $client
+     * @return array{options: list<array{value: int|string, label: string}>}
+     */
+    public function options(array $client, string $path, string $term): array
+    {
+        $this->applyClientState($client);
+        $field = $this->editableField($path);
+
+        if (! $field instanceof Relation) {
+            throw new HttpException(404, "There is no editable Relation field [{$path}] on ".$this->screen::class.'.');
+        }
+
+        return ['options' => $field->search(mb_substr($term, 0, 200), new Get($this->state()))];
+    }
+
+    /**
+     * The field at this path, also inside a Repeater row ("form.slides.2.image"),
+     * if it is shown and editable.
+     */
+    private function editableField(string $path): ?Field
+    {
+        $field = $this->tree()->find($path);
+        $owner = $field;
+
+        if ($field === null) {
+            foreach ($this->tree()->fields() as $repeater) {
+                $rest = $repeater instanceof Repeater && str_starts_with($path, $repeater->path().'.') ? substr($path, strlen($repeater->path()) + 1) : '';
+                if (preg_match('/^\d+\.(.+)$/', $rest, $match) === 1) {
+                    $owner = $repeater;
+                    $field = array_values(array_filter($repeater->getFields(), static fn (Field $child) => $child->path() === $match[1]))[0] ?? null;
+                    break;
+                }
+            }
+        }
+
+        return $field instanceof Field && $field->isEditable() && $owner instanceof Field && $owner->isEditable() && $this->tree()->isShown($owner, $this->state())
+            ? $field
+            : null;
     }
 
     /**
@@ -414,9 +459,10 @@ final class ScreenRuntime
                 $formRules[$root] ??= $form->validationRules($this->screen);
             }
 
-            $fieldRules = [...($formRules[$root][$key] ?? []), ...$field->getRules()];
+            $fieldRules = [...($formRules[$root][$key] ?? []), ...$field->getRules(), ...$field->implicitRules(new Get($state))];
 
-            if ($field->getRequiredWhen()?->isTrue($state)) {
+            // ->required() is a rule, not only a star: a field marked required is validated as such.
+            if (($field->isRequired() || $field->getRequiredWhen()?->isTrue($state)) && ! in_array('required', $fieldRules, true)) {
                 array_unshift($fieldRules, 'required');
             }
 
@@ -434,8 +480,9 @@ final class ScreenRuntime
 
             if ($field instanceof Repeater) {
                 foreach ($field->getFields() as $child) {
-                    if ($child->getRules() !== []) {
-                        $rules[$path.'.*.'.$child->path()] = $child->getRules();
+                    $childRules = [...$child->getRules(), ...$child->implicitRules(new Get($state))];
+                    if ($childRules !== []) {
+                        $rules[$path.'.*.'.$child->path()] = $childRules;
                         $attributes[$path.'.*.'.$child->path()] = $child->getLabel() ?? $child->path();
                     }
                 }

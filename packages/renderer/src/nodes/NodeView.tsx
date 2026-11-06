@@ -3,10 +3,12 @@ import { isTrue } from '../expr';
 import { useSnapshot } from '../store';
 import type { UiNode } from '../types';
 import { ButtonView, DropDownView, LinkView, ModalToggleView } from './actions';
+import { ComboField } from './combo';
 import {
   CheckboxField,
   ColorField,
   InputField,
+  LabelField,
   NumberRangeField,
   PasswordField,
   RadioField,
@@ -16,10 +18,11 @@ import {
   SwitchField,
   TextAreaField,
 } from './fields';
-import { ActionListView, ActionRowView, AlertView, BadgeView, EmptyStateView, GridView, LegendView, MetricsView, ModalView, PersonaView, SectionView, TabsView, TextView } from './layout';
+import { ActionListView, ActionRowView, AlertView, BadgeView, CardView, EmptyStateView, GridView, LegendView, MetricsView, ModalView, PersonaView, SectionView, TabsView, TextView, ViewIsland } from './layout';
 import { KeyValueField, PermissionsField, RepeaterField } from './structured';
 import { TableView } from './table';
 import { UploadField } from './upload';
+import { UtmField } from './utm';
 
 type NodeComponent = ComponentType<{ node: any; compact?: boolean }>;
 
@@ -33,6 +36,7 @@ const code = () => import('./code');
 const richtext = () => import('./richtext');
 const tree = () => import('./tree');
 const charts = () => import('./charts');
+const map = () => import('./map');
 
 /**
  * Node type → component. The PHP side never sends HTML, only these types.
@@ -40,6 +44,7 @@ const charts = () => import('./charts');
  */
 const REGISTRY: Record<string, NodeComponent> = {
   section: SectionView,
+  card: CardView,
   grid: GridView,
   tabs: TabsView,
   modal: ModalView,
@@ -54,11 +59,13 @@ const REGISTRY: Record<string, NodeComponent> = {
   actionrow: ActionRowView,
   persona: PersonaView,
   text: TextView,
+  view: ViewIsland,
   badge: BadgeView,
   input: InputField,
   password: PasswordField,
   textarea: TextAreaField,
   select: SelectField,
+  relation: ({ node }) => <ComboField node={node} remote />,
   treeselect: chunk(tree, 'TreeSelectField'),
   switch: SwitchField,
   checkbox: CheckboxField,
@@ -73,6 +80,9 @@ const REGISTRY: Record<string, NodeComponent> = {
   keyvalue: KeyValueField,
   permissions: PermissionsField,
   upload: UploadField,
+  map: chunk(map, 'MapField'),
+  utm: UtmField,
+  label: LabelField,
   richtext: chunk(richtext, 'RichTextField'),
   code: chunk(code, 'CodeField'),
   markdown: chunk(code, 'MarkdownField'),

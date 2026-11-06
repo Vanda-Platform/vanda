@@ -6,6 +6,7 @@ namespace Vanda\Fields;
 
 use Closure;
 use Vanda\Fields\Concerns\HasOptions;
+use Vanda\Schema\Get;
 use Vanda\Schema\SchemaContext;
 
 /**
@@ -22,6 +23,8 @@ final class Select extends Field
     private bool $multiple = false;
 
     private bool $searchable = false;
+
+    private bool $allowCustom = false;
 
     /** @var array{items: iterable<mixed>|Closure, label: string, parent: string, key: string}|null */
     private ?array $tree = null;
@@ -103,12 +106,47 @@ final class Select extends Field
         return $this;
     }
 
+    /**
+     * The user may type a value that is not among the options (tags, Orchid's taggable()).
+     * Without it, only the options are accepted.
+     */
+    public function allowCustom(bool $allowed = true): static
+    {
+        $this->allowCustom = $allowed;
+        $this->searchable = $this->searchable || $allowed;
+
+        return $this;
+    }
+
+    /**
+     * Only the options pass, checked against the options at the moment of the action.
+     */
+    public function implicitRules(Get $get): array
+    {
+        if ($this->tree !== null || $this->allowCustom) {
+            return [];
+        }
+
+        $allowed = array_map(static fn (array $option) => (string) $option['value'], $this->resolveOptions($get));
+
+        return [static function (string $attribute, mixed $value, Closure $fail) use ($allowed): void {
+            foreach (is_array($value) ? $value : [$value] as $item) {
+                if ($item !== null && $item !== '' && (! is_scalar($item) || ! in_array((string) $item, $allowed, true))) {
+                    $fail('validation.in')->translate();
+
+                    return;
+                }
+            }
+        }];
+    }
+
     protected function fieldProperties(SchemaContext $context): array
     {
         return [
             'options' => $this->tree === null ? $this->resolveOptions($context->get()) : $this->treeOptions(),
             'multiple' => $this->multiple,
             'searchable' => $this->searchable,
+            'allowCustom' => $this->allowCustom,
         ];
     }
 

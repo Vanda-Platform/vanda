@@ -33,12 +33,12 @@ class Attachment extends Model
     protected $casts = ['size' => 'integer', 'sort' => 'integer', 'user_id' => 'integer'];
 
     /**
-     * Stores the file under a random name in a dated folder and records it.
+     * Stores the file under a random name in a dated folder (or in $directory) and records it.
      */
-    public static function store(UploadedFile $file, string $disk, ?string $group = null, ?int $userId = null): self
+    public static function store(UploadedFile $file, string $disk, ?string $group = null, ?int $userId = null, ?string $directory = null): self
     {
         $extension = strtolower($file->getClientOriginalExtension() ?: (string) $file->guessExtension());
-        $path = date('Y/m/d').'/';
+        $path = $directory === null ? date('Y/m/d').'/' : trim($directory, '/').'/';
         $name = Str::random(40);
 
         Storage::disk($disk)->putFileAs($path, $file, $name.($extension === '' ? '' : '.'.$extension));
@@ -68,16 +68,24 @@ class Attachment extends Model
      */
     public function url(): ?string
     {
-        $storage = Storage::disk($this->disk);
-
-        if (! method_exists($storage, 'url')) {
+        $url = $this->storageUrl();
+        if ($url === null) {
             return null;
         }
 
-        $url = $storage->url($this->relativePath());
         $app = rtrim((string) config('app.url'), '/');
 
         return $app !== '' && str_starts_with($url, $app.'/') ? substr($url, strlen($app)) : $url;
+    }
+
+    /**
+     * The URL exactly as the disk gives it (absolute for the public disk).
+     */
+    public function storageUrl(): ?string
+    {
+        $storage = Storage::disk($this->disk);
+
+        return method_exists($storage, 'url') ? $storage->url($this->relativePath()) : null;
     }
 
     public function isImage(): bool

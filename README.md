@@ -79,13 +79,13 @@ Route::vanda('admin', function () {
 });
 
 // Permissions become Gate abilities; #[Can('platform.users')] guards a screen or an action
-Vanda::permissions(fn () => [PermissionGroup::make('Access')->add('platform.users', 'Users')]);
+Panel::permissions(fn () => [PermissionGroup::make('Access')->add('platform.users', 'Users')]);
 
 // The bell: Laravel database notifications in Orchid's DashboardMessage shape
 $admin->notify(PanelMessage::make('Import finished')->message('18 products added')->tone(Tone::Success));
 
 // Records for the ⌘K palette
-Vanda::search(fn (string $q) => User::where('name', 'like', "%{$q}%")->limit(5)->get()
+Panel::search(fn (string $q) => User::where('name', 'like', "%{$q}%")->limit(5)->get()
     ->map(fn (User $user) => SearchResult::make($user->name)->to(UserEditScreen::class, ['user' => $user])));
 ```
 

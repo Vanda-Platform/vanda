@@ -11,7 +11,7 @@ type Row = Record<string, unknown>;
 const iconButton = 'grid size-7 shrink-0 place-items-center rounded-md text-fg-3 hover:bg-surface-2 hover:text-fg disabled:opacity-30';
 
 /** Rows of the same fields; child paths are relative to the row ("form.specs.0.name"). */
-export function RepeaterField({ node }: { node: FieldNode & { fields?: FieldNode[]; addLabel?: string; max?: number } }) {
+export function RepeaterField({ node }: { node: FieldNode & { fields?: FieldNode[]; addLabel?: string; max?: number; table?: boolean } }) {
   const field = useField(node);
   const rows = (Array.isArray(field.value) ? field.value : []) as Row[];
   const templates = node.fields ?? [];
@@ -23,6 +23,76 @@ export function RepeaterField({ node }: { node: FieldNode & { fields?: FieldNode
     next.splice(to, 0, row as Row);
     field.setValue(next);
   };
+
+  const rowButtons = (index: number, vertical: boolean) => (
+    <div className={cx('flex shrink-0 gap-0.5', vertical && 'flex-col')}>
+      <button type="button" className={iconButton} aria-label={t('moveUp')} disabled={index === 0 || field.disabled} onClick={() => move(index, index - 1)}>
+        <Icon name="chevron-up" />
+      </button>
+      <button type="button" className={iconButton} aria-label={t('moveDown')} disabled={index === rows.length - 1 || field.disabled} onClick={() => move(index, index + 1)}>
+        <Icon name="chevron-down" />
+      </button>
+      <button type="button" className={iconButton} aria-label={t('remove')} disabled={field.disabled} onClick={() => field.setValue(rows.filter((__, i) => i !== index))}>
+        <Icon name="x" />
+      </button>
+    </div>
+  );
+
+  const addButton = (
+    <button type="button" className={cx(buttonClass('secondary', 'sm'), 'self-start')} disabled={!canAdd || field.disabled} onClick={() => field.setValue([...rows, {}])}>
+      <Icon name="plus" />
+      {node.addLabel ?? t('add')}
+    </button>
+  );
+
+  // Repeater::table() / Matrix: one column per field, the labels become the header.
+  if (node.table) {
+    return (
+      <div className="flex flex-col gap-2" data-vanda-path={node.path} {...nodeAttributes(node)}>
+        {node.label && <span className="text-[13px] font-medium">{node.label}</span>}
+        <div className="overflow-x-auto rounded-lg border border-line">
+          <table className="w-full border-collapse text-[14px]">
+            <thead>
+              <tr className="bg-surface-2/60 text-left text-[12.5px] text-fg-2">
+                {templates.map((template) => (
+                  <th key={template.path} scope="col" className="px-2.5 py-2 font-medium">
+                    {template.label ?? template.path}
+                  </th>
+                ))}
+                <th scope="col" className="w-px">
+                  <span className="sr-only">{t('actions')}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((_, index) => (
+                <tr key={index} className="border-t border-line align-top">
+                  {templates.map((template) => {
+                    const path = `${node.path}.${index}.${template.path}`;
+                    return (
+                      <td key={path} className="p-1.5">
+                        <NodeView node={{ ...template, id: path, path, labelHidden: true } as UiNode} />
+                      </td>
+                    );
+                  })}
+                  <td className="p-1.5 align-middle">{rowButtons(index, false)}</td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr className="border-t border-line">
+                  <td colSpan={templates.length + 1} className="px-3 py-4 text-center text-[13.5px] text-fg-3">
+                    {t('empty')}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {addButton}
+        {node.help && <span className="text-[12.5px] text-fg-3">{node.help}</span>}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2" data-vanda-path={node.path} {...nodeAttributes(node)}>
@@ -36,24 +106,11 @@ export function RepeaterField({ node }: { node: FieldNode & { fields?: FieldNode
                 return <NodeView key={path} node={{ ...template, id: path, path } as UiNode} />;
               })}
             </div>
-            <div className="flex shrink-0 flex-col gap-0.5">
-              <button type="button" className={iconButton} aria-label={t('moveUp')} disabled={index === 0} onClick={() => move(index, index - 1)}>
-                <Icon name="chevron-up" />
-              </button>
-              <button type="button" className={iconButton} aria-label={t('moveDown')} disabled={index === rows.length - 1} onClick={() => move(index, index + 1)}>
-                <Icon name="chevron-down" />
-              </button>
-              <button type="button" className={iconButton} aria-label={t('remove')} onClick={() => field.setValue(rows.filter((__, i) => i !== index))}>
-                <Icon name="x" />
-              </button>
-            </div>
+            {rowButtons(index, true)}
           </li>
         ))}
       </ol>
-      <button type="button" className={cx(buttonClass('secondary', 'sm'), 'self-start')} disabled={!canAdd || field.disabled} onClick={() => field.setValue([...rows, {}])}>
-        <Icon name="plus" />
-        {node.addLabel ?? t('add')}
-      </button>
+      {addButton}
       {node.help && <span className="text-[12.5px] text-fg-3">{node.help}</span>}
     </div>
   );

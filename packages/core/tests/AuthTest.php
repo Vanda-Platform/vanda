@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Hash;
 use Vanda\Auth\LoginScreen;
 use Vanda\Tests\Fixtures\User;
-use Vanda\Vanda;
+use Vanda\Panel;
 
 beforeEach(function () {
     $this->admin = User::query()->create(['name' => 'Admin', 'email' => 'admin@example.com', 'password' => Hash::make('secret-pass')]);
@@ -33,7 +33,7 @@ it('signs in and goes to the page that was asked for', function () {
 });
 
 it('never sends a secret back to the browser', function () {
-    $tester = Vanda::test(LoginScreen::class)
+    $tester = Panel::test(LoginScreen::class)
         ->set('form.email', 'admin@example.com')
         ->set('form.password', 'wrong-pass')
         ->call('login')
@@ -42,7 +42,7 @@ it('never sends a secret back to the browser', function () {
     $snapshot = base64_decode(strtr(explode('.', $tester->lastResult()['snapshot'])[0], '-_', '+/'));
 
     expect($snapshot)->toContain('admin@example.com')->not->toContain('wrong-pass')
-        ->and(Vanda::test(LoginScreen::class)->page()['state']['form'])->not->toHaveKey('password');
+        ->and(Panel::test(LoginScreen::class)->page()['state']['form'])->not->toHaveKey('password');
     $this->assertGuest();
 });
 
