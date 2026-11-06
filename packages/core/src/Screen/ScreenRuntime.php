@@ -10,12 +10,18 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use ReflectionMethod;
 use ReflectionNamedType;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Vanda\Access\Authorizer;
+use Vanda\Actions\Button;
+use Vanda\Actions\ModalToggle;
+use Vanda\Activity\ActivityContext;
+use Vanda\Activity\ActivityLog;
+use Vanda\Attributes\Action;
 use Vanda\Attributes\Updated;
 use Vanda\Fields\Field;
 use Vanda\Fields\Relation;
@@ -23,9 +29,9 @@ use Vanda\Fields\Repeater;
 use Vanda\Fields\RichText;
 use Vanda\Fields\Upload;
 use Vanda\Form\Form;
+use Vanda\Layouts\Table;
 use Vanda\Navigation\Crumb;
 use Vanda\Navigation\Shell;
-use Vanda\Layouts\Table;
 use Vanda\Schema\Get;
 use Vanda\Schema\Node;
 use Vanda\Schema\SchemaContext;
@@ -391,7 +397,10 @@ final class ScreenRuntime
         Authorizer::authorizeAction($this->screen, $name, $bound);
 
         try {
-            $returned = app()->call([$this->screen, $name], $bound);
+            $returned = app(ActivityLog::class)->during(
+                $this->activityContext($name, $attribute, $trigger, $bound, $bulk ? $arguments : []),
+                fn () => app()->call([$this->screen, $name], $bound),
+            );
         } catch (ValidationException $exception) {
             return [422, ['errors' => $exception->errors(), 'snapshot' => $this->snapshot()]];
         }
@@ -412,6 +421,53 @@ final class ScreenRuntime
         }
 
         return [200, $body];
+    }
+
+    /**
+     * The screen, button and record of an action call for the activity log; field labels name the
+     * attributes they edit (`post.title` → title).
+     *
+     * @param array<string, mixed> $bound arguments of the method (a row's record among them)
+     * @param array<string, mixed> $bulk selected ids of a bulk action
+     */
+    private function activityContext(string $name, Action $attribute, ?string $trigger, array $bound, array $bulk): ActivityContext
+    {
+        $button = $trigger === null ? null : $this->tree()->find($trigger);
+
+        $labels = [];
+        $ambiguous = [];
+        foreach ($this->tree()->fields() as $field) {
+            $segments = explode('.', $field->path());
+            $label = $field->getLabel();
+            $key = end($segments);
+            if (count($segments) < 2 || $label === null || $label === '' || ctype_digit($key)) {
+                continue;
+            }
+            if (isset($labels[$key]) && $labels[$key] !== $label) {
+                $ambiguous[] = $key;
+            }
+            $labels[$key] ??= $label;
+        }
+
+        $subject = null;
+        foreach ($bound as $value) {
+            if ($value instanceof Model && $value->exists) {
+                $subject = $value;
+                break;
+            }
+        }
+
+        return new ActivityContext(
+            screen: $this->screen->title(),
+            action: $button instanceof Button ? $button->label() : $name,
+            url: '/'.ltrim(request()->path(), '/'),
+            subject: $subject ?? $this->screen->activitySubject(),
+            labels: array_diff_key($labels, array_flip($ambiguous)),
+            properties: isset($bulk['ids']) ? ['ids' => $bulk['ids']] : [],
+            // Opening a modal loads its values: nothing was done yet.
+            recordsCall: $attribute->activity && ! $button instanceof ModalToggle,
+            batch: (string) Str::uuid(),
+        );
     }
 
     /**

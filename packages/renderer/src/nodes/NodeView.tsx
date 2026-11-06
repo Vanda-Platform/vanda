@@ -4,6 +4,7 @@ import { useSnapshot } from '../store';
 import type { FieldNode, UiNode } from '../types';
 import { cx } from '../ui';
 import { ButtonView, DropDownView, LinkView, ModalToggleView } from './actions';
+import { ActivityView } from './activity';
 import { ComboField } from './combo';
 import {
   CheckboxField,
@@ -46,6 +47,7 @@ const map = () => import('./map');
  */
 const REGISTRY: Record<string, NodeComponent> = {
   section: SectionView,
+  activity: ActivityView,
   card: CardView,
   grid: GridView,
   tabs: TabsView,

@@ -97,6 +97,9 @@ final class PageEditScreen extends Screen
                 Markdown::make('form.notes')->label('Заметки')->placeholder('## Что важно знать'),
                 Code::make('form.settings')->label('Настройки шаблона')->language(CodeLanguage::Json)->placeholder('{ }'),
             ]),
+            Layout::section('История изменений', 'Кто и когда менял страницу.')->schema([
+                Layout::activity($this->page)->limit(10),
+            ])->visible($this->page->exists),
         ];
     }
 

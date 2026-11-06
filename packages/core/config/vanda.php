@@ -39,6 +39,16 @@ return [
     'migrations' => true,
 
     /*
+     * The activity log (Vanda\Activity): changes of models with RecordsActivity and the buttons
+     * pressed in the panel. Entries older than keep_days are removed by
+     * `php artisan model:prune --model="Vanda\Activity\Activity"` (null keeps everything).
+     */
+    'activity' => [
+        'enabled' => env('VANDA_ACTIVITY', true),
+        'keep_days' => 365,
+    ],
+
+    /*
      * Upload fields store files on this disk, in Orchid's `attachments` table.
      */
     'attachments' => [

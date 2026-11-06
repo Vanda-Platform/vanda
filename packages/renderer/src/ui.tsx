@@ -1,10 +1,12 @@
 import {
+  Activity,
   AlignCenter,
   AlignJustify,
   AlignLeft,
   AlignRight,
   Archive,
   ArrowDown,
+  ArrowRight,
   ArrowUp,
   ArrowUpDown,
   Award,
@@ -44,6 +46,7 @@ import {
   Globe,
   GripVertical,
   Hammer,
+  History,
   Heading2,
   Heading3,
   Heading4,
@@ -122,7 +125,10 @@ import { useEffect, useState } from 'react';
 
 /** Icon names accepted by ->icon() in PHP. */
 const ICONS: Record<string, LucideIcon> = {
+  activity: Activity,
   'arrow-down': ArrowDown,
+  'arrow-right': ArrowRight,
+  history: History,
   'arrow-up': ArrowUp,
   sort: ArrowUpDown,
   star: Star,

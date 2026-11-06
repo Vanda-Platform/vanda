@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Vanda\Screen;
 
+use Illuminate\Database\Eloquent\Model;
+use ReflectionObject;
+use ReflectionProperty;
 use Vanda\Layouts\Avatar;
 use Vanda\Layouts\Badge;
 use Vanda\Navigation\Crumb;
@@ -84,6 +87,26 @@ abstract class Screen
     public function chrome(): Chrome
     {
         return Chrome::Panel;
+    }
+
+    /**
+     * The record a button of this screen works on, for the activity log: the first public
+     * property that holds a saved model. Override it when the screen has several.
+     */
+    public function activitySubject(): ?Model
+    {
+        foreach ((new ReflectionObject($this))->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
+            if ($property->isStatic() || ! $property->isInitialized($this)) {
+                continue;
+            }
+
+            $value = $property->getValue($this);
+            if ($value instanceof Model && $value->exists) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     /**

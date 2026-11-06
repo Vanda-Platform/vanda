@@ -6,6 +6,8 @@ namespace Vanda\Access;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Vanda\Activity\ActivityOptions;
+use Vanda\Activity\RecordsActivity;
 
 /**
  * A role grants a set of permissions. Same table layout as Orchid
@@ -17,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  */
 class Role extends Model
 {
+    use RecordsActivity;
+
     protected $table = 'roles';
 
     protected $fillable = ['slug', 'name', 'permissions'];
@@ -24,6 +28,19 @@ class Role extends Model
     protected function casts(): array
     {
         return ['permissions' => 'array'];
+    }
+
+    /**
+     * Changes of roles go to the activity log: who gave which rights.
+     */
+    public function activityOptions(): ActivityOptions
+    {
+        return ActivityOptions::make((string) __('vanda::activity.role.type'))
+            ->labels([
+                'name' => (string) __('vanda::activity.role.name'),
+                'slug' => (string) __('vanda::activity.role.slug'),
+                'permissions' => (string) __('vanda::activity.role.permissions'),
+            ]);
     }
 
     public function users(): BelongsToMany

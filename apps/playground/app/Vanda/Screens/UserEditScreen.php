@@ -163,6 +163,9 @@ final class UserEditScreen extends Screen
                         ]),
                 ]),
             ])->visible($this->user->exists && ! $this->user->is(auth()->user())),
+            Layout::section('История изменений', 'Кто и когда менял эту учётную запись.')->schema([
+                Layout::activity($this->user)->limit(10),
+            ])->visible($this->user->exists),
         ];
     }
 

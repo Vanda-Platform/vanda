@@ -45,6 +45,11 @@ final class Button extends Node
         return (new self($label))->captureSource();
     }
 
+    public function label(): string
+    {
+        return $this->label;
+    }
+
     public function type(): string
     {
         return 'button';

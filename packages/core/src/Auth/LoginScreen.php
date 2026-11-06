@@ -10,15 +10,17 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Vanda\Actions\Button;
+use Vanda\Activity\ActivityEvent;
+use Vanda\Activity\ActivityLog;
 use Vanda\Attributes\Action;
 use Vanda\Fields\CheckBox;
 use Vanda\Fields\Input;
 use Vanda\Fields\InputType;
 use Vanda\Fields\Password;
+use Vanda\Panel;
 use Vanda\Screen\Chrome;
 use Vanda\Screen\Result;
 use Vanda\Screen\Screen;
-use Vanda\Panel;
 
 /**
  * The sign-in page, itself an ordinary Vanda screen. Registered by Route::vanda().
@@ -84,8 +86,11 @@ final class LoginScreen extends Screen
             $request->session()->regenerate();
         }
 
+        $user = Auth::guard(config('vanda.guard'))->user();
+        app(ActivityLog::class)->recordSession(ActivityEvent::Login, $user);
+
         // The only moment the password is known: a weak one turns on the red strip (production).
-        WeakPassword::remember($request, Auth::guard(config('vanda.guard'))->user(), $this->form->password);
+        WeakPassword::remember($request, $user, $this->form->password);
 
         // Only the path of the page asked for: the stored URL may carry another host (an old port in
         // development, a proxy's name), and signing in must never lead off this panel.

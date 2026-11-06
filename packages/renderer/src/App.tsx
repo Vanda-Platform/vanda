@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Dialog, Modal, ModalOverlay } from 'react-aria-components';
 import { Inspector } from './Inspector';
 import defaultAuthBackground from './assets/auth-background.webp';
@@ -64,71 +64,86 @@ export function App() {
     );
   }
 
-  // Phones get the app layout: a tab bar at the bottom and the whole menu in a sheet above it.
+  // Phones get the app layout: a tab bar at the bottom and the whole menu in a sheet above it;
+  // the page itself scrolls there (the browser's bars fold away). On a desktop the page stays
+  // in place: the menu and the content card scroll each on their own, the card's header stays.
   return (
     // overflow-x-clip: nothing too wide may widen the page (on a phone that zooms everything out).
-    <div className={cx('flex min-h-screen flex-col overflow-x-clip bg-bg', mobile && 'bg-surface pb-[calc(64px+env(safe-area-inset-bottom))]')} style={brand}>
+    <div
+      className={cx(
+        'flex flex-col bg-bg',
+        // relative: absolutely placed things (sr-only tables of charts) must not lengthen the document.
+        mobile ? 'min-h-screen overflow-x-clip bg-surface pb-[calc(64px+env(safe-area-inset-bottom))]' : 'relative h-dvh overflow-hidden print:h-auto print:overflow-visible',
+      )}
+      style={brand}
+    >
       <AlertStrips />
-      <div className="flex flex-1 items-stretch">
-      {!mobile && <Sidebar />}
-      <main
-        className={cx(
-          'flex min-w-0 flex-1 flex-col bg-surface',
-          mobile ? '[--v-gutter:16px]' : 'm-2 rounded-[14px] border border-line shadow-sm',
-        )}
-      >
-        {page.app.user?.impersonator && (
-          <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-warning-soft px-4 py-2 text-[13.5px] text-warning-fg md:rounded-t-[13px] md:px-8">
-            <Icon name="eye" />
-            <span>{t('impersonating', { name: page.app.user.name })}</span>
-            <button type="button" onClick={() => router.post(page.app.user!.impersonator!.stop)} className="font-medium underline underline-offset-3 hover:no-underline">
-              {t('stopImpersonating', { name: page.app.user.impersonator.name })}
-            </button>
-          </div>
-        )}
-        <header
+      <div className={cx('flex flex-1 items-stretch', !mobile && 'min-h-0')}>
+        {!mobile && <Sidebar />}
+        <main
           className={cx(
-            'flex items-center justify-between gap-4 border-b border-line',
-            mobile ? 'sticky top-0 z-20 min-h-[52px] bg-surface/95 py-2 pr-2 pl-4 backdrop-blur' : 'min-h-[61px] py-3 pr-5 pl-8',
+            'flex min-w-0 flex-1 flex-col bg-surface',
+            mobile ? '[--v-gutter:16px]' : 'm-2 min-h-0 overflow-hidden rounded-[14px] border border-line shadow-sm print:overflow-visible',
           )}
         >
-          {mobile ? <MobileTopBar crumbs={crumbsFor(page)} name={page.app.name} /> : <Breadcrumbs crumbs={crumbsFor(page)} />}
-          <NotificationsBell />
-        </header>
-
-        {/* A record's screen (with an avatar) gets the design's centred header with a rule under it. */}
-        <section
-          className={cx(
-            'flex flex-wrap justify-between gap-4',
-            mobile ? 'px-4' : 'px-8',
-            page.avatar ? cx('items-center gap-5 border-b border-line', mobile ? 'py-5' : 'py-7') : cx('items-end pb-5', mobile ? 'pt-5' : 'pt-7'),
-          )}
-        >
-          <div className="flex min-w-0 items-center gap-4">
-            {page.avatar && <Avatar initials={page.avatar.initials} hue={page.avatar.hue} image={page.avatar.image} size="lg" />}
-            <div className="flex min-w-0 flex-col gap-1">
-              <div className="flex flex-wrap items-center gap-2.5">
-                {page.title && <h1 className={cx('font-semibold tracking-[-0.015em]', mobile ? 'text-[20px] leading-7' : 'text-[24px] leading-8')}>{page.title}</h1>}
-                {page.badge && <NodeView node={page.badge} />}
-              </div>
-              {page.description && <p className="text-fg-2">{page.description}</p>}
+          {page.app.user?.impersonator && (
+            <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-warning-soft px-4 py-2 text-[13.5px] text-warning-fg md:rounded-t-[13px] md:px-8">
+              <Icon name="eye" />
+              <span>{t('impersonating', { name: page.app.user.name })}</span>
+              <button type="button" onClick={() => router.post(page.app.user!.impersonator!.stop)} className="font-medium underline underline-offset-3 hover:no-underline">
+                {t('stopImpersonating', { name: page.app.user.impersonator.name })}
+              </button>
             </div>
-          </div>
-          {page.commandBar.length > 0 &&
-            (mobile ? (
-              <MobileCommandBar nodes={page.commandBar} />
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                <NodeList nodes={page.commandBar} />
-              </div>
-            ))}
-        </section>
+          )}
+          <header
+            className={cx(
+              'flex items-center justify-between gap-4 border-b border-line',
+              mobile ? 'sticky top-0 z-20 min-h-[52px] bg-surface/95 py-2 pr-2 pl-4 backdrop-blur' : 'min-h-[61px] py-3 pr-5 pl-8',
+            )}
+          >
+            {mobile ? <MobileTopBar crumbs={crumbsFor(page)} name={page.app.name} /> : <Breadcrumbs crumbs={crumbsFor(page)} />}
+            <NotificationsBell />
+          </header>
 
-        <div className={cx('flex flex-col gap-4', mobile ? 'px-4 pb-8' : 'px-8 pb-10', page.avatar && (mobile ? 'pt-5' : 'pt-8'))}>
-          <BlockList nodes={page.layout} />
-        </div>
-        <UnsavedBar mobile={mobile} />
-      </main>
+          {/* scroll-region: Inertia resets it to the top on a new page and brings it back on «Back». */}
+          <div
+            scroll-region={mobile ? undefined : ''}
+            className={cx('flex flex-1 flex-col', !mobile && 'relative min-h-0 overflow-x-hidden overflow-y-auto print:overflow-visible')}
+          >
+            {/* A record's screen (with an avatar) gets the design's centred header with a rule under it. */}
+            <section
+              className={cx(
+                'flex flex-wrap justify-between gap-4',
+                mobile ? 'px-4' : 'px-8',
+                page.avatar ? cx('items-center gap-5 border-b border-line', mobile ? 'py-5' : 'py-7') : cx('items-end pb-5', mobile ? 'pt-5' : 'pt-7'),
+              )}
+            >
+              <div className="flex min-w-0 items-center gap-4">
+                {page.avatar && <Avatar initials={page.avatar.initials} hue={page.avatar.hue} image={page.avatar.image} size="lg" />}
+                <div className="flex min-w-0 flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {page.title && <h1 className={cx('font-semibold tracking-[-0.015em]', mobile ? 'text-[20px] leading-7' : 'text-[24px] leading-8')}>{page.title}</h1>}
+                    {page.badge && <NodeView node={page.badge} />}
+                  </div>
+                  {page.description && <p className="text-fg-2">{page.description}</p>}
+                </div>
+              </div>
+              {page.commandBar.length > 0 &&
+                (mobile ? (
+                  <MobileCommandBar nodes={page.commandBar} />
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <NodeList nodes={page.commandBar} />
+                  </div>
+                ))}
+            </section>
+
+            <div className={cx('flex flex-col gap-4', mobile ? 'px-4 pb-8' : 'px-8 pb-10', page.avatar && (mobile ? 'pt-5' : 'pt-8'))}>
+              <BlockList nodes={page.layout} />
+            </div>
+            <UnsavedBar mobile={mobile} />
+          </div>
+        </main>
       </div>
       {mobile && <MobileNav />}
       <Toasts />
@@ -386,13 +401,31 @@ function UserCard() {
   );
 }
 
+/** Where the menu was scrolled: every visit mounts the sidebar anew, and the menu stays where it was. */
+let menuScrollTop = 0;
+
 function Sidebar() {
   const app = useSnapshot((s) => s.page.app);
+  const menu = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const element = menu.current;
+    if (!element) return;
+    element.scrollTop = menuScrollTop;
+    // A page opened by its address or from the palette brings its item into view (by hand:
+    // scrollIntoView would also move the page's own scroll containers).
+    const active = element.querySelector('[aria-current="page"]');
+    if (!active) return;
+    const box = element.getBoundingClientRect();
+    const item = active.getBoundingClientRect();
+    if (item.top < box.top || item.bottom > box.bottom) element.scrollTop += item.top - box.top - (box.height - item.height) / 2;
+  }, []);
 
   return (
-    // The logo, search and the user stay in place; only a long menu scrolls between them
-    // (as one scrolling column, flex squeezed the search box to fit the screen).
-    <aside className="sticky top-0 flex h-screen w-[248px] shrink-0 flex-col">
+    // As high as the window (the page does not scroll): the logo, search and the user stay in
+    // place, only a long menu scrolls between them (as one scrolling column, flex squeezed the
+    // search box to fit the screen).
+    <aside className="flex w-[248px] shrink-0 flex-col">
       <div className="flex shrink-0 flex-col gap-1 px-3 pt-3.5">
         <Logo name={app.name} />
 
@@ -409,7 +442,13 @@ function Sidebar() {
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-2 pb-4">
+      <div
+        ref={menu}
+        onScroll={(event) => {
+          menuScrollTop = event.currentTarget.scrollTop;
+        }}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-2 pb-4"
+      >
         <MenuLinks menu={app.menu} />
       </div>
 

@@ -3,16 +3,26 @@
 namespace App\Models;
 
 use App\Enums\PageStatus;
+use App\Vanda\Screens\PageEditScreen;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Vanda\Activity\ActivityOptions;
+use Vanda\Activity\RecordsActivity;
 use Vanda\Attachments\Attachable;
 
 class Page extends Model
 {
-    use Attachable;
+    use Attachable, RecordsActivity;
 
     protected $fillable = ['parent_id', 'position', 'title', 'slug', 'status', 'template', 'content', 'notes', 'settings'];
+
+    public function activityOptions(): ActivityOptions
+    {
+        return ActivityOptions::make('Страница')
+            ->screen(PageEditScreen::class, 'page')
+            ->labels(['content' => 'Текст страницы', 'position' => 'Порядок']);
+    }
 
     protected function casts(): array
     {

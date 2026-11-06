@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Vanda\Layouts;
 
+use Illuminate\Database\Eloquent\Model;
+use Vanda\Activity\ActivityFeed;
 use Vanda\Schema\Node;
 
 /**
@@ -99,6 +101,15 @@ final class Layout
     public static function legend(mixed $record, array $sights): Legend
     {
         return Legend::make($record, $sights);
+    }
+
+    /**
+     * The history of a record from the activity log (models with RecordsActivity):
+     * `Layout::activity($this->post)` in a tab of the post's screen.
+     */
+    public static function activity(Model $record): ActivityFeed
+    {
+        return ActivityFeed::for($record);
     }
 
     /**

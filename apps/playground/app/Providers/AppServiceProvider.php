@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Vanda\Access\Impersonation;
 use Vanda\Access\PermissionGroup;
+use Vanda\Activity\ActivityListScreen;
 use Vanda\Navigation\MenuItem;
 use Vanda\Navigation\SearchResult;
 use Vanda\Panel;
@@ -42,7 +43,8 @@ class AppServiceProvider extends ServiceProvider
             PermissionGroup::make('Доступ')
                 ->add('platform.users', 'Пользователи')
                 ->add('platform.roles', 'Роли')
-                ->add('platform.impersonate', 'Вход под пользователем'),
+                ->add('platform.impersonate', 'Вход под пользователем')
+                ->add('platform.activity', 'Активность'),
             PermissionGroup::make('Сайт')
                 ->add('platform.pages', 'Страницы'),
         ]);
@@ -73,6 +75,7 @@ class AppServiceProvider extends ServiceProvider
             MenuItem::make('Обзор')->icon('dashboard')->to(DashboardScreen::class),
             MenuItem::make('Пользователи')->icon('users')->group('Доступ')->badge(User::query()->count())->to(UserListScreen::class),
             MenuItem::make('Роли')->icon('shield')->group('Доступ')->to(RoleListScreen::class),
+            MenuItem::make('Активность')->icon('activity')->group('Доступ')->to(ActivityListScreen::class),
             MenuItem::make('Страницы')->icon('file')->group('Сайт')->to(PageListScreen::class),
             MenuItem::make('Витрина компонентов')->icon('grid')->group('Разработка')->to(ShowcaseScreen::class),
         ]);

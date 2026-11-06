@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Dialog, Modal, ModalOverlay } from 'react-aria-components';
 import { t } from './i18n';
 import { isInternal, useSnapshot, useStore } from './store';
-import { Avatar, cx, formatHotkey, Icon, Kbd } from './ui';
+import { Avatar, cx, formatHotkey, Icon, Kbd, Spinner } from './ui';
 import type { ActionRef } from './types';
 
 /** Opens the palette from anywhere, e.g. the search button in the sidebar. */
@@ -55,6 +55,8 @@ export function Palette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [records, setRecords] = useState<Record[]>([]);
+  // From the keystroke to the server's answer (the pause before the request included).
+  const [searching, setSearching] = useState(false);
   const [active, setActive] = useState(0);
   const list = useRef<HTMLDivElement>(null);
 
@@ -86,16 +88,24 @@ export function Palette() {
     const search = page.app.search;
     if (!search || query.trim().length < 2) {
       setRecords([]);
+      setSearching(false);
       return;
     }
+    setSearching(true);
     const controller = new AbortController();
     const timer = setTimeout(() => {
       const url = new URL(search, window.location.href);
       url.searchParams.set('q', query.trim());
       fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin', signal: controller.signal })
         .then((response) => (response.ok ? response.json() : { results: [] }))
-        .then((data: { results: Record[] }) => setRecords(data.results))
-        .catch(() => undefined);
+        .then((data: { results: Record[] }) => {
+          setRecords(data.results);
+          setSearching(false);
+        })
+        // A request cancelled by the next keystroke leaves the state to that one.
+        .catch(() => {
+          if (!controller.signal.aborted) setSearching(false);
+        });
     }, 150);
     return () => {
       clearTimeout(timer);
@@ -146,7 +156,8 @@ export function Palette() {
       <Modal className="h-fit w-full max-w-[520px] overflow-hidden rounded-xl border border-line bg-surface shadow-pop outline-none">
         <Dialog aria-label={t('palette')} className="flex flex-col outline-none">
           <div className="flex items-center gap-3 border-b border-line px-4">
-            <Icon name="search" className="size-5 text-fg-3" />
+            {/* While the server looks for records, the magnifier turns into a spinner. */}
+            <span className="grid size-5 shrink-0 place-items-center text-fg-3">{searching ? <Spinner className="size-4" /> : <Icon name="search" className="size-5" />}</span>
             <input
               autoFocus
               value={query}
@@ -173,7 +184,11 @@ export function Palette() {
           </div>
 
           <div ref={list} id="vanda-palette-results" role="listbox" aria-label={t('palette')} className="max-h-[52vh] overflow-y-auto p-2">
-            {entries.length === 0 && <p className="px-3 py-8 text-center text-[14px] text-fg-3">{t('noResults')}</p>}
+            {entries.length === 0 && (
+              <p aria-live="polite" className="px-3 py-8 text-center text-[14px] text-fg-3">
+                {searching ? t('searching') : t('noResults')}
+              </p>
+            )}
             {entries.map((entry, index) => {
               const heading = entry.group !== previousGroup ? entry.group : null;
               previousGroup = entry.group;

@@ -60,18 +60,6 @@ it('signs out', function () {
     $this->assertGuest();
 });
 
-/**
- * Signs in through the login screen the way the browser does and returns the next page's IR.
- */
-function signInAs(string $email, string $password): array
-{
-    $page = test()->getJson('/panel/login', ['X-Vanda' => 'true'])->json();
-    $button = collect($page['layout'])->firstWhere('type', 'button')['action'];
-    test()->postJson('/panel/login', ['type' => 'action', 'action' => 'login', 'token' => $button['token'], 'snapshot' => $page['snapshot'], 'state' => ['form' => ['email' => $email, 'password' => $password]]])->assertOk();
-
-    return test()->getJson('/admin/showcase', ['X-Vanda' => 'true'])->json();
-}
-
 it('tells which passwords are weak', function (string $password, bool $weak) {
     expect(Vanda\Auth\WeakPassword::check($password, 'ivan.petrov@example.com'))->toBe($weak);
 })->with([

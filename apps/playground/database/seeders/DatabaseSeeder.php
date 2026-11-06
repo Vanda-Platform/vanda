@@ -28,7 +28,7 @@ class DatabaseSeeder extends Seeder
         $admin = Role::query()->create([
             'slug' => 'admin',
             'name' => 'Администратор',
-            'permissions' => ['platform.users' => true, 'platform.roles' => true, 'platform.pages' => true, 'platform.impersonate' => true],
+            'permissions' => ['platform.users' => true, 'platform.roles' => true, 'platform.pages' => true, 'platform.impersonate' => true, 'platform.activity' => true],
         ]);
         $manager = Role::query()->create([
             'slug' => 'manager',

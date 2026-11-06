@@ -9,6 +9,8 @@ use App\Vanda\Screens\ShowcaseScreen;
 use App\Vanda\Screens\UserEditScreen;
 use App\Vanda\Screens\UserListScreen;
 use Illuminate\Support\Facades\Route;
+use Vanda\Activity\ActivityListScreen;
+use Vanda\Activity\ActivityScreen;
 
 Route::redirect('/', '/admin');
 
@@ -24,4 +26,6 @@ Route::vanda('admin', function () {
     Route::screen('pages/create', PageEditScreen::class)->name('admin.pages.create');
     Route::screen('pages/{page}/edit', PageEditScreen::class)->name('admin.pages.edit');
     Route::screen('showcase', ShowcaseScreen::class)->name('admin.showcase');
+    Route::screen('activity', ActivityListScreen::class)->name('admin.activity');
+    Route::screen('activity/{activity}', ActivityScreen::class)->name('admin.activity.show');
 });

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Vanda\Access\PermissionRegistry;
+use Vanda\Activity\ActivityLog;
 use Vanda\Auth\LoginScreen;
 use Vanda\Console\AdminCommand;
 use Vanda\Console\InspectCommand;
@@ -39,6 +40,7 @@ final class VandaServiceProvider extends ServiceProvider
         $this->app->singleton(ScreenRegistry::class);
         $this->app->singleton(Shell::class);
         $this->app->singleton(PermissionRegistry::class);
+        $this->app->singleton(ActivityLog::class);
     }
 
     public function boot(): void

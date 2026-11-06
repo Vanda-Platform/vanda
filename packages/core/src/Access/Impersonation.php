@@ -6,7 +6,10 @@ namespace Vanda\Access;
 
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\StatefulGuard;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Vanda\Activity\ActivityEvent;
+use Vanda\Activity\ActivityLog;
 use Vanda\VandaException;
 
 /**
@@ -37,6 +40,8 @@ final class Impersonation
         if ($current->getAuthIdentifier() === $user->getAuthIdentifier()) {
             throw new VandaException('A user cannot sign in as themselves. Hide the button with ->visible(! $this->user->is(auth()->user())).');
         }
+
+        app(ActivityLog::class)->recordSession(ActivityEvent::Impersonated, $current, $user instanceof Model ? $user : null);
 
         // Signing in as someone twice still returns to the first, real user.
         if (! session()->has(self::KEY)) {

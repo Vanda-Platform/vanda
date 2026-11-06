@@ -18,5 +18,10 @@ final class Action
     public function __construct(
         /** Validate the rules of every visible field before the method runs. */
         public bool $validate = true,
+        /**
+         * Record the call in the activity log when it changed no recorded model. False for
+         * buttons that only read or prepare something (changes of models are recorded anyway).
+         */
+        public bool $activity = true,
     ) {}
 }

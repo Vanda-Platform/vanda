@@ -48,6 +48,14 @@ final class Shell
     }
 
     /**
+     * The photo of a user from Panel::userAvatar(), or null for initials.
+     */
+    public function avatarOf(mixed $user): ?string
+    {
+        return $this->userAvatar !== null && $user !== null ? ($this->userAvatar)($user) : null;
+    }
+
+    /**
      * @param Closure(string $query): iterable<SearchResult> $provider
      */
     public function addSearch(Closure $provider): void
