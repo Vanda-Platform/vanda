@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Vanda\Fields\Concerns\HasOptions;
 use Vanda\Schema\Get;
+use Vanda\Support\Search;
 
 /**
  * A table filter. Its value travels in the URL as ?filter[name]=…, the same as in Orchid,
@@ -15,7 +16,7 @@ use Vanda\Schema\Get;
  *
  *     Filter::select('role', 'Role')->options(Role::pluck('name', 'slug'))
  *         ->apply(fn (Builder $query, string $slug) => $query->whereHas('roles', fn ($q) => $q->where('slug', $slug))),
- *     Filter::text('email', 'Email'),                       // WHERE email LIKE %…%
+ *     Filter::text('email', 'Email'),                       // email contains the text, any case
  *     Filter::dateRange('created', 'Created')->column('created_at'),
  *
  * Without ->apply() the filter compares its column (the name by default) with the value.
@@ -122,7 +123,7 @@ final class Filter
 
         match ($this->kind) {
             FilterType::Select => $query->where($column, $value),
-            FilterType::Text => $query->where($column, 'like', '%'.addcslashes((string) $value, '%_\\').'%'),
+            FilterType::Text => Search::contains($query, $column, (string) $value),
             FilterType::DateRange => $query
                 ->when($value['start'] ?? null, static fn ($q, $start) => $q->whereDate($column, '>=', $start))
                 ->when($value['end'] ?? null, static fn ($q, $end) => $q->whereDate($column, '<=', $end)),

@@ -21,6 +21,8 @@ final class TD
 
     private bool $muted = false;
 
+    private ?string $truncate = null;
+
     private bool $sortable = false;
 
     /** null: always shown; true/false: the user may hide it, shown by default or not */
@@ -65,6 +67,22 @@ final class TD
     public function width(string $width): self
     {
         $this->width = $width;
+
+        return $this;
+    }
+
+    /**
+     * Long text ends with "…" at this width instead of widening the table; the full text shows
+     * on hover. The first column is held to 40% of the table anyway, so it never covers the rest.
+     *
+     *     TD::make('company', 'Компания')->truncate()
+     *     TD::make('comment', 'Комментарий')->truncate('24rem')
+     *
+     * @param string $maxWidth a CSS length
+     */
+    public function truncate(string $maxWidth = '16rem'): self
+    {
+        $this->truncate = $maxWidth;
 
         return $this;
     }
@@ -145,6 +163,7 @@ final class TD
             'label' => $this->label,
             'align' => $this->align === 'left' ? null : $this->align,
             'width' => $this->width,
+            'truncate' => $this->truncate,
             'muted' => $this->muted ?: null,
             'sortable' => $this->sortable ?: null,
             'hideable' => $this->shownByDefault === null ? null : true,

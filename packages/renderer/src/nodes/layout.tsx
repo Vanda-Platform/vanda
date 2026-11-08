@@ -278,11 +278,11 @@ export function AlertView({ node }: { node: UiNode & { text: string; title?: str
 
 export function PersonaView({ node }: { node: UiNode & { name: string; subtitle?: string; initials: string; hue?: number; image?: string; href?: string } }) {
   const name = node.href ? (
-    <a href={node.href} className="font-medium text-fg underline-offset-4 hover:underline">
+    <a href={node.href} className="truncate font-medium text-fg underline-offset-4 hover:underline">
       {node.name}
     </a>
   ) : (
-    <span className="font-medium">{node.name}</span>
+    <span className="truncate font-medium">{node.name}</span>
   );
 
   return (

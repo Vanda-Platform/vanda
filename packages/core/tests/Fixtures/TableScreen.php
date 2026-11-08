@@ -34,7 +34,7 @@ final class TableScreen extends Screen
                 ->views([View::make('All'), View::make('Germany', ['country' => 'DE'])])
                 ->defaultSort('id')
                 ->paginate(2, [5])
-                ->columns([TD::make('name', 'Name')->sortable(), TD::make('email', 'Email')->hideable(), TD::make('country', 'Country')->defaultHidden()->hideOnMobile()])
+                ->columns([TD::make('name', 'Name')->sortable(), TD::make('email', 'Email')->truncate('12rem')->hideable(), TD::make('country', 'Country')->defaultHidden()->hideOnMobile()])
                 ->rowActions(fn (User $user) => [
                     Link::make('Edit')->icon('pencil')->href('/users/'.$user->id),
                     Button::make('Purge')->danger()->action($this->purge(...), ['user' => $user]),

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Vanda\Schema\Get;
 use Vanda\Schema\SchemaContext;
+use Vanda\Support\Search;
 use Vanda\VandaException;
 
 /**
@@ -127,10 +128,9 @@ final class Relation extends Field
         $term = trim($term);
 
         if ($term !== '') {
-            $like = '%'.addcslashes($term, '%_\\').'%';
-            $query->where(function (Builder $where) use ($like, $term, $model): void {
+            $query->where(function (Builder $where) use ($term, $model): void {
                 foreach ($this->searchColumns ?: [$this->labelColumn] as $column) {
-                    $where->orWhere($column, 'like', $like);
+                    Search::orContains($where, $column, $term);
                 }
                 if (ctype_digit($term)) {
                     $where->orWhere($model->getQualifiedKeyName(), (int) $term);

@@ -44,9 +44,10 @@ final class Panel
     }
 
     /**
-     * Records the ⌘K palette can find. Called with what the user typed (2+ characters):
+     * Records the ⌘K palette can find. Called with what the user typed (2+ characters);
+     * Search::apply() finds it whatever the case and alphabet («анна» → «Анна»):
      *
-     *     Panel::search(fn (string $query) => Page::where('title', 'like', "%{$query}%")->limit(5)->get()
+     *     Panel::search(fn (string $query) => Search::apply(Page::query(), ['title'], $query)->limit(5)->get()
      *         ->map(fn (Page $page) => SearchResult::make($page->title)->icon('file')->to(PageEditScreen::class, ['page' => $page])));
      *
      * @param Closure(string $query): iterable<SearchResult> $provider

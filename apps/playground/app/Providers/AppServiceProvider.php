@@ -21,6 +21,7 @@ use Vanda\Activity\ActivityListScreen;
 use Vanda\Navigation\MenuItem;
 use Vanda\Navigation\SearchResult;
 use Vanda\Panel;
+use Vanda\Support\Search;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -61,13 +62,12 @@ class AppServiceProvider extends ServiceProvider
         Panel::profile(fn (User $user) => Panel::url(UserEditScreen::class, ['user' => $user]));
 
         // ⌘K finds people and pages; results that lead to screens the user may not open are hidden.
-        Panel::search(fn (string $query) => User::query()->with('attachments')
-            ->where(fn ($where) => $where->where('name', 'like', "%{$query}%")->orWhere('email', 'like', "%{$query}%"))
+        Panel::search(fn (string $query) => Search::apply(User::query()->with('attachments'), ['name', 'email'], $query)
             ->limit(5)->get()
             ->map(fn (User $user) => SearchResult::make($user->name)->subtitle($user->email)->avatar($user->name, $user->avatarUrl())->group('Пользователи')
                 ->to(UserEditScreen::class, ['user' => $user])));
 
-        Panel::search(fn (string $query) => Page::query()->where('title', 'like', "%{$query}%")->limit(5)->get()
+        Panel::search(fn (string $query) => Search::apply(Page::query(), ['title'], $query)->limit(5)->get()
             ->map(fn (Page $page) => SearchResult::make($page->title)->icon('file')->group('Страницы')
                 ->to(PageEditScreen::class, ['page' => $page])));
 

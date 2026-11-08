@@ -14,6 +14,7 @@ use Vanda\Actions\Link;
 use Vanda\Actions\ModalToggle;
 use Vanda\Schema\Node;
 use Vanda\Schema\SchemaContext;
+use Vanda\Support\Search;
 
 /**
  * Rows of data with typed columns. Give it a query and it handles search, filters,
@@ -111,7 +112,12 @@ final class Table extends Node
     }
 
     /**
-     * @param list<string> $columns database columns searched with LIKE
+     * The search box finds rows where any of these columns contains the text, whatever its case
+     * and alphabet (Search::apply()).
+     *
+     *     ->searchable(['name', 'email'], 'Имя или email')
+     *
+     * @param list<string> $columns database columns
      */
     public function searchable(array $columns, ?string $placeholder = null): self
     {
@@ -374,13 +380,7 @@ final class Table extends Node
         $query = ($this->query)();
         $search = trim((string) request()->query('q', ''));
 
-        if ($search !== '' && $this->searchable !== []) {
-            $query->where(function ($where) use ($search): void {
-                foreach ($this->searchable as $column) {
-                    $where->orWhere($column, 'like', '%'.addcslashes($search, '%_\\').'%');
-                }
-            });
-        }
+        Search::apply($query, $this->searchable, $search);
 
         $this->applyFilters($query, $this->filterValues((array) request()->query('filter', [])));
 

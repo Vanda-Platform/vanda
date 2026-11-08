@@ -13,6 +13,8 @@ interface Column {
   label: string;
   align?: 'right' | 'center';
   width?: string;
+  /** TD::truncate(): long text ends with "…" at this width (a CSS length). */
+  truncate?: string;
   muted?: boolean;
   sortable?: boolean;
   hideable?: boolean;
@@ -96,6 +98,34 @@ export function visitWith(params: Record<string, string | null>, filters?: Recor
 
 /** The shadow the first column casts on the columns scrolled under it. */
 const stuckShadow = 'shadow-[6px_0_8px_-6px_oklch(0_0_0/0.14)]';
+/** The same shadow cast to the left by the actions column, which stays at the right edge. */
+const stuckShadowRight = 'shadow-[-6px_0_8px_-6px_oklch(0_0_0/0.14)]';
+
+/**
+ * The first column never takes more than 40% of the table (15rem on a narrow one): a long name
+ * would otherwise widen it until, stuck at the left edge, it covers every other column.
+ * `cqw` is the width of the scroller, which is a size container.
+ */
+const FIRST_COLUMN_MAX = 'max(15rem, 40cqw)';
+
+/** Text that ends with "…" at the width given; the whole text shows on hover, only when it is cut. */
+function Clamp({ maxWidth, children }: { maxWidth: string | undefined; children: ReactNode }) {
+  if (!maxWidth) return children;
+  return (
+    <div
+      className="truncate"
+      style={{ maxWidth }}
+      onPointerEnter={(event) => {
+        // The cut may happen inside the cell's node (a persona truncates its own name).
+        const element = event.currentTarget;
+        const cut = [element, ...element.querySelectorAll<HTMLElement>('*')].some((part) => part.scrollWidth > part.clientWidth + 1);
+        element.title = cut ? element.innerText : '';
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 /**
  * Whether a horizontal scroller has more to show on either side; `overflow` when it scrolls at all
@@ -194,6 +224,8 @@ export function TableView({ node }: { node: TableNode }) {
   const checkCell = useRef<HTMLTableCellElement>(null);
   const edges = useScrollEdges(scroller, rows);
   const stickyLeft = checkCell.current?.offsetWidth ?? 0;
+  // The row menu stays reachable at the right edge however far the table scrolls.
+  const stickActions = edges.overflow && hasActions;
 
   const allChecked = rows.length > 0 && rows.every((row) => selected.includes(row.key));
   const toggle = (key: string) => setSelected((current) => (current.includes(key) ? current.filter((k) => k !== key) : [...current, key]));
@@ -398,7 +430,7 @@ export function TableView({ node }: { node: TableNode }) {
         <MobileRows rows={rows} columns={visible.filter((column) => column.mobile !== false)} selectable={bulk.length > 0} selected={selected} toggle={toggle} />
       ) : (
       <div className="relative">
-      <div ref={scroller} className="relative overflow-x-auto">
+      <div ref={scroller} className="@container relative overflow-x-auto">
         <table className="w-full border-separate border-spacing-0 text-[14px]">
           <thead>
             <tr>
@@ -442,7 +474,7 @@ export function TableView({ node }: { node: TableNode }) {
                 );
               })}
               {hasActions && (
-                <th className="w-14 pr-5">
+                <th className={cx('w-14 pr-5', stickActions && cx('sticky right-0 z-[1] bg-surface', edges.right && stuckShadowRight))}>
                   <span className="sr-only">{t('actions')}</span>
                 </th>
               )}
@@ -473,6 +505,7 @@ export function TableView({ node }: { node: TableNode }) {
                   )}
                   {visible.map((column, index) => {
                     const cell = row.cells[column.name];
+                    const maxWidth = index === 0 ? (column.truncate ? `min(${column.truncate}, ${FIRST_COLUMN_MAX})` : FIRST_COLUMN_MAX) : column.truncate;
                     return (
                       <td
                         key={column.name}
@@ -485,23 +518,29 @@ export function TableView({ node }: { node: TableNode }) {
                           column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left',
                         )}
                       >
-                        {cell && index === 0 && row.link && cell.type === 'text' ? (
-                          <span className="font-medium text-fg">{String(cell.text)}</span>
-                        ) : cell ? (
-                          <NodeView node={cell} compact />
-                        ) : null}
+                        <Clamp maxWidth={maxWidth}>
+                          {cell && index === 0 && row.link && cell.type === 'text' ? (
+                            <span className="font-medium text-fg">{String(cell.text)}</span>
+                          ) : cell ? (
+                            <NodeView node={cell} compact />
+                          ) : null}
+                        </Clamp>
                       </td>
                     );
                   })}
-                  {hasActions && <td className={cx(cellClass, tint, 'pr-4 text-right')}>{row.actions && <DropDownView node={row.actions} compact />}</td>}
+                  {hasActions && (
+                    <td className={cx(cellClass, 'pr-4 text-right', stickActions ? cx(stuckClass, 'right-0', edges.right && stuckShadowRight) : tint)}>
+                      {row.actions && <DropDownView node={row.actions} compact />}
+                    </td>
+                  )}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-      {/* Shadows at the edges say there is more of the table to scroll to. */}
-      <div aria-hidden className={cx('pointer-events-none absolute inset-y-0 right-0 w-6 bg-linear-to-l from-[oklch(0_0_0/0.07)] to-transparent transition-opacity', edges.right ? 'opacity-100' : 'opacity-0')} />
+      {/* Shadows at the edges say there is more of the table to scroll to; with row actions the stuck actions column casts it. */}
+      <div aria-hidden className={cx('pointer-events-none absolute inset-y-0 right-0 w-6 bg-linear-to-l from-[oklch(0_0_0/0.07)] to-transparent transition-opacity', edges.right && !stickActions ? 'opacity-100' : 'opacity-0')} />
       </div>
       )}
 

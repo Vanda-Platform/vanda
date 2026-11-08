@@ -52,16 +52,23 @@ it('counts rows of every view and marks the one matching the URL', function () {
         ->and($germany[0])->not->toHaveKey('active');
 });
 
+it('searches whatever the case and alphabet of the text', function () {
+    User::query()->create(['name' => 'Жанна', 'email' => 'zhanna@example.com', 'country' => 'DE']);
+
+    expect(array_column(table('?q='.rawurlencode('жАННА'))['rows'], 'key'))->toBe(['4'])
+        ->and(array_column(table('?q=CLA')['rows'], 'key'))->toBe(['3']);
+});
+
 it('lets the user pick only the allowed page sizes', function () {
     expect(table()['pagination'])->toMatchArray(['perPage' => 2, 'options' => [2, 5], 'lastPage' => 2])
         ->and(table('?perPage=5')['rows'])->toHaveCount(3)
         ->and(table('?perPage=1000')['rows'])->toHaveCount(2);
 });
 
-it('describes hideable columns and the ones left out on phones', function () {
+it('describes hideable, truncated columns and the ones left out on phones', function () {
     expect(table()['columns'])->toBe([
         ['name' => 'name', 'label' => 'Name', 'sortable' => true],
-        ['name' => 'email', 'label' => 'Email', 'hideable' => true],
+        ['name' => 'email', 'label' => 'Email', 'truncate' => '12rem', 'hideable' => true],
         ['name' => 'country', 'label' => 'Country', 'hideable' => true, 'hidden' => true, 'mobile' => false],
     ]);
 });
