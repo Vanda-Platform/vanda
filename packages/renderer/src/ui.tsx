@@ -80,6 +80,8 @@ import {
   Package,
   Palette,
   PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
   PanelTop,
   Pencil,
   Plus,
@@ -88,6 +90,8 @@ import {
   Redo2,
   RemoveFormatting,
   Replace,
+  Rows3,
+  Rows4,
   RotateCcw,
   RotateCw,
   Save,
@@ -245,6 +249,10 @@ const ICONS: Record<string, LucideIcon> = {
   map: MapIcon,
   menu: MenuIcon,
   clock: Clock,
+  'sidebar-close': PanelLeftClose,
+  'sidebar-open': PanelLeftOpen,
+  'density-comfortable': Rows3,
+  'density-compact': Rows4,
 };
 
 export function Icon({ name, className = 'size-4' }: { name?: string | null; className?: string }) {
@@ -272,7 +280,7 @@ export const readonlyClass =
   'border-transparent bg-surface-2/70 shadow-none cursor-default focus:border-transparent focus:ring-0 disabled:bg-surface-2/70 disabled:text-fg disabled:cursor-default data-[disabled]:text-fg';
 
 export const controlClass = cx(
-  'h-9 w-full rounded-lg border border-line-strong bg-surface px-2.5 text-[14px] text-fg shadow-sm transition',
+  'h-(--v-control) w-full rounded-lg border border-line-strong bg-surface px-2.5 text-[14px] text-fg shadow-sm transition',
   'placeholder:text-fg-3 focus:outline-none focus:border-accent focus:ring-3 focus:ring-ring',
   'disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-fg-3 disabled:shadow-none',
 );
@@ -308,7 +316,7 @@ export function buttonClass(variant = 'secondary', size: 'sm' | 'md' = 'md'): st
   return cx(
     'inline-flex items-center justify-center gap-1.5 rounded-lg font-medium whitespace-nowrap transition-colors',
     'disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none cursor-pointer select-none',
-    size === 'sm' ? 'h-7 px-2.5 text-[13px] rounded-md' : 'h-9 px-3 text-[13.5px]',
+    size === 'sm' ? 'h-7 px-2.5 text-[13px] rounded-md' : 'h-(--v-control) px-3 text-[13.5px]',
     VARIANTS[variant] ?? VARIANTS.secondary,
   );
 }

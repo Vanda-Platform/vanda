@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+{{-- The panel's density before the first paint; the browser applies the user's own choice over it. --}}
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-density="{{ \Vanda\Navigation\Density::configured()->value }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">

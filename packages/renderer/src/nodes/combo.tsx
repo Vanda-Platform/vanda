@@ -131,7 +131,7 @@ export function ComboField({ node, remote = false }: { node: ComboNode; remote?:
         isDisabled={field.disabled}
         isInvalid={Boolean(field.error)}
       >
-        <Group className={cx(controlClass, 'flex h-auto min-h-9 flex-wrap items-center gap-1.5 py-1 pr-1 focus-within:border-accent focus-within:ring-3 focus-within:ring-ring', field.error && invalidClass, field.readonly && readonlyClass)}>
+        <Group className={cx(controlClass, 'flex h-auto min-h-(--v-control) flex-wrap items-center gap-1.5 py-1 pr-1 focus-within:border-accent focus-within:ring-3 focus-within:ring-ring', field.error && invalidClass, field.readonly && readonlyClass)}>
           {node.multiple &&
             values.map((value) => (
               <span key={String(value)} className="inline-flex h-6 items-center gap-1 rounded-md border border-line bg-surface-2 pr-0.5 pl-2 text-[13px] font-medium">

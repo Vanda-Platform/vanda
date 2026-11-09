@@ -85,7 +85,7 @@ function EntryView({ entry }: { entry: Entry }) {
   const where = [entry.action && `«${entry.action}»`, entry.screen, entry.note].filter(Boolean).join(' · ');
 
   return (
-    <li className="flex gap-3 border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0">
+    <li className="flex gap-3 border-t border-line py-3.5 compact:py-2.5 first:border-t-0 first:pt-0 last:pb-0">
       <Avatar initials={entry.causer.initials} hue={entry.causer.hue} image={entry.causer.image} />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">

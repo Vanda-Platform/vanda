@@ -45,6 +45,39 @@
   color-scheme: light;
 }
 
+/*
+ * Density: config('vanda.density') puts data-density on <html>, the user may pick the other one
+ * under the menu. These sizes are all it changes: fields and buttons, table rows, the padding of
+ * cards and the menu. Phones keep the comfortable sizes, a finger needs them.
+ */
+:root {
+  --v-control: 36px;
+  --v-cell-y: 12px;
+  --v-block: 24px;
+  --v-stack: 20px;
+  --v-menu-item: 34px;
+}
+
+@media (width >= 48rem) {
+  :root[data-density="compact"] {
+    --v-gutter: 24px;
+    --v-control: 32px;
+    --v-cell-y: 7px;
+    --v-block: 20px;
+    --v-stack: 16px;
+    --v-menu-item: 30px;
+  }
+}
+
+/* compact:pt-5 — a size of its own for the compact density (desktop only, as above). */
+@custom-variant compact {
+  @media (width >= 48rem) {
+    &:where([data-density="compact"] *) {
+      @slot;
+    }
+  }
+}
+
 :root[data-theme="dark"] {
   --v-bg: #0c0c0f;
   --v-surface: #141418;

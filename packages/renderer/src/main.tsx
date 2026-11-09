@@ -14,7 +14,18 @@ function applyStoredTheme() {
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
 }
 
+/** The density the user picked in this browser, over the panel's (data-density from the server). */
+function applyStoredDensity() {
+  try {
+    const density = localStorage.getItem('vanda:density');
+    if (density === 'compact' || density === 'comfortable') document.documentElement.dataset.density = density;
+  } catch {
+    // Storage blocked: the panel's density.
+  }
+}
+
 applyStoredTheme();
+applyStoredDensity();
 
 // Every screen is the same Inertia component: the page IR decides what is drawn.
 void createInertiaApp({

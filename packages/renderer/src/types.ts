@@ -68,6 +68,9 @@ export interface Crumb {
   href?: string;
 }
 
+/** How much fits on a screen (config('vanda.density'), the user's choice under the menu). */
+export type Density = 'comfortable' | 'compact';
+
 export interface Page {
   schema: 'vanda/v1';
   screen: string;
@@ -93,6 +96,8 @@ export interface Page {
     user: { name: string; email: string; avatar: { initials: string; hue: number; image?: string }; logout?: string; impersonator?: { name: string; stop: string }; profile?: string } | null;
     /** config('vanda.auth_background'): a URL, null for Vanda's own picture, false for none. */
     authBackground?: string | false | null;
+    /** config('vanda.density'): the panel's sizes unless the user picked the other one. */
+    density?: Density;
     /** Strips across the top of every page, e.g. a weak password on production. */
     alerts?: { tone: string; text: string; link?: { label: string; href: string } }[];
   };

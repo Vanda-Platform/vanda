@@ -278,7 +278,7 @@ export function TableView({ node }: { node: TableNode }) {
       )}
 
       {toolbar && selected.length === 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-(--v-gutter) py-3.5">
+        <div className="flex flex-wrap items-center gap-2 px-(--v-gutter) py-3.5 compact:py-2.5">
           {node.search && (
             <div className="relative flex w-[300px] max-w-full items-center">
               <Icon name="search" className="pointer-events-none absolute left-2.5 size-4 text-fg-3" />
@@ -457,7 +457,7 @@ export function TableView({ node }: { node: TableNode }) {
                     style={{ width: column.width, ...(index === 0 && edges.overflow ? { left: stickyLeft } : {}) }}
                     aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : undefined}
                     className={cx(
-                      'px-3 py-[9px] text-[12.5px] font-medium whitespace-nowrap text-fg-3 first:pl-5 last:pr-5',
+                      'px-3 py-[9px] text-[12.5px] font-medium whitespace-nowrap text-fg-3 first:pl-5 last:pr-5 compact:py-1.5',
                       column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left',
                       index === 0 && edges.overflow && cx('sticky z-[1] bg-surface', edges.left && stuckShadow),
                     )}
@@ -483,7 +483,7 @@ export function TableView({ node }: { node: TableNode }) {
           <tbody>
             {rows.map((row) => {
               const isSelected = selected.includes(row.key);
-              const cellClass = 'border-t border-line py-3 align-middle';
+              const cellClass = 'border-t border-line py-(--v-cell-y) align-middle';
               const tint = isSelected ? 'bg-accent-soft' : 'group-hover:bg-surface-2/60';
               // A cell that stays in place while the rest scrolls under it needs a solid background.
               const stuckClass = cx('sticky z-[1]', isSelected ? 'bg-accent-soft' : 'bg-surface group-hover:bg-[color-mix(in_oklab,var(--v-surface-2)_60%,var(--v-surface))]');
@@ -621,7 +621,7 @@ function pageList(page: number, last: number): (number | null)[] {
 
 function PaginationBar({ pagination }: { pagination: Pagination }) {
   return (
-    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3.5 text-[13.5px] text-fg-3">
+    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3.5 text-[13.5px] text-fg-3 compact:py-2.5">
       <span className="tabular-nums">{t('shown', { from: pagination.from ?? 0, to: pagination.to ?? 0, total: pagination.total.toLocaleString() })}</span>
       <span className="flex flex-wrap items-center gap-4">
         {pagination.options && (

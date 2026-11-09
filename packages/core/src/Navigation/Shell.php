@@ -111,6 +111,7 @@ final class Shell
             'name' => config('vanda.name', 'Vanda'),
             'brand' => config('vanda.brand', '#12805C'),
             'authBackground' => config('vanda.auth_background'),
+            'density' => Density::configured()->value,
             'search' => $user !== null && $this->search !== [] && Route::has('vanda.search') ? route('vanda.search') : null,
             'notifications' => $this->notifications($user),
             'menu' => array_map(static fn (MenuItem $item, int $index) => $item->toArray($index === $active), $items, array_keys($items)),

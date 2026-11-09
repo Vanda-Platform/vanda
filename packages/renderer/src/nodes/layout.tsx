@@ -36,13 +36,13 @@ export function SectionView({ node }: { node: UiNode & { title: string; descript
         {node.description && <p className="text-[13.5px] text-fg-2">{node.description}</p>}
       </div>
       <div className="min-w-0 rounded-xl border border-line bg-surface shadow-sm">
-        <div className="flex flex-col gap-5 p-4 [--v-gutter:16px] md:p-6 md:[--v-gutter:24px]">
+        <div className="flex flex-col gap-(--v-stack) p-4 [--v-gutter:16px] md:p-(--v-block) md:[--v-gutter:var(--v-block)]">
           <BlockTitleContext.Provider value={node.title}>
             <NodeList nodes={content} />
           </BlockTitleContext.Provider>
         </div>
         {buttons.length > 0 && (
-          <div className="flex flex-wrap justify-end gap-2 border-t border-line px-4 py-3 md:px-6">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line px-4 py-3 md:px-(--v-block) compact:py-2.5">
             <NodeList nodes={buttons} />
           </div>
         )}
@@ -62,7 +62,7 @@ export function CardView({ node }: { node: UiNode & { title: string; description
 
   return (
     <section className="flex min-w-0 flex-col rounded-xl border border-line bg-surface shadow-sm" {...nodeAttributes(node)}>
-      <header className="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 md:px-6 md:pt-5">
+      <header className="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 md:px-(--v-block) md:pt-5 compact:pt-4">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="text-[15px] leading-[22px] font-semibold">{node.title}</h2>
           {node.description && <p className="text-[13.5px] text-fg-2">{node.description}</p>}
@@ -75,7 +75,7 @@ export function CardView({ node }: { node: UiNode & { title: string; description
           </div>
         )}
       </header>
-      <div className="flex flex-col gap-5 p-4 [--v-gutter:16px] md:p-6 md:pt-5 md:[--v-gutter:24px]">
+      <div className="flex flex-col gap-(--v-stack) p-4 [--v-gutter:16px] md:p-(--v-block) md:pt-5 md:[--v-gutter:var(--v-block)] compact:pt-4">
         <BlockTitleContext.Provider value={node.title}>
           <NodeList nodes={content} />
         </BlockTitleContext.Provider>
@@ -87,7 +87,7 @@ export function CardView({ node }: { node: UiNode & { title: string; description
 export function GridView({ node }: { node: UiNode & { columns?: number } }) {
   return (
     // *:mt-0!: blocks side by side start at the same height (a section adds space above itself in a column).
-    <div className={cx('grid gap-5 *:mt-0!', COLUMNS[node.columns ?? 1] ?? COLUMNS[2])} {...nodeAttributes(node)}>
+    <div className={cx('grid gap-(--v-stack) *:mt-0!', COLUMNS[node.columns ?? 1] ?? COLUMNS[2])} {...nodeAttributes(node)}>
       <NodeList nodes={node.children ?? []} />
     </div>
   );
@@ -117,7 +117,7 @@ export function BlockList({ nodes }: { nodes: UiNode[] }) {
     isBlock(run[0]!) ? (
       <NodeView key={run[0]!.id} node={run[0]!} />
     ) : (
-      <div key={`${run[0]!.id}-card`} className="flex min-w-0 flex-col gap-5 rounded-xl border border-line bg-surface p-4 shadow-sm [--v-gutter:16px] md:p-6 md:[--v-gutter:24px]">
+      <div key={`${run[0]!.id}-card`} className="flex min-w-0 flex-col gap-(--v-stack) rounded-xl border border-line bg-surface p-4 shadow-sm [--v-gutter:16px] md:p-(--v-block) md:[--v-gutter:var(--v-block)]">
         <NodeList nodes={run} />
       </div>
     ),
@@ -155,7 +155,7 @@ export function TabsView({ node }: { node: UiNode }) {
             aria-controls={`${tab.id}-panel`}
             onClick={() => select(index)}
             className={cx(
-              'relative flex items-center gap-2 py-2.5 text-[14px] font-medium whitespace-nowrap text-fg-2 hover:text-fg',
+              'relative flex items-center gap-2 py-2.5 text-[14px] font-medium whitespace-nowrap text-fg-2 hover:text-fg compact:py-2',
               index === active && 'text-fg shadow-[inset_0_-2px_0_var(--v-accent)]',
             )}
           >

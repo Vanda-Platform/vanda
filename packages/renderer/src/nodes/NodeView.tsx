@@ -152,7 +152,7 @@ function Placeholder({ node }: { node: UiNode }) {
     case 'treetable':
       return <div aria-busy="true" className={cx(pulse, 'h-48')} />;
     default:
-      return 'path' in node ? field(36) : <div aria-busy="true" className={cx(pulse, 'h-9')} />;
+      return 'path' in node ? field(36) : <div aria-busy="true" className={cx(pulse, 'h-(--v-control)')} />;
   }
 }
 

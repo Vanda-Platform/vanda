@@ -1,6 +1,6 @@
 import { Link, router } from '@inertiajs/react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Dialog, Modal, ModalOverlay } from 'react-aria-components';
+import { useEffect, useLayoutEffect, useRef, useState, type ContextType, type ReactNode } from 'react';
+import { Button as AriaButton, Dialog, DialogTrigger, Modal, ModalOverlay, Popover, Tooltip, TooltipTriggerStateContext } from 'react-aria-components';
 import { Inspector } from './Inspector';
 import defaultAuthBackground from './assets/auth-background.webp';
 import { VandaLogo, VandaSymbol } from './logo';
@@ -9,11 +9,11 @@ import { openPalette, Palette } from './Palette';
 import { DropDownView, type ButtonNode } from './nodes/actions';
 import { BlockList } from './nodes/layout';
 import { NodeList, NodeView } from './nodes/NodeView';
-import { COLLAPSED_GROUPS, FAVORITES, useStoredList } from './menuPrefs';
+import { COLLAPSED_GROUPS, DENSITY, FAVORITES, MENU_RAIL, useStoredList, useStoredValue } from './menuPrefs';
 import { t, tn } from './i18n';
 import { dirtyCount, useSnapshot, useStore } from './store';
 import { Avatar, buttonClass, cx, formatHotkey, Icon, Kbd, MOBILE_QUERY, useMediaQuery } from './ui';
-import type { ActionRef, Crumb, MenuItem, Page, UiNode } from './types';
+import type { ActionRef, Crumb, Density, MenuItem, Page, UiNode } from './types';
 
 export function App() {
   const page = useSnapshot((s) => s.page);
@@ -43,6 +43,12 @@ export function App() {
 
   const brand = { '--v-accent': page.app.brand } as React.CSSProperties;
   const mobile = useMediaQuery(MOBILE_QUERY);
+  const [density] = useDensity();
+  const [rail, toggleRail] = useRail();
+
+  useEffect(() => {
+    document.documentElement.dataset.density = density;
+  }, [density]);
 
   if (page.chrome === 'card') {
     // config('vanda.auth_background'): the picture fills the screen, a veil keeps the card calm on it.
@@ -79,7 +85,7 @@ export function App() {
     >
       <AlertStrips />
       <div className={cx('flex flex-1 items-stretch', !mobile && 'min-h-0')}>
-        {!mobile && <Sidebar />}
+        {!mobile && <Sidebar rail={rail} />}
         <main
           className={cx(
             'flex min-w-0 flex-1 flex-col bg-surface',
@@ -98,10 +104,18 @@ export function App() {
           <header
             className={cx(
               'flex items-center justify-between gap-4 border-b border-line',
-              mobile ? 'sticky top-0 z-20 min-h-[52px] bg-surface/95 py-2 pr-2 pl-4 backdrop-blur' : 'min-h-[61px] py-3 pr-5 pl-8',
+              // The toggle's icon lines up with the title below it.
+              mobile ? 'sticky top-0 z-20 min-h-[52px] bg-surface/95 py-2 pr-2 pl-4 backdrop-blur' : 'min-h-[61px] py-3 pr-5 pl-6 compact:min-h-[53px] compact:py-2 compact:pl-4',
             )}
           >
-            {mobile ? <MobileTopBar crumbs={crumbsFor(page)} name={page.app.name} /> : <Breadcrumbs crumbs={crumbsFor(page)} />}
+            {mobile ? (
+              <MobileTopBar crumbs={crumbsFor(page)} name={page.app.name} />
+            ) : (
+              <div className="flex min-w-0 items-center gap-2.5">
+                <MenuToggle rail={rail} onToggle={toggleRail} />
+                <Breadcrumbs crumbs={crumbsFor(page)} />
+              </div>
+            )}
             <NotificationsBell />
           </header>
 
@@ -114,8 +128,8 @@ export function App() {
             <section
               className={cx(
                 'flex flex-wrap justify-between gap-4',
-                mobile ? 'px-4' : 'px-8',
-                page.avatar ? cx('items-center gap-5 border-b border-line', mobile ? 'py-5' : 'py-7') : cx('items-end pb-5', mobile ? 'pt-5' : 'pt-7'),
+                mobile ? 'px-4' : 'px-8 compact:px-6',
+                page.avatar ? cx('items-center gap-5 border-b border-line', mobile ? 'py-5' : 'py-7 compact:py-5') : cx('items-end pb-5 compact:pb-4', mobile ? 'pt-5' : 'pt-7 compact:pt-5'),
               )}
             >
               <div className="flex min-w-0 items-center gap-4">
@@ -138,7 +152,7 @@ export function App() {
                 ))}
             </section>
 
-            <div className={cx('flex flex-col gap-4', mobile ? 'px-4 pb-8' : 'px-8 pb-10', page.avatar && (mobile ? 'pt-5' : 'pt-8'))}>
+            <div className={cx('flex flex-col gap-4', mobile ? 'px-4 pb-8' : 'px-8 pb-10 compact:px-6 compact:pb-8', page.avatar && (mobile ? 'pt-5' : 'pt-8 compact:pt-6'))}>
               <BlockList nodes={page.layout} />
             </div>
             <UnsavedBar mobile={mobile} />
@@ -221,7 +235,16 @@ function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
 /**
  * Vanda's orchid next to the panel's name; a panel called "Vanda" shows the full logo.
  */
-function Logo({ name, large = false, compact = false }: { name: string; large?: boolean; compact?: boolean }) {
+function Logo({ name, large = false, compact = false, rail = false }: { name: string; large?: boolean; compact?: boolean; rail?: boolean }) {
+  if (rail) {
+    return (
+      <div className="flex justify-center pt-1 pb-3.5">
+        <VandaSymbol className="h-7 w-auto" />
+        <span className="sr-only">{name}</span>
+      </div>
+    );
+  }
+
   if (name === 'Vanda') {
     return (
       <div className={cx('flex items-center', !large && !compact && 'px-1.5 pt-1.5 pb-4')}>
@@ -276,13 +299,13 @@ function MenuLinks({ menu, large = false }: { menu: MenuItem[]; large?: boolean 
                   aria-expanded={open}
                   title={t('toggleGroup', { label: group.title })}
                   onClick={() => toggleGroup(group.title!)}
-                  className="group/title mt-[18px] mb-1.5 flex items-center gap-1 rounded-md px-2.5 text-left text-[11.5px] font-semibold tracking-[0.06em] text-fg-3 uppercase hover:text-fg-2"
+                  className="group/title mt-[18px] mb-1.5 flex items-center gap-1 rounded-md px-2.5 compact:mt-3.5 text-left text-[11.5px] font-semibold tracking-[0.06em] text-fg-3 uppercase hover:text-fg-2"
                 >
                   {group.title}
                   <Icon name="chevron-down" className={cx('size-3 opacity-0 transition-transform group-hover/title:opacity-100 group-focus-visible/title:opacity-100', !open && '-rotate-90 opacity-100')} />
                 </button>
               ) : (
-                <div className={cx('mb-1.5 px-2.5 text-[11.5px] font-semibold tracking-[0.06em] text-fg-3 uppercase', index > 0 && 'mt-[18px]')}>{group.title}</div>
+                <div className={cx('mb-1.5 px-2.5 text-[11.5px] font-semibold tracking-[0.06em] text-fg-3 uppercase', index > 0 && 'mt-[18px] compact:mt-3.5')}>{group.title}</div>
               ))}
             {open &&
               group.items.map((item) => {
@@ -295,7 +318,7 @@ function MenuLinks({ menu, large = false }: { menu: MenuItem[]; large?: boolean 
                       aria-current={item.active ? 'page' : undefined}
                       className={cx(
                         'flex items-center gap-2.5 rounded-lg pl-2.5 font-medium text-fg-2 hover:bg-surface-2 hover:text-fg',
-                        large ? 'h-11 pr-9 text-[15px]' : 'h-[34px] pr-2.5 text-[14px]',
+                        large ? 'h-11 pr-9 text-[15px]' : 'h-(--v-menu-item) pr-2.5 text-[14px]',
                         item.active && 'bg-surface text-fg shadow-sm ring-1 ring-line [&_svg]:text-accent-fg',
                       )}
                     >
@@ -404,7 +427,49 @@ function UserCard() {
 /** Where the menu was scrolled: every visit mounts the sidebar anew, and the menu stays where it was. */
 let menuScrollTop = 0;
 
-function Sidebar() {
+/**
+ * Whether the menu is a rail of icons: the user's choice in this browser, else a rail on screens
+ * narrower than 1280px, where the content needs the width.
+ */
+function useRail(): [boolean, () => void] {
+  const [stored, store] = useStoredValue(MENU_RAIL);
+  const wide = useMediaQuery('(min-width: 1280px)');
+  const rail = stored === null ? !wide : stored === '1';
+  return [rail, () => store(rail ? '0' : '1')];
+}
+
+/** The density in use: the user's choice in this browser, else the panel's (config('vanda.density')). */
+function useDensity(): [Density, (density: Density) => void] {
+  const panel = useSnapshot((s) => s.page.app.density) ?? 'comfortable';
+  const [stored, store] = useStoredValue(DENSITY);
+  const density: Density = stored === 'compact' || stored === 'comfortable' ? stored : panel;
+  // The panel's own density is not stored, so a later change of the config reaches this user.
+  return [density, (next) => store(next === panel ? null : next)];
+}
+
+/** The button that folds the menu into a rail of icons and back, left of the breadcrumbs. */
+function MenuToggle({ rail, onToggle }: { rail: boolean; onToggle: () => void }) {
+  const label = t(rail ? 'expandMenu' : 'collapseMenu');
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-controls="vanda-menu"
+        aria-expanded={!rail}
+        aria-label={label}
+        title={label}
+        onClick={onToggle}
+        className="grid size-8 shrink-0 place-items-center rounded-lg text-fg-3 hover:bg-surface-2 hover:text-fg"
+      >
+        <Icon name={rail ? 'sidebar-open' : 'sidebar-close'} />
+      </button>
+      <span aria-hidden="true" className="h-4 w-px shrink-0 bg-line" />
+    </>
+  );
+}
+
+function Sidebar({ rail }: { rail: boolean }) {
   const app = useSnapshot((s) => s.page.app);
   const menu = useRef<HTMLDivElement>(null);
 
@@ -419,27 +484,41 @@ function Sidebar() {
     const box = element.getBoundingClientRect();
     const item = active.getBoundingClientRect();
     if (item.top < box.top || item.bottom > box.bottom) element.scrollTop += item.top - box.top - (box.height - item.height) / 2;
-  }, []);
+  }, [rail]);
 
   return (
     // As high as the window (the page does not scroll): the logo, search and the user stay in
     // place, only a long menu scrolls between them (as one scrolling column, flex squeezed the
     // search box to fit the screen).
-    <aside className="flex w-[248px] shrink-0 flex-col">
-      <div className="flex shrink-0 flex-col gap-1 px-3 pt-3.5">
-        <Logo name={app.name} />
+    <aside id="vanda-menu" className={cx('flex shrink-0 flex-col', rail ? 'w-16' : 'w-[248px]')}>
+      <div className={cx('flex shrink-0 flex-col gap-1 px-3 pt-3.5', rail && 'items-center')}>
+        <Logo name={app.name} rail={rail} />
 
-        <button
-          type="button"
-          className="flex h-9 items-center gap-2 rounded-lg border border-line-strong bg-surface px-2.5 text-left text-fg-3 hover:border-fg-3 hover:text-fg-2"
-          aria-label={t('search')}
-          aria-keyshortcuts="Meta+K"
-          onClick={openPalette}
-        >
-          <Icon name="search" />
-          <span className="flex-grow text-[13.5px]">{t('search')}</span>
-          <Kbd>{formatHotkey('mod+k')}</Kbd>
-        </button>
+        {rail ? (
+          <RailTip label={t('search')} hint={formatHotkey('mod+k')}>
+            <button
+              type="button"
+              aria-label={t('search')}
+              aria-keyshortcuts="Meta+K"
+              onClick={openPalette}
+              className="grid h-(--v-control) w-10 place-items-center rounded-lg border border-line-strong bg-surface text-fg-3 hover:border-fg-3 hover:text-fg-2"
+            >
+              <Icon name="search" />
+            </button>
+          </RailTip>
+        ) : (
+          <button
+            type="button"
+            className="flex h-(--v-control) items-center gap-2 rounded-lg border border-line-strong bg-surface px-2.5 text-left text-fg-3 hover:border-fg-3 hover:text-fg-2"
+            aria-label={t('search')}
+            aria-keyshortcuts="Meta+K"
+            onClick={openPalette}
+          >
+            <Icon name="search" />
+            <span className="flex-grow text-[13.5px]">{t('search')}</span>
+            <Kbd>{formatHotkey('mod+k')}</Kbd>
+          </button>
+        )}
       </div>
 
       <div
@@ -449,14 +528,150 @@ function Sidebar() {
         }}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-2 pb-4"
       >
-        <MenuLinks menu={app.menu} />
+        {rail ? <MenuRail menu={app.menu} /> : <MenuLinks menu={app.menu} />}
       </div>
 
-      <div className="flex shrink-0 flex-col gap-2.5 border-t border-line px-3 pt-3 pb-3.5">
-        <ThemeSwitch />
-        <UserCard />
-      </div>
+      {rail ? (
+        <div className="flex shrink-0 justify-center border-t border-line px-2 pt-3 pb-3.5">
+          <RailAccount />
+        </div>
+      ) : (
+        <div className="flex shrink-0 flex-col gap-2.5 border-t border-line px-3 pt-3 pb-3.5">
+          <DisplaySwitches />
+          <UserCard />
+        </div>
+      )}
     </aside>
+  );
+}
+
+/** Until when the next rail label shows at once: running the mouse down the rail reads it item by item. */
+let railTipsWarmUntil = 0;
+
+/**
+ * A rail button's label beside it: on hover after a moment, at once on keyboard focus. (React
+ * Aria's TooltipTrigger needs a plain element, and Inertia's Link is a component; its Tooltip on
+ * its own still reads the state from the context, so the state is given there.) The button keeps
+ * its own aria-label; the label is for the eyes.
+ */
+function RailTip({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [open, setOpen] = useState(false);
+
+  const show = (delay: number) => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setOpen(true), Date.now() < railTipsWarmUntil ? 0 : delay);
+  };
+  const hide = () => {
+    clearTimeout(timer.current);
+    if (open) railTipsWarmUntil = Date.now() + 400;
+    setOpen(false);
+  };
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const state: TooltipState = { isOpen: open, shouldSkipAnimation: false, open: () => setOpen(true), close: hide };
+
+  return (
+    <div
+      ref={ref}
+      className="flex"
+      onPointerEnter={(event) => event.pointerType === 'mouse' && show(300)}
+      onPointerLeave={hide}
+      onFocus={(event) => event.target.matches(':focus-visible') && show(0)}
+      onBlur={hide}
+      onPointerDown={hide}
+      onKeyDown={(event) => event.key === 'Escape' && hide()}
+    >
+      {children}
+      <TooltipTriggerStateContext.Provider value={state}>
+        <Tooltip
+          triggerRef={ref}
+          placement="end"
+          offset={12}
+          className="pointer-events-none flex items-center gap-2 rounded-md bg-fg px-2 py-1 text-[12.5px] font-medium text-surface shadow-pop data-[entering]:animate-[vanda-fade-in_120ms_ease-out] motion-reduce:animate-none"
+        >
+          {label}
+          {hint && <span className="text-surface/65 tabular-nums">{hint}</span>}
+        </Tooltip>
+      </TooltipTriggerStateContext.Provider>
+    </div>
+  );
+}
+
+type TooltipState = NonNullable<ContextType<typeof TooltipTriggerStateContext>>;
+
+/**
+ * The menu as a rail of icons: groups apart by a line, favourites on top, every item of a group
+ * shown (a folded group has no title here to unfold it by). An item without an icon shows its
+ * first letter; a badge becomes a dot, its number is in the label.
+ */
+function MenuRail({ menu }: { menu: MenuItem[] }) {
+  const [favorites] = useStoredList(FAVORITES);
+  const starred = favorites.map((key) => menu.find((item) => menuKey(item) === key)).filter((item): item is MenuItem => item !== undefined);
+  const groups = [...(starred.length > 0 ? [{ key: '\u0000favorites', title: t('favorites'), items: starred }] : []), ...menuGroups(menu).map((group, index) => ({ key: group.title ?? String(index), ...group }))];
+
+  return (
+    <nav aria-label={t('menu')} className="flex flex-col items-center">
+      {groups.map((group, index) => (
+        <div
+          key={group.key}
+          role={group.title ? 'group' : undefined}
+          aria-label={group.title}
+          className={cx('flex w-full flex-col items-center gap-0.5', index > 0 && 'mt-2.5 border-t border-line pt-2.5')}
+        >
+          {group.items.map((item) => (
+            <RailTip key={menuKey(item)} label={item.label} hint={item.badge === undefined ? undefined : String(item.badge)}>
+              <Link
+                href={item.href ?? '#'}
+                prefetch
+                aria-label={item.badge === undefined ? item.label : `${item.label} (${item.badge})`}
+                aria-current={item.active ? 'page' : undefined}
+                className={cx(
+                  'relative grid h-(--v-menu-item) w-10 shrink-0 place-items-center rounded-lg text-fg-2 hover:bg-surface-2 hover:text-fg',
+                  item.active && 'bg-surface text-fg shadow-sm ring-1 ring-line [&_svg]:text-accent-fg',
+                )}
+              >
+                {item.icon ? <Icon name={item.icon} /> : <span aria-hidden="true" className="text-[13px] font-semibold">{Array.from(item.label.trim())[0]?.toUpperCase()}</span>}
+                {item.badge !== undefined && <span aria-hidden="true" className="absolute top-1 right-1.5 size-2 rounded-full bg-accent ring-2 ring-bg" />}
+              </Link>
+            </RailTip>
+          ))}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+/** The rail's foot: the user's avatar opens their card with the theme and density beside it. */
+function RailAccount() {
+  const user = useSnapshot((s) => s.page.app.user);
+
+  return (
+    <DialogTrigger>
+      <AriaButton aria-label={t('account')} className="grid size-10 place-items-center rounded-full text-fg-3 hover:bg-surface-2 hover:text-fg">
+        {user ? <Avatar initials={user.avatar.initials} hue={user.avatar.hue} image={user.avatar.image} /> : <Icon name="settings" />}
+      </AriaButton>
+      <Popover
+        placement="end bottom"
+        offset={12}
+        className="w-[264px] rounded-xl border border-line bg-surface p-3 shadow-pop outline-none data-[entering]:animate-[vanda-fade-in_120ms_ease-out] motion-reduce:animate-none"
+      >
+        <Dialog aria-label={t('account')} className="flex flex-col gap-2.5 outline-none">
+          <DisplaySwitches />
+          <UserCard />
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
+  );
+}
+
+/** Theme and density side by side; both are remembered in this browser. */
+function DisplaySwitches() {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <ThemeSwitch />
+      <DensitySwitch />
+    </div>
   );
 }
 
@@ -601,25 +816,50 @@ function ThemeSwitch() {
     }
   }, [theme]);
 
-  const options: { value: Theme; icon: string; label: string }[] = [
-    { value: 'light', icon: 'sun', label: t('light') },
-    { value: 'dark', icon: 'moon', label: t('dark') },
-    { value: 'system', icon: 'monitor', label: t('system') },
-  ];
+  return (
+    <SwitchGroup
+      label={t('theme')}
+      value={theme}
+      onChange={setTheme}
+      options={[
+        { value: 'light', icon: 'sun', label: t('light') },
+        { value: 'dark', icon: 'moon', label: t('dark') },
+        { value: 'system', icon: 'monitor', label: t('system') },
+      ]}
+    />
+  );
+}
+
+/** Comfortable or compact sizes on a desktop; phones always get the comfortable ones. */
+function DensitySwitch() {
+  const [density, choose] = useDensity();
 
   return (
-    <div role="group" aria-label={t('theme')} className="inline-flex gap-0.5 self-start rounded-lg border border-line bg-surface-2 p-0.5">
+    <SwitchGroup
+      label={t('density')}
+      value={density}
+      onChange={choose}
+      options={[
+        { value: 'comfortable', icon: 'density-comfortable', label: t('comfortable') },
+        { value: 'compact', icon: 'density-compact', label: t('compact') },
+      ]}
+    />
+  );
+}
+
+/** A small row of icon buttons of which one is on (the theme, the density). */
+function SwitchGroup<T extends string>({ label, value, onChange, options }: { label: string; value: T; onChange: (value: T) => void; options: { value: T; icon: string; label: string }[] }) {
+  return (
+    <div role="group" aria-label={label} className="inline-flex gap-0.5 self-start rounded-lg border border-line bg-surface-2 p-0.5">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           aria-label={option.label}
-          aria-pressed={theme === option.value}
-          onClick={() => setTheme(option.value)}
-          className={cx(
-            'grid h-6 w-7 place-items-center rounded-md text-fg-2 hover:text-fg',
-            theme === option.value && 'bg-surface text-fg shadow-sm ring-1 ring-line',
-          )}
+          title={option.label}
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={cx('grid h-6 w-7 place-items-center rounded-md text-fg-2 hover:text-fg', value === option.value && 'bg-surface text-fg shadow-sm ring-1 ring-line')}
         >
           <Icon name={option.icon} className="size-3.5" />
         </button>

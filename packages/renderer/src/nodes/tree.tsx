@@ -245,7 +245,7 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
                   scope="col"
                   style={{ width: column.width }}
                   className={cx(
-                    'px-3 py-[9px] text-[12.5px] font-medium whitespace-nowrap text-fg-3 last:pr-5',
+                    'px-3 py-[9px] text-[12.5px] font-medium whitespace-nowrap text-fg-3 last:pr-5 compact:py-1.5',
                     index === 0 && (move ? 'pl-1' : 'pl-5'),
                     column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left',
                   )}
@@ -266,7 +266,7 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
               const isOpen = open.has(row.key) || query !== '';
               const target = drop?.key === row.key ? drop.zone : null;
               const cellClass = cx(
-                'relative border-t border-line py-3 align-middle',
+                'relative border-t border-line py-(--v-cell-y) align-middle',
                 target === 'inside' ? 'bg-accent-soft' : 'group-hover:bg-surface-2/60 group-focus-visible:bg-surface-2/60',
               );
 
@@ -383,7 +383,7 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
       )}
 
       {move && items.length > 0 && (
-        <footer className="flex flex-wrap items-center gap-1.5 border-t border-line px-5 py-3.5 text-[13px] text-fg-3">
+        <footer className="flex flex-wrap items-center gap-1.5 border-t border-line px-5 py-3.5 text-[13px] text-fg-3 compact:py-2.5">
           <Kbd>→</Kbd>
           <Kbd>←</Kbd> {t('expandCollapse')}
           <span className="mx-1.5">·</span>
@@ -482,7 +482,7 @@ export function TreeSelectField({ node }: { node: FieldNode & { options?: TreeOp
     return !(parent && selected.has(parent));
   });
 
-  const trigger = cx(controlClass, 'flex items-center justify-between gap-2 text-left', field.error && invalidClass, multiple && 'h-auto min-h-9 py-1');
+  const trigger = cx(controlClass, 'flex items-center justify-between gap-2 text-left', field.error && invalidClass, multiple && 'h-auto min-h-(--v-control) py-1');
 
   return (
     <FieldFrame node={node} inputId={id} required={field.required} error={field.error}>

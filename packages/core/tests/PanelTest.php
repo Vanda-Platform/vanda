@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Vanda\Access\Impersonation;
 use Vanda\Layouts\Persona;
 use Vanda\Layouts\Tone;
+use Vanda\Navigation\Density;
 use Vanda\Navigation\MenuItem;
 use Vanda\Navigation\SearchResult;
 use Vanda\Notifications\PanelMessage;
@@ -13,6 +14,7 @@ use Vanda\Tests\Fixtures\ProfileScreen;
 use Vanda\Tests\Fixtures\ShowcaseScreen;
 use Vanda\Tests\Fixtures\User;
 use Vanda\Panel;
+use Vanda\VandaException;
 
 beforeEach(function () {
     $this->admin = User::query()->create(['name' => 'Vera Mironova', 'email' => 'vera@example.com']);
@@ -111,4 +113,20 @@ it('marks pinned menu items for the phone tab bar', function () {
 
     expect($pinned)->toBe(['label' => 'Tickets', 'href' => '/panel/tickets', 'icon' => 'ticket', 'pinned' => true])
         ->and($plain)->not->toHaveKey('pinned');
+});
+
+it('gives the renderer the panel\'s density before the first paint and explains a wrong one', function () {
+    $this->actingAs($this->admin);
+
+    $this->getJson('/admin/showcase', ['X-Vanda' => 'true'])->assertJsonPath('app.density', 'comfortable');
+
+    config(['vanda.density' => 'Compact']);
+    $this->getJson('/admin/showcase', ['X-Vanda' => 'true'])->assertJsonPath('app.density', 'compact');
+    $this->get('/admin/showcase')->assertSee('data-density="compact"', false);
+
+    config(['vanda.density' => Density::Comfortable]);
+    expect(Density::configured())->toBe(Density::Comfortable);
+
+    config(['vanda.density' => 'dense']);
+    expect(fn () => Density::configured())->toThrow(VandaException::class, "config('vanda.density') is 'dense'. Write 'comfortable' or 'compact'");
 });

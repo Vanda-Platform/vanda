@@ -280,7 +280,7 @@ function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multipl
           onChange={(keys) => field.setValue(keys.map((key) => byKey(key)?.value ?? key))}
           isDisabled={field.disabled}
         >
-          <AriaButton className={cx(trigger, 'h-auto min-h-9 py-1')}>
+          <AriaButton className={cx(trigger, 'h-auto min-h-(--v-control) py-1')}>
             <span className="flex flex-wrap gap-1.5">
               {selected.length === 0 && <span className="text-fg-3">{node.placeholder ?? t('choose')}</span>}
               {selected.map((key) => (
@@ -517,7 +517,7 @@ export function ColorField({ node }: { node: FieldNode & { presets?: string[] } 
           onChange={(event) => field.setValue(event.target.value.toUpperCase())}
           aria-label={node.label ?? node.path}
           disabled={field.disabled}
-          className="h-9 w-10 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-surface p-1"
+          className="h-(--v-control) w-10 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-surface p-1"
         />
         <input id={id} value={text(field.value)} onChange={(event) => field.setValue(event.target.value)} disabled={field.disabled} className={cx(controlClass, 'font-mono text-[13.5px]')} />
       </div>

@@ -15,6 +15,13 @@ return [
     'dev' => env('VANDA_DEV'),
 
     /*
+     * How much fits on a screen: 'comfortable' or 'compact' (32px fields, tighter table rows,
+     * cards and menu). Each user may switch to the other one under the menu; phones always
+     * get the comfortable sizes.
+     */
+    'density' => env('VANDA_DENSITY', 'comfortable'),
+
+    /*
      * Name shown in the sidebar and the browser tab.
      */
     'name' => env('VANDA_NAME', 'Vanda'),
