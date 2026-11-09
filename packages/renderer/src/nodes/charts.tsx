@@ -233,7 +233,7 @@ export function ChartView({ node }: { node: ChartNode }) {
   const series = node.series ?? [];
 
   return (
-    <section className={cx('flex min-w-0 flex-col gap-4 rounded-xl border border-line bg-surface p-5 shadow-sm', SPANS[node.span ?? 1])} {...nodeAttributes(node)}>
+    <section className={cx('flex min-w-0 flex-col gap-4 rounded-xl border border-line bg-surface p-5', SPANS[node.span ?? 1])} {...nodeAttributes(node)}>
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
           <h2 className="text-[15px] font-semibold">{node.title}</h2>

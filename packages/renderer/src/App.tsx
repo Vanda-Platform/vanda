@@ -15,6 +15,7 @@ import { t, tn } from './i18n';
 import { dirtyCount, dirtyFields, offerRestoreAfterReload, useSnapshot, useStore, type Store } from './store';
 import { getPath } from './expr';
 import { Avatar, buttonClass, cx, formatHotkey, Icon, Kbd, MOBILE_QUERY, useMediaQuery } from './ui';
+import { onAccent } from './color';
 import type { ActionRef, Crumb, Density, MenuItem, Page, UiNode } from './types';
 
 export function App() {
@@ -68,7 +69,12 @@ export function App() {
     return () => clearTimeout(timer);
   }, [path]);
 
-  const brand = { '--v-accent': page.app.brand } as React.CSSProperties;
+  // The brand on <html>, not on this tree: dialogs, menus and calendars open in <body>, outside it.
+  useLayoutEffect(() => {
+    const root = document.documentElement.style;
+    root.setProperty('--v-accent', page.app.brand);
+    root.setProperty('--v-on-accent', onAccent(page.app.brand));
+  }, [page.app.brand]);
   const mobile = useMediaQuery(MOBILE_QUERY);
   const [density] = useDensity();
   const [rail, toggleRail, roomy] = useRail();
@@ -91,7 +97,7 @@ export function App() {
     return (
       <div
         className={cx('relative flex min-h-screen flex-col items-center justify-center gap-10 bg-bg bg-cover bg-center px-4 py-12')}
-        style={{ ...brand, ...(background ? { backgroundImage: `url(${JSON.stringify(background)})` } : {}) }}
+        style={background ? { backgroundImage: `url(${JSON.stringify(background)})` } : undefined}
       >
         {background && <div aria-hidden="true" className="absolute inset-0 bg-(--v-auth-veil)" />}
         <div className={cx('relative', background && 'rounded-2xl bg-surface/85 px-4 py-2.5 shadow-sm backdrop-blur-md')}>
@@ -116,7 +122,6 @@ export function App() {
         // relative: absolutely placed things (sr-only tables of charts) must not lengthen the document.
         mobile ? 'min-h-screen overflow-x-clip bg-surface pb-[calc(64px+env(safe-area-inset-bottom))]' : 'relative h-dvh overflow-hidden print:h-auto print:overflow-visible',
       )}
-      style={brand}
     >
       {/* The first stop of Tab: past the menu, straight to the page (WCAG 2.4.1). */}
       <a
@@ -159,7 +164,7 @@ export function App() {
             ) : (
               <div className="flex min-w-0 items-center gap-2.5">
                 <MenuToggle expanded={roomy ? !rail : drawer} controls={roomy ? 'vanda-menu' : 'vanda-menu-drawer'} onToggle={roomy ? toggleRail : () => setDrawer(true)} />
-                <Breadcrumbs crumbs={crumbsFor(page)} />
+                <Breadcrumbs crumbs={crumbsFor(page)} title={page.title} />
               </div>
             )}
             <NotificationsBell />
@@ -290,10 +295,14 @@ function crumbsFor(page: Page): Crumb[] {
 }
 
 /**
- * The trail above the page. More than three crumbs: the first, «…» with the ones between (a menu)
- * and the last two. It stays on one line: a long name ends with «…» (its own page shows it whole).
+ * The trail above the page. It leads up to the page: the page's own crumb would only repeat the
+ * title right under it, so it is left out (a page with nothing above it keeps its one crumb).
+ * More than three crumbs: the first, «…» with the ones between (a menu) and the last two. It stays
+ * on one line: a long name ends with «…» (its own page shows it whole).
  */
-function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
+function Breadcrumbs({ crumbs: all, title }: { crumbs: Crumb[]; title: string | null }) {
+  const upward = all.length > 1 && title !== null && all[all.length - 1]!.label === title;
+  const crumbs = upward ? all.slice(0, -1) : all;
   const hidden = crumbs.length > 3 ? crumbs.slice(1, -2) : [];
   const shown = hidden.length > 0 ? [crumbs[0]!, null, ...crumbs.slice(-2)] : crumbs;
 
@@ -301,7 +310,8 @@ function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
     <nav aria-label={t('breadcrumbs')} className="min-w-0 text-[13.5px] text-fg-3">
       <ol className="flex min-w-0 items-center gap-1.5">
         {shown.map((crumb, index) => {
-          const last = index === shown.length - 1;
+          // The page itself, when the trail ends with it.
+          const last = index === shown.length - 1 && !upward;
           return (
             <li key={crumb ? `${crumb.label}-${index}` : '\u2026'} className={cx('flex min-w-0 items-center gap-1.5', !last && 'max-w-64 shrink-[2]')}>
               {index > 0 && <Icon name="chevron-right" className="size-3.5 shrink-0" />}
@@ -440,7 +450,7 @@ function MenuLinks({ menu, large = false }: { menu: MenuItem[]; large?: boolean 
               group.items.map((item) => {
                 const isFavorite = favorites.includes(menuKey(item));
                 return (
-                  <div key={item.label} className="group/item relative">
+                  <div key={menuKey(item)} className="group/item relative">
                     <Link
                       href={item.href ?? '#'}
                       prefetch
@@ -930,11 +940,11 @@ function MobileNav() {
       <nav aria-label={t('menu')} className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${pinned.length + 2}, minmax(0, 1fr))` }}>
           {pinned.map((item) => (
-            <Link key={item.label} href={item.href ?? '#'} prefetch aria-current={item.active ? 'page' : undefined} className={tabClass(Boolean(item.active))}>
+            <Link key={menuKey(item)} href={item.href ?? '#'} prefetch aria-current={item.active ? 'page' : undefined} className={tabClass(Boolean(item.active))}>
               <span className="relative">
                 <Icon name={item.icon} className="size-[22px]" />
                 {item.badge !== undefined && (
-                  <span className="absolute -top-1.5 left-3.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] leading-none font-semibold text-white">{item.badge}</span>
+                  <span className="absolute -top-2 left-3 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-accent px-1 text-[11px] leading-none font-semibold text-on-accent ring-2 ring-surface tabular-nums">{item.badge}</span>
                 )}
               </span>
               <span className="max-w-full truncate px-1">{item.label}</span>

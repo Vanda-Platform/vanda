@@ -590,7 +590,7 @@ export function TreeSelectField({ node }: { node: FieldNode & { options?: TreeOp
                           )}
                         >
                           {multiple ? (
-                            <span aria-hidden="true" className={cx('grid size-4 shrink-0 place-items-center rounded border', checked === 'off' ? 'border-control-line bg-surface' : 'border-accent bg-accent text-white')}>
+                            <span aria-hidden="true" className={cx('grid size-4 shrink-0 place-items-center rounded border', checked === 'off' ? 'border-control-line bg-surface' : 'border-accent bg-accent text-on-accent')}>
                               {checked === 'on' && <Icon name="check" className="size-3" />}
                               {checked === 'mixed' && <span className="h-0.5 w-2 rounded bg-white" />}
                             </span>

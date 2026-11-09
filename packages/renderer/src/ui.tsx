@@ -304,7 +304,7 @@ export function Avatar({ initials, hue = 0, size = 'md', image }: { initials: st
 }
 
 const VARIANTS: Record<string, string> = {
-  primary: 'bg-accent text-white shadow-primary hover:bg-accent-hover',
+  primary: 'bg-accent text-on-accent shadow-primary hover:bg-accent-hover',
   secondary: 'bg-surface text-fg border border-line-strong shadow-sm hover:bg-surface-2',
   ghost: 'text-fg-2 hover:bg-surface-2 hover:text-fg',
   danger: 'bg-danger text-white hover:opacity-90',
@@ -337,7 +337,8 @@ export function Kbd({ children, inverted = false }: { children: string; inverted
       className={cx(
         // Phones have no keyboard shortcuts to hint at.
         'inline-flex h-[18px] items-center rounded border px-[5px] font-mono text-[11px] font-medium max-md:hidden',
-        inverted ? 'border-white/25 bg-white/15 text-white/90' : 'border-line bg-surface-2 text-fg-3',
+        // On a primary button: darker than the button, so the hint keeps 4.5:1 (a lighter chip fell to 3.4:1).
+        inverted ? 'border-current/30 bg-black/15 text-on-accent' : 'border-line bg-surface-2 text-fg-3',
       )}
     >
       {children}

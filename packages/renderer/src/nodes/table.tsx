@@ -396,7 +396,7 @@ export function TableView({ node }: { node: TableNode }) {
                     >
                       {({ isSelected }) => (
                         <>
-                          <span className={cx('grid size-4 place-items-center rounded border', isSelected ? 'border-accent bg-accent text-white' : 'border-control-line')}>
+                          <span className={cx('grid size-4 place-items-center rounded border', isSelected ? 'border-accent bg-accent text-on-accent' : 'border-control-line')}>
                             {isSelected && <Icon name="check" className="size-3" />}
                           </span>
                           {column.label}

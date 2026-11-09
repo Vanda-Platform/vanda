@@ -141,7 +141,7 @@ function Placeholder({ node }: { node: UiNode }) {
       return field((sized.height ?? 300) + MAP_CHROME);
     case 'chart':
       return (
-        <section aria-busy="true" className={cx('flex min-w-0 flex-col gap-4 rounded-xl border border-line bg-surface p-5 shadow-sm', CHART_SPANS[sized.span ?? 1])}>
+        <section aria-busy="true" className={cx('flex min-w-0 flex-col gap-4 rounded-xl border border-line bg-surface p-5', CHART_SPANS[sized.span ?? 1])}>
           <div className="flex flex-col gap-0.5">
             <h2 className="text-[15px] font-semibold">{sized.title}</h2>
             {sized.description && <span className="text-[13.5px] text-fg-3">{sized.description}</span>}

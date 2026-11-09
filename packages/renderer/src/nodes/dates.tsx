@@ -23,7 +23,7 @@ import { FieldFrame, useField } from './fields';
 // Date pickers live in their own chunk: the calendar and date maths load only on screens that use them.
 
 const cellClass =
-  'grid h-8 w-9 cursor-pointer place-items-center rounded-lg text-[13.5px] tabular-nums outline-none data-[outside-month]:text-fg-3 data-[hovered]:bg-surface-2 data-[focus-visible]:ring-3 data-[focus-visible]:ring-ring data-[selected]:bg-accent data-[selected]:font-semibold data-[selected]:text-white data-[disabled]:opacity-40';
+  'grid h-8 w-9 cursor-pointer place-items-center rounded-lg text-[13.5px] tabular-nums outline-none data-[outside-month]:text-fg-3 data-[hovered]:bg-surface-2 data-[focus-visible]:ring-3 data-[focus-visible]:ring-ring data-[selected]:bg-accent data-[selected]:font-semibold data-[selected]:text-on-accent data-[disabled]:opacity-40';
 
 function CalendarHeader() {
   return (

@@ -8,6 +8,8 @@
   /* Horizontal padding of the surface a table bleeds into: the page, or a section card (24px). */
   --v-gutter: 32px;
   --v-accent: #12805c;
+  /* Text and marks on the brand colour: white, or dark ink on a light brand (set from it in main/App). */
+  --v-on-accent: #ffffff;
   --v-bg: #f7f7f8;
   --v-surface: #ffffff;
   --v-surface-2: #f4f4f5;
@@ -133,6 +135,7 @@
   --color-fg-2: var(--v-fg-2);
   --color-fg-3: var(--v-fg-3);
   --color-accent: var(--v-accent);
+  --color-on-accent: var(--v-on-accent);
   --color-accent-fg: var(--v-accent-fg);
   --color-accent-soft: var(--v-accent-soft);
   --color-accent-hover: var(--v-accent-hover);
@@ -310,8 +313,8 @@
   content: "";
   width: 8px;
   height: 4.5px;
-  border-left: 2px solid #fff;
-  border-bottom: 2px solid #fff;
+  border-left: 2px solid var(--v-on-accent);
+  border-bottom: 2px solid var(--v-on-accent);
   transform: translate(0, -1px) rotate(-45deg);
   opacity: 0;
 }

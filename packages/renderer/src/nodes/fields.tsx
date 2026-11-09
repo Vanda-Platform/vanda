@@ -331,7 +331,7 @@ function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multipl
 }
 
 const box =
-  'grid size-4 shrink-0 place-items-center rounded-[4.5px] border border-control-line bg-surface text-white shadow-sm transition group-data-[selected]:border-accent group-data-[selected]:bg-accent group-data-[focus-visible]:ring-3 group-data-[focus-visible]:ring-ring';
+  'grid size-4 shrink-0 place-items-center rounded-[4.5px] border border-control-line bg-surface text-on-accent shadow-sm transition group-data-[selected]:border-accent group-data-[selected]:bg-accent group-data-[focus-visible]:ring-3 group-data-[focus-visible]:ring-ring';
 
 export function CheckboxField({ node }: { node: FieldNode }) {
   const field = useField(node);

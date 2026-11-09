@@ -39,7 +39,7 @@ export function SectionView({ node }: { node: UiNode & { title: string; descript
         <h2 className="text-[15px] leading-[22px] font-semibold">{node.title}</h2>
         {node.description && <p className="text-[13.5px] text-fg-2">{node.description}</p>}
       </div>
-      <div className="min-w-0 rounded-xl border border-line bg-surface shadow-sm">
+      <div className="min-w-0 rounded-xl border border-line bg-surface">
         <div className="flex flex-col gap-(--v-stack) p-4 [--v-gutter:16px] md:p-(--v-block) md:[--v-gutter:var(--v-block)]">
           <BlockTitleContext.Provider value={node.title}>
             <NodeList nodes={content} />
@@ -65,7 +65,7 @@ export function CardView({ node }: { node: UiNode & { title: string; description
   const buttons = (node.children ?? []).filter((child) => commands.has(child.id));
 
   return (
-    <section className="flex min-w-0 flex-col rounded-xl border border-line bg-surface shadow-sm" {...nodeAttributes(node)}>
+    <section className="flex min-w-0 flex-col rounded-xl border border-line bg-surface" {...nodeAttributes(node)}>
       <header className="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 md:px-(--v-block) md:pt-5 compact:pt-4">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="text-[15px] leading-[22px] font-semibold">{node.title}</h2>
@@ -110,25 +110,30 @@ const isBlock = (node: UiNode): boolean =>
 /**
  * The content of a page or a tab. Sections, cards and tables stand on their own; fields placed
  * straight on the page are gathered into a card, so every field sits one level deep (one border
- * per level), as in a section.
+ * per level), as in a section. Blocks inside the content frame are flat: the frame alone floats.
+ * Modals take no place on the page (nor an empty card): they open over it.
  */
 export function BlockList({ nodes }: { nodes: UiNode[] }) {
   const runs: UiNode[][] = [];
-  for (const child of nodes) {
+  const modals = nodes.filter((node) => node.type === 'modal');
+  for (const child of nodes.filter((node) => node.type !== 'modal')) {
     const last = runs[runs.length - 1];
     if (last && !isBlock(child) && !isBlock(last[0]!)) last.push(child);
     else runs.push([child]);
   }
 
-  return runs.map((run) =>
-    isBlock(run[0]!) ? (
-      <NodeView key={run[0]!.id} node={run[0]!} />
-    ) : (
-      <div key={`${run[0]!.id}-card`} className="flex min-w-0 flex-col gap-(--v-stack) rounded-xl border border-line bg-surface p-4 shadow-sm [--v-gutter:16px] md:p-(--v-block) md:[--v-gutter:var(--v-block)]">
-        <NodeList nodes={run} />
-      </div>
+  return [
+    ...runs.map((run) =>
+      isBlock(run[0]!) ? (
+        <NodeView key={run[0]!.id} node={run[0]!} />
+      ) : (
+        <div key={`${run[0]!.id}-card`} className="flex min-w-0 flex-col gap-(--v-stack) rounded-xl border border-line bg-surface p-4 [--v-gutter:16px] md:p-(--v-block) md:[--v-gutter:var(--v-block)]">
+          <NodeList nodes={run} />
+        </div>
+      ),
     ),
-  );
+    ...modals.map((modal) => <NodeView key={modal.id} node={modal} />),
+  ];
 }
 
 /**
@@ -373,7 +378,7 @@ export function MetricsView({ node }: { node: UiNode & { items?: MetricItem[] } 
     // Two in a row on phones, so four numbers fit on one screen.
     <div className="grid grid-cols-2 gap-3 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] md:gap-4" {...nodeAttributes(node)}>
       {(node.items ?? []).map((metric) => (
-        <div key={metric.label} className="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface p-3.5 shadow-sm md:p-[18px] md:pb-3.5">
+        <div key={metric.label} className="flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface p-3.5 md:p-[18px] md:pb-3.5">
           <span className="text-[13px] font-medium text-fg-3 md:text-[13.5px]">{metric.label}</span>
           <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <span className="text-[20px] leading-7 font-semibold tracking-[-0.02em] tabular-nums md:text-[26px] md:leading-8">{metric.value}</span>
