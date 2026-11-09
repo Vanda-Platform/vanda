@@ -21,9 +21,9 @@ use Vanda\Layouts\Layout;
 use Vanda\Layouts\Persona;
 use Vanda\Layouts\TD;
 use Vanda\Layouts\View;
+use Vanda\Panel;
 use Vanda\Screen\Result;
 use Vanda\Screen\Screen;
-use Vanda\Panel;
 
 #[Can('platform.users')]
 final class UserListScreen extends Screen
@@ -98,14 +98,14 @@ final class UserListScreen extends Screen
                     Button::make('Удалить')
                         ->icon('trash')
                         ->danger()
-                        ->confirm("Пользователь {$user->name} будет удалён без возможности восстановления.", 'Удалить пользователя?', 'Удалить')
+                        ->confirm('Учётная запись будет удалена без возможности восстановления.', "Удалить пользователя «{$user->name}»?", 'Удалить пользователя')
                         ->action($this->delete(...), ['user' => $user]),
                 ])
                 ->bulkActions([
                     Button::make('Удалить')
                         ->icon('trash')
                         ->danger()
-                        ->confirm('Выбранные пользователи будут удалены без возможности восстановления.', 'Удалить пользователей?', 'Удалить')
+                        ->confirm('Учётные записи будут удалены без возможности восстановления.', 'Удалить выбранных пользователей (:count)?', 'Удалить (:count)')
                         ->action($this->deleteMany(...)),
                 ]),
 
@@ -147,7 +147,7 @@ final class UserListScreen extends Screen
     }
 
     /**
-     * @param list<string> $ids
+     * @param  list<string>  $ids
      */
     #[Action(validate: false)]
     public function deleteMany(array $ids): Result

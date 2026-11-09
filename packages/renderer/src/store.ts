@@ -6,10 +6,21 @@ import { applyPatches, setPath, walk } from './patch';
 import { act, react } from './transport';
 import type { ActionRef, FieldNode, Page, State, UiNode } from './types';
 
+/** A button in a toast: «Вернуть» after something the user may want back. */
+export interface ToastAction {
+  label: string;
+  run: () => void;
+}
+
 export interface Toast {
   id: number;
   message: string;
   tone: string;
+  action?: ToastAction;
+  /** A toast with the same key replaces this one (the last row removed, not a pile of them). */
+  key?: string;
+  /** The page an action toast belongs to: it leaves with that page. */
+  path?: string;
 }
 
 export interface Snapshot {
@@ -27,6 +38,17 @@ export interface Snapshot {
 }
 
 const FLASH_KEY = 'vanda:toast';
+
+/**
+ * «Вернуть» for values a reload of the page wiped («Отменить» in the unsaved changes bar). The reload
+ * mounts a new store, so the offer waits here for it: same page, within a few seconds.
+ */
+let restoreOffer: { message: string; label: string; values: { path: string; value: unknown }[]; path: string; until: number } | null = null;
+
+/** Hands «Вернуть» for these values to the store the coming reload of this page creates. */
+export function offerRestoreAfterReload(message: string, label: string, values: { path: string; value: unknown }[]) {
+  restoreOffer = { message, label, values, path: window.location.pathname, until: Date.now() + 10_000 };
+}
 const DISCRETE = new Set(['select', 'switch', 'checkbox', 'radio', 'segmented', 'date', 'daterange', 'color', 'range']);
 
 /**
@@ -64,10 +86,12 @@ export function createStore(initial: Page) {
   snapshot = { ...snapshot, page: withComputed(initial) };
   snapshot = { ...snapshot, baseline: snapshot.page.state };
 
-  const pushToast = (message: string, tone = 'success') => {
+  const pushToast = (message: string, tone = 'success', action?: ToastAction, key?: string) => {
     const id = ++toastId;
-    set({ toasts: [...snapshot.toasts, { id, message, tone }] });
-    setTimeout(() => set({ toasts: snapshot.toasts.filter((toast) => toast.id !== id) }), 5000);
+    const kept = key ? snapshot.toasts.filter((toast) => toast.key !== key) : snapshot.toasts;
+    set({ toasts: [...kept, { id, message, tone, action, key, path: action ? window.location.pathname : undefined }] });
+    // A toast with a button stays until it is used or closed: nobody has to beat a timer to undo (WCAG 2.2.1).
+    if (!action) setTimeout(() => set({ toasts: snapshot.toasts.filter((toast) => toast.id !== id) }), 5000);
   };
 
   /** A toast an action left before it redirected (sessionStorage, so a full page load keeps it too). */
@@ -109,7 +133,7 @@ export function createStore(initial: Page) {
     }
   }
 
-  return {
+  const store = {
     subscribe(listener: () => void) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -124,7 +148,10 @@ export function createStore(initial: Page) {
       clearTimeout(timer);
       inflight?.abort();
       const next = withComputed(page);
-      set({ page: next, errors: {}, pending: new Set(), running: null, modal: null, baseline: next.state });
+      // «Вернуть» belongs to the page it was offered on.
+      const path = new URL(page.url, window.location.href).pathname;
+      const toasts = snapshot.toasts.filter((toast) => !toast.path || toast.path === path);
+      set({ page: next, errors: {}, pending: new Set(), running: null, modal: null, baseline: next.state, toasts });
       // The page an action redirected to: the store lives on across Inertia visits, so its toast shows here.
       showFlash();
     },
@@ -203,6 +230,16 @@ export function createStore(initial: Page) {
       }
     },
 
+    /**
+     * A toast of the renderer's own; with `action` it stays until used or closed, with `key` it
+     * replaces the previous one of that key.
+     *
+     *     store.notify(t('rowRemoved', { n: 2 }), { tone: 'neutral', key: path, action: { label: t('restore'), run } });
+     */
+    notify(message: string, options: { tone?: string; action?: ToastAction; key?: string } = {}) {
+      pushToast(message, options.tone ?? 'success', options.action, options.key);
+    },
+
     dismissToast(id: number) {
       set({ toasts: snapshot.toasts.filter((toast) => toast.id !== id) });
     },
@@ -210,6 +247,14 @@ export function createStore(initial: Page) {
     /** Shows a toast left by an action that redirected here (also after a full page load). */
     showFlash,
   };
+
+  if (restoreOffer && restoreOffer.path === window.location.pathname && Date.now() < restoreOffer.until) {
+    const offer = restoreOffer;
+    restoreOffer = null;
+    pushToast(offer.message, 'neutral', { label: offer.label, run: () => offer.values.forEach(({ path, value }) => store.setValue(path, value)) }, 'discard');
+  }
+
+  return store;
 }
 
 export type Store = ReturnType<typeof createStore>;
@@ -221,6 +266,11 @@ const blank = (value: unknown) => (value === undefined || value === null || valu
  * A number, so components can subscribe to it without re-rendering on every keystroke.
  */
 export function dirtyCount(snapshot: Snapshot): number {
+  return dirtyFields(snapshot).length;
+}
+
+/** The editable fields of the page (outside modals) that differ from the last loaded or saved state. */
+export function dirtyFields(snapshot: Snapshot): FieldNode[] {
   const fields: FieldNode[] = [];
   const visit = (nodes: UiNode[]) => {
     for (const node of nodes) {
@@ -231,7 +281,7 @@ export function dirtyCount(snapshot: Snapshot): number {
   };
   visit(snapshot.page.layout);
 
-  return fields.filter((field) => JSON.stringify(blank(getPath(snapshot.page.state, field.path))) !== JSON.stringify(blank(getPath(snapshot.baseline, field.path)))).length;
+  return fields.filter((field) => JSON.stringify(blank(getPath(snapshot.page.state, field.path))) !== JSON.stringify(blank(getPath(snapshot.baseline, field.path))));
 }
 
 export const StoreContext = createContext<Store | null>(null);

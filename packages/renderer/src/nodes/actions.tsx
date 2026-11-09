@@ -16,7 +16,11 @@ export type ButtonNode = UiNode & {
   action?: ActionRef;
 };
 
-/** Asks before running a dangerous action. */
+/**
+ * Asks before running an action. A dangerous one starts on the way out («Отмена»): Enter or a
+ * second click by habit must not destroy anything; a harmless one starts on its button.
+ * `count` fills «:count» in the texts (the rows a bulk action works on).
+ */
 export function ConfirmDialog({
   open,
   onOpenChange,
@@ -25,6 +29,8 @@ export function ConfirmDialog({
   icon,
   label,
   onConfirm,
+  count,
+  cancelLabel,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,7 +39,11 @@ export function ConfirmDialog({
   icon?: string;
   label: string;
   onConfirm: () => void;
+  count?: number;
+  cancelLabel?: string;
 }) {
+  const fill = (text: string) => (count === undefined ? text : text.replaceAll(':count', count.toLocaleString()));
+
   return (
     <ModalOverlay isOpen={open} onOpenChange={onOpenChange} isDismissable className="fixed inset-0 z-50 grid place-items-center bg-(--v-scrim) p-4">
       <Modal className="w-full max-w-[420px] rounded-xl border border-line bg-surface p-6 shadow-pop outline-none">
@@ -45,23 +55,23 @@ export function ConfirmDialog({
               </span>
               <div className="flex flex-col gap-1.5">
                 <Heading slot="title" className="text-[16px] font-semibold">
-                  {confirm.title}
+                  {fill(confirm.title)}
                 </Heading>
-                {confirm.text && <p className="text-[13.5px] text-fg-2">{confirm.text}</p>}
+                {confirm.text && <p className="text-[13.5px] text-fg-2">{fill(confirm.text)}</p>}
               </div>
-              <div className="flex justify-end gap-2">
-                <AriaButton onPress={close} className={buttonClass('secondary')}>
-                  {t('cancel')}
+              <div className="flex flex-wrap justify-end gap-2">
+                <AriaButton autoFocus={danger} onPress={close} className={buttonClass('secondary')}>
+                  {cancelLabel ?? t('cancel')}
                 </AriaButton>
                 <AriaButton
-                  autoFocus
+                  autoFocus={!danger}
                   onPress={() => {
                     close();
                     onConfirm();
                   }}
                   className={buttonClass(danger ? 'danger' : 'primary')}
                 >
-                  {confirm.confirm ?? label}
+                  {fill(confirm.confirm ?? label)}
                 </AriaButton>
               </div>
             </>
@@ -116,7 +126,7 @@ export function ButtonView({ node, size = 'md', ids }: { node: ButtonNode; size?
       </button>
 
       {node.confirm && (
-        <ConfirmDialog open={confirming} onOpenChange={setConfirming} confirm={node.confirm} danger={danger} icon={node.icon} label={node.label} onConfirm={fire} />
+        <ConfirmDialog open={confirming} onOpenChange={setConfirming} confirm={node.confirm} danger={danger} icon={node.icon} label={node.label} onConfirm={fire} count={ids?.length} />
       )}
     </>
   );

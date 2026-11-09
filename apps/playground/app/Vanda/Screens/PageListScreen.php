@@ -4,6 +4,7 @@ namespace App\Vanda\Screens;
 
 use App\Models\Page;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Translation\MessageSelector;
 use Vanda\Actions\Button;
 use Vanda\Actions\Link;
 use Vanda\Attributes\Action;
@@ -13,9 +14,9 @@ use Vanda\Layouts\Layout;
 use Vanda\Layouts\TD;
 use Vanda\Layouts\Text;
 use Vanda\Navigation\Crumb;
+use Vanda\Panel;
 use Vanda\Screen\Result;
 use Vanda\Screen\Screen;
-use Vanda\Panel;
 
 #[Can('platform.pages')]
 final class PageListScreen extends Screen
@@ -73,7 +74,7 @@ final class PageListScreen extends Screen
                     Link::make('Редактировать')->icon('pencil')->to(PageEditScreen::class, ['page' => $page]),
                     Link::make('Добавить вложенную')->icon('plus')->href(Panel::url(PageEditScreen::class).'?parent='.$page->id),
                     Button::make('Удалить')->icon('trash')->danger()
-                        ->confirm("Страница «{$page->title}» и все вложенные будут удалены.", 'Удалить страницу?', 'Удалить')
+                        ->confirm($this->whatGoesWith($page), "Удалить страницу «{$page->title}»?", 'Удалить страницу')
                         ->action($this->delete(...), ['page' => $page]),
                 ])
                 ->reorderable($this->move(...))
@@ -118,6 +119,23 @@ final class PageListScreen extends Screen
         Page::query()->whereKey($page->branchKeys())->delete();
 
         return Result::toast("Удалена страница «{$page->title}»");
+    }
+
+    /** What else goes with a page: the pages under it, counted from the tree already loaded. */
+    private function whatGoesWith(Page $page): string
+    {
+        $children = [];
+        foreach ($this->pages() as $item) {
+            $children[$item->parent_id][] = $item->id;
+        }
+        $count = 0;
+        for ($queue = $children[$page->id] ?? []; $queue !== []; $count++) {
+            array_push($queue, ...($children[array_shift($queue)] ?? []));
+        }
+
+        return $count === 0
+            ? 'Страница будет удалена без возможности восстановления.'
+            : sprintf('Вместе с ней удалятся %d %s. Восстановить их нельзя.', $count, (new MessageSelector)->choose('вложенная страница|вложенные страницы|вложенных страниц', $count, 'ru'));
     }
 
     /**

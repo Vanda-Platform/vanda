@@ -154,7 +154,19 @@ const messages = {
     impersonating: 'You are signed in as {name}.',
     stopImpersonating: 'Back to {name}',
     discard: 'Discard',
-    leaveUnsaved: 'You have unsaved changes. Leave the page anyway?',
+    leaveTitle: 'Leave without saving?',
+    leaveText_one: '{count} field has changed. If you leave, the change is lost.',
+    leaveText_few: '{count} fields have changed. If you leave, the changes are lost.',
+    leaveText_many: '{count} fields have changed. If you leave, the changes are lost.',
+    leaveText_other: '{count} fields have changed. If you leave, the changes are lost.',
+    stay: 'Stay',
+    leave: 'Leave without saving',
+    changesDiscarded: 'Changes discarded',
+    restore: 'Undo',
+    rowRemoved: 'Row {n} removed',
+    removeRow: 'Remove row {n}',
+    removeRowOf: 'Remove row {n} ({label})',
+    inRow: '{label}, row {n}',
     changedFields_one: '{count} field',
     changedFields_few: '{count} fields',
     changedFields_many: '{count} fields',
@@ -403,7 +415,19 @@ const messages = {
     impersonating: 'Вы вошли как {name}.',
     stopImpersonating: 'Вернуться к своей учётной записи ({name})',
     discard: 'Отменить',
-    leaveUnsaved: 'Есть несохранённые изменения. Всё равно уйти со страницы?',
+    leaveTitle: 'Уйти без сохранения?',
+    leaveText_one: 'Изменено {count} поле. Если уйти, изменение пропадёт.',
+    leaveText_few: 'Изменено {count} поля. Если уйти, изменения пропадут.',
+    leaveText_many: 'Изменено {count} полей. Если уйти, изменения пропадут.',
+    leaveText_other: 'Изменено {count} поля. Если уйти, изменения пропадут.',
+    stay: 'Остаться',
+    leave: 'Уйти без сохранения',
+    changesDiscarded: 'Изменения отменены',
+    restore: 'Вернуть',
+    rowRemoved: 'Строка {n} удалена',
+    removeRow: 'Удалить строку {n}',
+    removeRowOf: 'Удалить строку {n} ({label})',
+    inRow: '{label}, строка {n}',
     changedFields_one: '{count} поле',
     changedFields_few: '{count} поля',
     changedFields_many: '{count} полей',
@@ -510,7 +534,7 @@ export function t(key: Key, params: Record<string, string | number> = {}): strin
 }
 
 /** Plural form by count: tn('changedFields', 3) → "3 поля". Keys end in _one, _few, _many, _other. */
-export function tn(key: 'changedFields', count: number): string {
+export function tn(key: 'changedFields' | 'leaveText', count: number): string {
   const rule = new Intl.PluralRules(lang() === 'ru' ? 'ru-RU' : 'en-US').select(count);
   const form = rule === 'one' || rule === 'few' || rule === 'many' ? rule : 'other';
   return t(`${key}_${form}`, { count });

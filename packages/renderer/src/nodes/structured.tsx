@@ -1,6 +1,6 @@
 import { useContext, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { t } from '../i18n';
-import { nodeAttributes } from '../store';
+import { nodeAttributes, useStore, type Store } from '../store';
 import { buttonClass, controlClass, cx, Icon, MOBILE_QUERY, readonlyClass, useMediaQuery } from '../ui';
 import { BlockTitleContext } from './blockTitle';
 import type { FieldNode, UiNode } from '../types';
@@ -8,6 +8,23 @@ import { FieldFrame, useField } from './fields';
 import { NodeView } from './NodeView';
 
 type Row = Record<string, unknown>;
+
+/** «Удалить строку 2 (Характеристики)»: a page may hold several lists, each with its row 2. */
+const removeLabel = (index: number, list: string | undefined) => (list ? t('removeRowOf', { n: index + 1, label: list }) : t('removeRow', { n: index + 1 }));
+
+/** Whether a row holds anything a user typed (an empty row goes without a word). */
+const filled = (row: unknown): boolean =>
+  row !== null && typeof row === 'object' && Object.values(row).some((value) => value !== null && value !== undefined && value !== '' && !(Array.isArray(value) && value.length === 0));
+
+/**
+ * Removes row `index` of the list at `path`; a filled one can come back with «Вернуть» in a toast
+ * (one per list: the last row removed) until the page changes.
+ */
+function removeRow(store: Store, path: string, rows: unknown[], index: number) {
+  store.setValue(path, rows.filter((_, i) => i !== index));
+  if (!filled(rows[index])) return;
+  store.notify(t('rowRemoved', { n: index + 1 }), { tone: 'neutral', key: `removed:${path}`, action: { label: t('restore'), run: () => store.setValue(path, rows) } });
+}
 
 const iconButton = 'grid size-7 shrink-0 place-items-center rounded-md text-fg-3 hover:bg-surface-2 hover:text-fg disabled:opacity-30';
 
@@ -117,6 +134,7 @@ function useRowDrag(count: number, move: (from: number, to: number) => void) {
  */
 export function RepeaterField({ node }: { node: RepeaterNode }) {
   const labelId = useId();
+  const store = useStore();
   const field = useField(node);
   const mobile = useMediaQuery(MOBILE_QUERY);
   const blockTitle = useContext(BlockTitleContext);
@@ -132,7 +150,7 @@ export function RepeaterField({ node }: { node: RepeaterNode }) {
     next.splice(to, 0, row as Row);
     field.setValue(next);
   };
-  const remove = (index: number) => field.setValue(rows.filter((_, i) => i !== index));
+  const remove = (index: number) => removeRow(store, node.path, rows, index);
   const { rows: rowRefs, drag, gripProps, rowStyle } = useRowDrag(rows.length, move);
 
   const child = (template: FieldNode, index: number, hideLabel: boolean) => {
@@ -155,7 +173,7 @@ export function RepeaterField({ node }: { node: RepeaterNode }) {
 
   const removeButton = (index: number) =>
     !field.disabled && (
-      <button type="button" className={cx(iconButton, 'size-9 hover:text-danger-fg')} aria-label={`${t('remove')} ${index + 1}`} onClick={() => remove(index)}>
+      <button type="button" className={cx(iconButton, 'size-9 hover:text-danger-fg')} aria-label={removeLabel(index, node.label ?? blockTitle ?? undefined)} onClick={() => remove(index)}>
         <Icon name="x" />
       </button>
     );
@@ -258,6 +276,7 @@ export function RepeaterField({ node }: { node: RepeaterNode }) {
  */
 export function KeyValueField({ node }: { node: FieldNode & { keyLabel?: string; valueLabel?: string; addLabel?: string } }) {
   const id = useId();
+  const store = useStore();
   const field = useField(node);
   const rows = (Array.isArray(field.value) ? field.value : []) as { key: string; value: string }[];
   const update = (index: number, key: 'key' | 'value', value: string) => field.setValue(rows.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
@@ -279,18 +298,18 @@ export function KeyValueField({ node }: { node: FieldNode & { keyLabel?: string;
                 value={row.key}
                 onChange={(event) => update(index, 'key', event.target.value)}
                 readOnly={field.disabled}
-                aria-label={`${node.keyLabel} ${index + 1}`}
+                aria-label={t('inRow', { label: node.keyLabel ?? '', n: index + 1 })}
                 className={cx(input, 'min-w-0 flex-1')}
               />
               <input
                 value={row.value}
                 onChange={(event) => update(index, 'value', event.target.value)}
                 readOnly={field.disabled}
-                aria-label={`${node.valueLabel} ${index + 1}`}
+                aria-label={t('inRow', { label: node.valueLabel ?? '', n: index + 1 })}
                 className={cx(input, 'min-w-0 flex-1')}
               />
               {!field.disabled && (
-                <button type="button" className={cx(iconButton, 'size-9 hover:text-danger-fg')} aria-label={`${t('remove')} ${index + 1}`} onClick={() => field.setValue(rows.filter((_, i) => i !== index))}>
+                <button type="button" className={cx(iconButton, 'size-9 hover:text-danger-fg')} aria-label={removeLabel(index, node.label)} onClick={() => removeRow(store, node.path, rows, index)}>
                   <Icon name="x" />
                 </button>
               )}

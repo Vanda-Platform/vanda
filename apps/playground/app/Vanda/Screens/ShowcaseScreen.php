@@ -6,36 +6,36 @@ use App\Models\Page;
 use App\Models\User;
 use App\Vanda\Forms\ShowcaseForm;
 use Vanda\Actions\Button;
+use Vanda\Actions\Link;
 use Vanda\Attributes\Action;
 use Vanda\Fields\CheckBox;
 use Vanda\Fields\Code;
-use Vanda\Fields\Crop;
 use Vanda\Fields\CodeLanguage;
 use Vanda\Fields\Color;
+use Vanda\Fields\Crop;
 use Vanda\Fields\DateRange;
 use Vanda\Fields\DateTimer;
 use Vanda\Fields\Input;
 use Vanda\Fields\KeyValue;
 use Vanda\Fields\Label;
 use Vanda\Fields\Map;
-use Vanda\Fields\Matrix;
-use Vanda\Fields\Relation;
-use Vanda\Fields\TimeZone;
-use Vanda\Fields\Utm;
 use Vanda\Fields\Markdown;
+use Vanda\Fields\Matrix;
 use Vanda\Fields\NumberRange;
 use Vanda\Fields\Password;
 use Vanda\Fields\Radio;
 use Vanda\Fields\RadioButtons;
 use Vanda\Fields\Range;
+use Vanda\Fields\Relation;
 use Vanda\Fields\Repeater;
 use Vanda\Fields\RichText;
 use Vanda\Fields\Select;
 use Vanda\Fields\Switcher;
 use Vanda\Fields\TextArea;
+use Vanda\Fields\TimeZone;
 use Vanda\Fields\Upload;
 use Vanda\Fields\UploadTarget;
-use Vanda\Actions\Link;
+use Vanda\Fields\Utm;
 use Vanda\Layouts\ActionRow;
 use Vanda\Layouts\Alert;
 use Vanda\Layouts\EmptyState;
@@ -204,7 +204,7 @@ final class ShowcaseScreen extends Screen
                             ActionRow::make('Очистить кеш')->description('Страницы соберутся заново при следующем открытии.')
                                 ->buttons([Button::make('Очистить')->action($this->save(...))]),
                             ActionRow::make('Сбросить демо-данные')->description('Вернёт песочницу к исходному состоянию.')
-                                ->buttons([Button::make('Сбросить')->danger()->confirm('Все изменения в песочнице пропадут.', 'Сбросить данные?', 'Сбросить')->action($this->save(...))]),
+                                ->buttons([Button::make('Сбросить')->danger()->confirm('Все изменения в песочнице пропадут.', 'Сбросить песочницу?', 'Сбросить песочницу')->action($this->save(...))]),
                         ]),
                     ]),
                 ],

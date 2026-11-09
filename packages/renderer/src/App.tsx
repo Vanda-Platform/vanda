@@ -6,13 +6,14 @@ import defaultAuthBackground from './assets/auth-background.webp';
 import { VandaLogo, VandaSymbol } from './logo';
 import { NotificationsBell } from './Notifications';
 import { openPalette, Palette } from './Palette';
-import { DropDownView, type ButtonNode } from './nodes/actions';
+import { ConfirmDialog, DropDownView, type ButtonNode } from './nodes/actions';
 import { isFormLayout } from './formLayout';
 import { BlockList } from './nodes/layout';
 import { NodeList, NodeView } from './nodes/NodeView';
 import { COLLAPSED_GROUPS, DENSITY, FAVORITES, MENU_RAIL, useStoredList, useStoredValue } from './menuPrefs';
 import { t, tn } from './i18n';
-import { dirtyCount, useSnapshot, useStore } from './store';
+import { dirtyCount, dirtyFields, offerRestoreAfterReload, useSnapshot, useStore, type Store } from './store';
+import { getPath } from './expr';
 import { Avatar, buttonClass, cx, formatHotkey, Icon, Kbd, MOBILE_QUERY, useMediaQuery } from './ui';
 import type { ActionRef, Crumb, Density, MenuItem, Page, UiNode } from './types';
 
@@ -22,12 +23,22 @@ export function App() {
 
   useEffect(() => store.showFlash(), [store]);
 
-  // Leaving a form with unsaved changes asks first: links, the palette, the browser's back and close.
+  // Leaving a form with unsaved changes asks first, in the panel's own dialog (links, the palette);
+  // closing the tab or reloading gets the browser's question.
+  const [leaving, setLeaving] = useState<{ url: string; count: number } | null>(null);
   useEffect(() => {
     const off = router.on('before', (event) => {
       const visit = event.detail.visit;
       if (visit.method !== 'get' || new URL(String(visit.url), window.location.href).pathname === window.location.pathname) return;
-      if (dirtyCount(store.get()) > 0 && !window.confirm(t('leaveUnsaved'))) event.preventDefault();
+      if (leaveApproved) {
+        leaveApproved = false;
+        return;
+      }
+      const count = dirtyCount(store.get());
+      if (count > 0) {
+        event.preventDefault();
+        setLeaving({ url: String(visit.url), count });
+      }
     });
     const onUnload = (event: BeforeUnloadEvent) => {
       if (dirtyCount(store.get()) > 0) event.preventDefault();
@@ -195,6 +206,21 @@ export function App() {
           </div>
         </main>
       </div>
+      {leaving && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => !open && setLeaving(null)}
+          confirm={{ title: t('leaveTitle'), text: tn('leaveText', leaving.count), confirm: t('leave') }}
+          danger
+          icon="alert"
+          label={t('leave')}
+          cancelLabel={t('stay')}
+          onConfirm={() => {
+            leaveApproved = true;
+            router.visit(leaving.url);
+          }}
+        />
+      )}
       {!mobile && !roomy && (
         <ModalOverlay isOpen={drawer} onOpenChange={setDrawer} isDismissable className="fixed inset-0 z-40 bg-(--v-scrim) data-[entering]:animate-[vanda-fade-in_160ms_ease-out] motion-reduce:animate-none">
           <Modal className="fixed inset-y-0 left-0 flex border-r border-line bg-bg shadow-pop outline-none data-[entering]:animate-[vanda-drawer-in_220ms_cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:animate-none">
@@ -212,6 +238,9 @@ export function App() {
     </div>
   );
 }
+
+/** The user chose «Уйти без сохранения»: the next visit goes without asking again. */
+let leaveApproved = false;
 
 /** The address of the page shown last: a new one moves the focus to its title. */
 let lastPath: string | null = null;
@@ -1050,10 +1079,22 @@ function Toasts() {
           role={toast.tone === 'danger' ? 'alert' : 'status'}
           className="pointer-events-auto flex w-[360px] max-w-[calc(100vw-24px)] items-start max-md:w-full gap-2.5 rounded-xl border border-line bg-surface py-3 pr-3 pl-3.5 shadow-pop"
         >
-          <span className={cx('mt-0.5', toast.tone === 'danger' ? 'text-danger' : 'text-success')}>
-            <Icon name={toast.tone === 'danger' ? 'alert' : 'success'} />
+          <span className={cx('mt-0.5', toast.tone === 'danger' ? 'text-danger' : toast.tone === 'neutral' ? 'text-fg-3' : 'text-success')}>
+            <Icon name={toast.tone === 'danger' ? 'alert' : toast.tone === 'neutral' ? 'undo' : 'success'} />
           </span>
           <span className="flex-grow font-medium">{toast.message}</span>
+          {toast.action && (
+            <button
+              type="button"
+              onClick={() => {
+                toast.action!.run();
+                store.dismissToast(toast.id);
+              }}
+              className="-my-1 rounded-md px-2 py-1 font-semibold text-accent-fg hover:bg-accent-soft"
+            >
+              {toast.action.label}
+            </button>
+          )}
           <button type="button" aria-label={t('close')} onClick={() => store.dismissToast(toast.id)} className="text-fg-3 hover:text-fg">
             <Icon name="x" />
           </button>
@@ -1061,6 +1102,24 @@ function Toasts() {
       ))}
     </div>
   );
+}
+
+/**
+ * «Отменить» in the unsaved changes bar: the page loads afresh (so whatever the server drew for the
+ * edited values goes too), and a toast offers «Вернуть», which types the edited values back in
+ * (their reactions run again, as if the user had typed them).
+ */
+function discardChanges(store: Store) {
+  const before = store.get();
+  const fields = dirtyFields(before);
+  // A Repeater and the fields of its rows both differ: the Repeater's own value brings back the rows.
+  const edited = fields
+    .filter((field) => !fields.some((other) => other !== field && field.path.startsWith(`${other.path}.`)))
+    .map((field) => ({ path: field.path, value: getPath(before.page.state, field.path) }));
+
+  // The reload mounts a new store: the offer waits for it (offerRestoreAfterReload).
+  offerRestoreAfterReload(t('changesDiscarded'), t('restore'), edited);
+  router.visit(window.location.href, { preserveScroll: true, replace: true });
 }
 
 /** "Unsaved changes · 3 fields · Discard · Save" at the bottom of a form, as in the design. */
@@ -1090,12 +1149,7 @@ function UnsavedBar({ mobile }: { mobile: boolean }) {
       <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-warning" />
       <span className={cx('font-medium', mobile ? 'flex-1 text-[13.5px] leading-tight' : 'text-[14px]')}>{mobile ? tn('changedFields', count) : t('unsaved')}</span>
       {!mobile && <span className="text-[13.5px] text-fg-3">{tn('changedFields', count)}</span>}
-      <button
-        type="button"
-        className={buttonClass('ghost', 'sm')}
-        disabled={running}
-        onClick={() => router.visit(window.location.href, { preserveScroll: true, replace: true })}
-      >
+      <button type="button" className={buttonClass('ghost', 'sm')} disabled={running} onClick={() => discardChanges(store)}>
         {t('discard')}
       </button>
       <button type="button" className={buttonClass('primary', 'sm')} disabled={running} onClick={() => void store.runAction(save.id, save.action!)}>

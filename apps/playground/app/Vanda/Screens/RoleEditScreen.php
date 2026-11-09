@@ -3,6 +3,7 @@
 namespace App\Vanda\Screens;
 
 use App\Vanda\Forms\RoleForm;
+use Illuminate\Translation\MessageSelector;
 use Vanda\Access\Permissions;
 use Vanda\Access\Role;
 use Vanda\Actions\Button;
@@ -44,7 +45,8 @@ final class RoleEditScreen extends Screen
     public function commandBar(): iterable
     {
         return [
-            Button::make('Удалить')->icon('trash')->danger()->confirm('Пользователи потеряют права этой роли.', 'Удалить роль?', 'Удалить')
+            Button::make('Удалить')->icon('trash')->danger()
+                ->confirm($this->whoLosesTheRole(), "Удалить роль «{$this->role->name}»?", 'Удалить роль')
                 ->action($this->delete(...))->visible($this->role->exists),
             Button::make('Сохранить')->icon('save')->primary()->hotkey('mod+s')->action($this->save(...)),
         ];
@@ -80,6 +82,16 @@ final class RoleEditScreen extends Screen
 
         // Saving keeps the user on the record; a new record opens at its own address.
         return $created ? Result::toast('Роль добавлена')->redirect(self::class, ['role' => $this->role]) : Result::toast('Роль сохранена');
+    }
+
+    /** Whom deleting the role affects, in numbers: the dialog names the people it touches. */
+    private function whoLosesTheRole(): string
+    {
+        $count = $this->role->exists ? $this->role->users()->count() : 0;
+
+        return $count === 0
+            ? 'Роль никому не назначена.'
+            : sprintf('%d %s права этой роли.', $count, (new MessageSelector)->choose('пользователь потеряет|пользователя потеряют|пользователей потеряют', $count, 'ru'));
     }
 
     #[Action(validate: false)]

@@ -94,7 +94,7 @@ final class UserEditScreen extends Screen
             DropDown::make()->icon('more')->list([
                 Link::make('Написать письмо')->icon('mail')->href('mailto:'.$this->user->email),
                 Button::make('Удалить')->icon('trash')->danger()
-                    ->confirm('Учётная запись будет удалена без возможности восстановления.', 'Удалить пользователя?', 'Удалить')
+                    ->confirm('Учётная запись будет удалена без возможности восстановления.', "Удалить пользователя «{$this->user->name}»?", 'Удалить пользователя')
                     ->action($this->delete(...)),
             ])->visible($other),
             Button::make('Сохранить')->primary()->hotkey('mod+s')->action($this->save(...)),
@@ -158,7 +158,7 @@ final class UserEditScreen extends Screen
                         ->description('Учётная запись и её файлы будут удалены без возможности восстановления.')
                         ->buttons([
                             Button::make('Удалить')->icon('trash')->danger()
-                                ->confirm('Учётная запись будет удалена без возможности восстановления.', 'Удалить пользователя?', 'Удалить')
+                                ->confirm('Учётная запись будет удалена без возможности восстановления.', "Удалить пользователя «{$this->user->name}»?", 'Удалить пользователя')
                                 ->action($this->delete(...)),
                         ]),
                 ]),

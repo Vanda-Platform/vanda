@@ -144,7 +144,13 @@ final class Button extends Node
 
     /**
      * Ask before running the action. `danger` paints the confirm button red even
-     * when the button itself is quiet (e.g. a ghost "Delete" in a table row).
+     * when the button itself is quiet (e.g. a ghost "Delete" in a table row); a dangerous
+     * dialog opens with the focus on «Отмена». Name the record in the title, say what is lost
+     * (and who is affected) in the text, and put the verb and the object on the button. In a
+     * bulk action `:count` becomes the number of rows chosen:
+     *
+     *     ->confirm('Учётная запись будет удалена без возможности восстановления.', "Удалить пользователя «{$user->name}»?", 'Удалить пользователя')
+     *     ->confirm('Учётные записи будут удалены без возможности восстановления.', 'Удалить выбранных пользователей (:count)?', 'Удалить (:count)')
      */
     public function confirm(?string $text = null, ?string $title = null, ?string $confirmLabel = null, bool $danger = false): self
     {
