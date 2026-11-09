@@ -25,6 +25,9 @@ final class SearchResult
 
     private ?string $screen = null;
 
+    /** @var array<string, mixed> */
+    private array $parameters = [];
+
     private ?string $icon = null;
 
     private ?string $avatar = null;
@@ -54,6 +57,7 @@ final class SearchResult
     public function to(string $screen, array $parameters = []): self
     {
         $this->screen = $screen;
+        $this->parameters = $parameters;
         $this->href = app(ScreenRegistry::class)->url($screen, $parameters);
 
         return $this;
@@ -96,7 +100,7 @@ final class SearchResult
 
     public function isAllowed(): bool
     {
-        return $this->href !== null && ($this->screen === null || Authorizer::allowsScreenClass($this->screen));
+        return $this->href !== null && ($this->screen === null || Authorizer::allowsScreen($this->screen, $this->parameters));
     }
 
     /**

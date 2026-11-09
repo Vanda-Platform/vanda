@@ -6,6 +6,7 @@ namespace Vanda;
 
 use Closure;
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -46,9 +47,20 @@ final class VandaServiceProvider extends ServiceProvider
         $this->app->singleton(ActivityLog::class);
     }
 
+    /**
+     * Development mode (sources in the IR, every page checked by SchemaCheck): `vanda.dev` when
+     * it is set, else on locally and in the application's tests (APP_ENV=testing).
+     *
+     *     <env name="VANDA_DEV" value="false"/>   // phpunit.xml: tests without the page checks
+     */
+    public static function devMode(Application $app): bool
+    {
+        return (bool) ($app['config']->get('vanda.dev') ?? ($app->environment('local') || $app->runningUnitTests()));
+    }
+
     public function boot(): void
     {
-        Node::$captureSource = (bool) (config('vanda.dev') ?? $this->app->isLocal());
+        Node::$captureSource = self::devMode($this->app);
         // The same development mode checks every page for paths, modals and icons that do not exist.
         SchemaCheck::$enabled = Node::$captureSource;
 

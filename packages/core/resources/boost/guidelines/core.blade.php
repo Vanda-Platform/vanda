@@ -9,7 +9,7 @@ Vanda (`vanda/core`) is an admin panel for Laravel built from screens. Every pag
 - Buttons point at actions with first-class callables: `->action($this->save(...))`. There are no string method names and no magic; variants are methods (`->primary()`, `->danger()`) or enums.
 - Saving stays on the screen: `return Result::toast(__('Saved'));`. A new record opens at its edit screen: `Result::toast(__('Created'))->redirect(self::class, ['user' => $this->user])`. Only deleting goes back to the list.
 - An action that cannot be undone asks first and names the record: `->confirm(__('The account is deleted for good.'), __('Delete user «:name»?', ['name' => $user->name]), __('Delete user'))`.
-- Guard screens and actions with `#[Can('platform.users')]`; buttons and menu items that lead to forbidden things disappear by themselves, and the server checks again.
+- Guard screens and actions with `#[Can('platform.users')]`; buttons, links and menu items that lead to forbidden things disappear by themselves (`->visible(true)` does not bring them back), and the server checks again.
 - Search text a user typed with `Vanda\Support\Search::apply($query, ['name', 'email'], $text)`, never `where($column, 'like', …)`: it ignores case in every alphabet.
 - Icons are names from the renderer's set (`'save'`, `'trash'`, `'users'`, `'plus'`); an unknown one fails the page check with the list.
 

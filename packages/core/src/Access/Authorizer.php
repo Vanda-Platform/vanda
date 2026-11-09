@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vanda\Access;
 
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use ReflectionClass;
 use ReflectionMethod;
@@ -33,6 +34,33 @@ final class Authorizer
         $can = self::attribute(new ReflectionClass($screen));
 
         return self::$allowAll || $can === null || $can->model !== null || Gate::allows($can->ability);
+    }
+
+    /**
+     * May the user open this screen with these route parameters? For links and search results:
+     * an ability with a model is checked against the model when the parameter of that name is
+     * one (`['user' => $user]`); with only an id the screen is assumed open, it checks itself.
+     *
+     *     Authorizer::allowsScreen(UserEditScreen::class, ['user' => $user])
+     *
+     * @param class-string $screen
+     * @param array<string, mixed> $parameters
+     */
+    public static function allowsScreen(string $screen, array $parameters = []): bool
+    {
+        $can = self::attribute(new ReflectionClass($screen));
+
+        if ($can === null) {
+            return true;
+        }
+
+        if ($can->model === null) {
+            return self::allows($can, null);
+        }
+
+        $model = $parameters[$can->model] ?? null;
+
+        return ! $model instanceof Model || self::allows($can, $model);
     }
 
     public static function authorizeScreen(Screen $screen): void

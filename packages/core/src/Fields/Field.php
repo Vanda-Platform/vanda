@@ -85,9 +85,11 @@ abstract class Field extends Node
         return $this;
     }
 
-    /** Marks the field as required in the UI. Add the `required` rule to validate it. */
     /**
-     * Shows the star and validates the field as `required` on the server.
+     * Shows the star and validates the field as `required` on the server, also in every row of
+     * a Repeater:
+     *
+     *     Input::make('form.title')->label('Заголовок')->required()
      */
     public function required(bool $required = true): static
     {
@@ -111,8 +113,10 @@ abstract class Field extends Node
     }
 
     /**
-     * Validation rules for a field that is not backed by a Form object.
-     * Fields of a Form are validated by the Form's own rules.
+     * Validation rules of this field. On a field of a Form they are added to the Form's own
+     * rules for that property; inside a Repeater they apply to the field in every row:
+     *
+     *     Input::make('form.slug')->rules('alpha_dash|max:64')
      *
      * @param string|list<mixed>|Closure(): (string|list<mixed>) $rules
      */

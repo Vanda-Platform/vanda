@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vanda\Actions;
 
+use Vanda\Access\Authorizer;
 use Vanda\Schema\SchemaContext;
 use Vanda\Schema\Node;
 use Vanda\Screen\ScreenRegistry;
@@ -39,17 +40,22 @@ final class Link extends Node
     {
         $this->href = $url;
         $this->external = $external;
+        $this->forbidden = false;
 
         return $this;
     }
 
     /**
+     * A link to another screen. A screen the user may not open (#[Can] on its class, checked
+     * against a model passed here) hides the link, also after ->visible(true).
+     *
      * @param class-string $screen
      * @param array<string, mixed> $parameters
      */
     public function to(string $screen, array $parameters = []): self
     {
         $this->href = app(ScreenRegistry::class)->url($screen, $parameters);
+        $this->forbidden = ! Authorizer::allowsScreen($screen, $parameters);
 
         return $this;
     }

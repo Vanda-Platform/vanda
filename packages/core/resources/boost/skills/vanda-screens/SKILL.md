@@ -93,7 +93,7 @@ Every field takes a path and has `->label()`, `->help()`, `->placeholder()`, `->
 | `CheckBox`, `Switcher`, `Radio`, `RadioButtons` | flags and short choices |
 | `DateTimer`, `DateRange`, `NumberRange`, `Range`, `Color`, `TimeZone`, `Map` | dates, ranges and the rest |
 | `Upload` | files: `->image()`, `->multiple()->maxFiles(5)`, `->accept('image/*,.pdf')`, `->maxSize(5)`, `->crop(Crop::size(1200, 400))`, `->target(UploadTarget::RelativeUrl)` |
-| `Repeater` | rows of the same fields: `Repeater::make('form.specs')->fields([Input::make('name'), Input::make('value')])`; child paths are relative to the row |
+| `Repeater` | rows of the same fields: `Repeater::make('form.specs')->fields([Input::make('name')->required(), Input::make('value')])`; child paths are relative to the row, `->required()` and `->rules()` of a child apply in every row |
 | `KeyValue`, `Matrix`, `Utm`, `PermissionsField` | pairs, grids, UTM tags, role permissions |
 
 ## Reacting to input
@@ -205,7 +205,7 @@ Panel::search(fn (string $query) => Search::apply(User::query(), ['name', 'email
     ->map(fn (User $user) => SearchResult::make($user->name)->subtitle($user->email)->to(UserEditScreen::class, ['user' => $user])));
 ```
 
-Menu items and search results that lead to screens the user may not open are hidden. Notifications for the bell are Laravel database notifications with `Vanda\Notifications\PanelMessage`. Signing in as another user goes only through `Vanda\Access\Impersonation::loginAs()` inside an `#[Action]` guarded by `#[Can]`.
+Menu items, search results and `Link::make(…)->to(…)` that lead to screens the user may not open are hidden, and so are buttons and modal toggles whose `#[Action]` is forbidden, whatever `->visible()` says. The server checks `#[Can]` of an action before anything else in the request. Notifications for the bell are Laravel database notifications with `Vanda\Notifications\PanelMessage`. Signing in as another user goes only through `Vanda\Access\Impersonation::loginAs()` inside an `#[Action]` guarded by `#[Can]`.
 
 ## Check your work
 
@@ -230,7 +230,7 @@ it('saves the profile and stays on the screen', function () {
 });
 ```
 
-`set()` accepts only paths the user can edit on the screen (a Repeater row inside one too); a typo fails with "Did you mean …?" instead of passing on an ignored value. To prove the server ignores a value the browser was not offered (a read-only field, a locked id), send it with `->tamper('form.role', 'admin')`.
+`set()` accepts only paths the user can edit on the screen (a Repeater row inside one too); a typo fails with "Did you mean …?" instead of passing on an ignored value. To prove the server ignores a value the browser was not offered (a read-only field, a locked id, a field in a hidden section or hidden by `visibleWhen`), send it with `->tamper('form.role', 'admin')`. Pages are checked in tests as in development (`APP_ENV=testing`), so a wrong path or icon fails the test; `VANDA_DEV=false` turns that off.
 
 Also: `->assertHasErrors(['form.email'])`, `->assertSet('form.city', null)`, `->assertVisible('form.vat')`, `->assertHidden(…)`, `->assertNode('id', fn (array $node) => …)`, `->assertRedirect(…)`, `->callBulk('deleteMany', [1, 2])`, `->options('form.manager', 'ann')` (what a Relation offers).
 

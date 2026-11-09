@@ -64,9 +64,8 @@ final class ModalToggle extends Node
         if (! ActionCall::isAction($target::class, $name)) {
             throw VandaException::actionNotMarked($target::class, $name);
         }
-        if (! Authorizer::allowsAction($target, $name, $arguments)) {
-            $this->hidden = true;
-        }
+        // Before or after ->visible(): a toggle that loads through a forbidden action is never shown.
+        $this->forbidden = ! Authorizer::allowsAction($target, $name, $arguments);
 
         $this->load = ['name' => $name, 'args' => ActionCall::normalizeArguments($arguments), 'screen' => $target::class];
 

@@ -68,9 +68,8 @@ final class Button extends Node
     {
         [$target, $name] = ActionCall::target($method);
 
-        if (! Authorizer::allowsAction($target, $name, $arguments)) {
-            $this->hidden = true;
-        }
+        // Before or after ->visible(): a forbidden action is never shown.
+        $this->forbidden = ! Authorizer::allowsAction($target, $name, $arguments);
 
         $this->screen = $target::class;
         $this->action = $name;

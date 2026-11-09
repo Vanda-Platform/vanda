@@ -102,6 +102,21 @@ final class Tree
     }
 
     /**
+     * Sent to the browser at all: the node and every block around it are visible on the server
+     * (->visible(), #[Can]). Unlike isShown(), browser conditions (visibleWhen) are not read.
+     */
+    public function isRendered(Node $node): bool
+    {
+        foreach ([...($this->ancestors[(string) $node->getId()] ?? []), $node] as $current) {
+            if (! $current->isVisible()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Nodes that must be re-resolved because a path they depend on changed.
      *
      * @param list<string> $changed

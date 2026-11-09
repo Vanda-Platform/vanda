@@ -265,15 +265,20 @@ final class ScreenTester
     private function ensureEditable(ScreenRuntime $runtime, string $path): void
     {
         $fields = $runtime->tree()->fields();
+        $matching = array_values(array_filter(
+            $fields,
+            static fn (Field $field) => $path === $field->path() || str_starts_with($path, $field->path().'.'),
+        ));
 
-        foreach ($fields as $field) {
-            if ($path === $field->path() || str_starts_with($path, $field->path().'.')) {
-                if (! $field->isEditable() || ! $field->isVisible()) {
-                    throw VandaException::testSetsReadonlyField($this->screen, $path, $field->path());
+        if ($matching !== []) {
+            // Inside a hidden section, card or tab the field is never sent to the browser either.
+            foreach ($matching as $field) {
+                if ($field->isEditable() && $runtime->tree()->isRendered($field)) {
+                    return;
                 }
-
-                return;
             }
+
+            throw VandaException::testSetsReadonlyField($this->screen, $path, $matching[0]->path());
         }
 
         $paths = array_values(array_unique(array_map(static fn (Field $field) => $field->path(), $fields)));

@@ -9,8 +9,9 @@ return [
     'brand' => env('VANDA_BRAND', '#12805C'),
 
     /*
-     * Record the PHP file and line where every schema node was created and
-     * expose it in the IR as `source`. Enabled automatically in local.
+     * Development mode: record the PHP file and line where every schema node was created
+     * (`source` in the IR) and check every page for paths, modals and icons that do not exist.
+     * On by itself locally and in tests (APP_ENV=testing); true or false decides instead.
      */
     'dev' => env('VANDA_DEV'),
 

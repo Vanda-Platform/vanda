@@ -48,7 +48,7 @@ use Vanda\VandaException;
  *   boot()      → #[Can] → query() with route parameters (models bound by type) → #[Can] with model
  *   restore()   → state from the signed snapshot of the previous response
  *   react()     → client edits on whitelisted paths → #[Updated] hooks → patches
- *   act()       → client edits → hooks → validation of the button's scope → #[Action] → Result
+ *   act()       → #[Can] of the action → client edits → hooks → validation of the button's scope → #[Action] → Result
  */
 final class ScreenRuntime
 {
@@ -256,29 +256,46 @@ final class ScreenRuntime
     }
 
     /**
-     * Applies browser values, but only to paths of editable fields that exist
-     * on this screen and belong to non-locked properties.
+     * Applies browser values, but only to paths of editable fields that the user could see:
+     * fields that exist on this screen, belong to non-locked properties, are sent to the browser
+     * (the field and every section, card or tab around it are visible on the server) and are not
+     * hidden by a visibleWhen of their own or of a block around them, read on the state the
+     * browser sent (what it showed). Validation skips the same fields (Tree::isShown()).
      *
      * @param array<string, mixed> $client
      * @return list<string> paths that actually changed
      */
     public function applyClientState(array $client): array
     {
+        $tree = $this->tree();
         $before = $this->state();
-        $next = $this->values();
+        $current = $this->values();
+        $next = $current;
+        $applied = [];
 
-        foreach ($this->tree()->fields() as $field) {
+        foreach ($tree->fields() as $field) {
             $path = $field->path();
             $root = explode('.', $path, 2)[0];
 
-            if ($field->isEditable() && $field->isVisible() && ScreenState::isClientProperty($this->screen, $root) && Arr::has($client, $path)) {
+            if ($field->isEditable() && $tree->isRendered($field) && ScreenState::isClientProperty($this->screen, $root) && Arr::has($client, $path)) {
                 $raw = Arr::get($client, $path);
                 $clean = $field->sanitize($raw, Arr::get($next, $path));
                 Arr::set($next, $path, $clean);
+                $applied[$path]['fields'][] = $field;
+                $applied[$path]['sanitized'] = ($applied[$path]['sanitized'] ?? false) || $clean !== $raw;
+            }
+        }
 
-                if ($clean !== $raw) {
-                    $this->sanitized[] = $path;
-                }
+        // The browser draws a field with visibleWhen from its own values, which are now in $next:
+        // a field it did not show (in none of its places) keeps the value the server had.
+        $sent = $next;
+        foreach ($applied as $path => $entry) {
+            $shown = array_filter($entry['fields'], static fn (Field $field) => $tree->isShown($field, $sent)) !== [];
+
+            if (! $shown) {
+                Arr::set($next, $path, Arr::get($current, $path));
+            } elseif ($entry['sanitized']) {
+                $this->sanitized[] = $path;
             }
         }
 
@@ -395,6 +412,10 @@ final class ScreenRuntime
             throw new HttpException(403, VandaException::invalidActionToken($this->screen::class, $name)->getMessage());
         }
 
+        // #[Can] first: a forbidden call runs no #[Updated] hook and learns nothing from validation.
+        $bound = ActionCall::bind($this->screen, $name, $arguments);
+        Authorizer::authorizeAction($this->screen, $name, $bound);
+
         $this->runUpdatedHooks($this->applyClientState($client));
 
         $scope = array_map(static fn (Field $field) => $field->path(), $this->tree()->fieldsInScope($trigger));
@@ -402,7 +423,7 @@ final class ScreenRuntime
             return [422, ['errors' => $errors, 'snapshot' => $this->snapshot()]];
         }
 
-        $bound = ActionCall::bind($this->screen, $name, $arguments);
+        // Again for the record the action gets: a hook may have put another one on the screen.
         Authorizer::authorizeAction($this->screen, $name, $bound);
 
         try {
@@ -549,7 +570,17 @@ final class ScreenRuntime
 
             if ($field instanceof Repeater) {
                 foreach ($field->getFields() as $child) {
+                    if (! $child->isVisible()) {
+                        continue;
+                    }
+
                     $childRules = [...$child->getRules(), ...$child->implicitRules(new Get($state))];
+
+                    // In every row, as on the page: the star of ->required() is a rule too.
+                    if ($child->isRequired() && ! in_array('required', $childRules, true)) {
+                        array_unshift($childRules, 'required');
+                    }
+
                     if ($childRules !== []) {
                         $rules[$path.'.*.'.$child->path()] = $childRules;
                         $attributes[$path.'.*.'.$child->path()] = $child->getLabel() ?? $child->path();

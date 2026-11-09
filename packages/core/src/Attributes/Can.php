@@ -12,7 +12,8 @@ use Attribute;
  *     #[Can('platform.users')]               // a Vanda permission or any Gate ability
  *     #[Can('update', model: 'user')]         // a policy, checked against $this->user / the `user` argument
  *
- * Buttons and menu items that lead to a forbidden screen or action are hidden automatically.
+ * Buttons, modal toggles, links and menu items that lead to a forbidden screen or action are
+ * hidden automatically, also when ->visible(true) is called on them; the server checks again.
  */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD)]
 final class Can

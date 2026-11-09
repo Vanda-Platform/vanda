@@ -21,6 +21,9 @@ final class MenuItem
 
     private ?string $screen = null;
 
+    /** @var array<string, mixed> */
+    private array $parameters = [];
+
     private ?string $ability = null;
 
     private ?string $icon = null;
@@ -45,6 +48,7 @@ final class MenuItem
     public function to(string $screen, array $parameters = []): self
     {
         $this->screen = $screen;
+        $this->parameters = $parameters;
         $this->href = app(ScreenRegistry::class)->url($screen, $parameters);
 
         return $this;
@@ -103,7 +107,7 @@ final class MenuItem
     public function isAllowed(): bool
     {
         return ($this->ability === null || Gate::allows($this->ability))
-            && ($this->screen === null || Authorizer::allowsScreenClass($this->screen));
+            && ($this->screen === null || Authorizer::allowsScreen($this->screen, $this->parameters));
     }
 
     public function getHref(): ?string

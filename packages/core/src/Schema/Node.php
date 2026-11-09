@@ -19,6 +19,12 @@ abstract class Node
 
     protected bool $hidden = false;
 
+    /**
+     * Leads to an action or screen the user may not use (#[Can]). Kept apart from $hidden so that
+     * ->visible(true) never shows it again, whatever order the calls come in.
+     */
+    protected bool $forbidden = false;
+
     protected ?Expr $visibleWhen = null;
 
     /** @var list<string> */
@@ -51,7 +57,13 @@ abstract class Node
         return $this->id;
     }
 
-    /** Show or hide the node on the server. Hidden nodes are not sent to the browser. */
+    /**
+     * Show or hide the node on the server. Hidden nodes are not sent to the browser, and fields
+     * inside a hidden node take no values from it. A button, modal toggle or link that leads to
+     * something forbidden by #[Can] stays hidden: ->visible(true) does not bring it back.
+     *
+     *     Button::make('Войти как пользователь')->action($this->impersonate(...))->visible(! $this->user->is(auth()->user()))
+     */
     public function visible(bool $visible = true): static
     {
         $this->hidden = ! $visible;
@@ -88,7 +100,7 @@ abstract class Node
 
     public function isVisible(): bool
     {
-        return ! $this->hidden;
+        return ! $this->hidden && ! $this->forbidden;
     }
 
     public function getVisibleWhen(): ?Expr
