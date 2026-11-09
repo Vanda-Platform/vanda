@@ -18,6 +18,12 @@ use Vanda\Screen\Screen;
 final class Authorizer
 {
     /**
+     * @internal vanda:check builds every screen for someone who may do everything, so the parts
+     * some roles never see are checked too. Never set it in a request.
+     */
+    public static bool $allowAll = false;
+
+    /**
      * Abilities that need no model can be checked before the screen loads anything.
      *
      * @param class-string $screen
@@ -26,7 +32,7 @@ final class Authorizer
     {
         $can = self::attribute(new ReflectionClass($screen));
 
-        return $can === null || $can->model !== null || Gate::allows($can->ability);
+        return self::$allowAll || $can === null || $can->model !== null || Gate::allows($can->ability);
     }
 
     public static function authorizeScreen(Screen $screen): void
@@ -72,6 +78,10 @@ final class Authorizer
 
     private static function allows(Can $can, mixed $model): bool
     {
+        if (self::$allowAll) {
+            return true;
+        }
+
         return $model === null ? Gate::allows($can->ability) : Gate::allows($can->ability, [$model]);
     }
 

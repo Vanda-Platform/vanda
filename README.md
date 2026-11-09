@@ -118,6 +118,7 @@ Layout::tree()->query(fn () => Page::query())->orderBy('position')
 ```bash
 php artisan vanda:screens                         # every screen, route and action
 php artisan vanda:inspect /admin/users/1/edit     # node tree, rules, dependencies, PHP source lines
+php artisan vanda:check --json                    # build every screen; problems with file:line, exit 1 if any
 ```
 
 In development, in tests and in `vanda:inspect`, every page is checked before it leaves the server: a field path,

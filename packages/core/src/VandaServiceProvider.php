@@ -12,10 +12,12 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Vanda\Access\Authorizer;
 use Vanda\Access\PermissionRegistry;
 use Vanda\Activity\ActivityLog;
 use Vanda\Auth\LoginScreen;
 use Vanda\Console\AdminCommand;
+use Vanda\Console\CheckCommand;
 use Vanda\Console\InspectCommand;
 use Vanda\Console\ScreensCommand;
 use Vanda\Http\AssetController;
@@ -61,6 +63,9 @@ final class VandaServiceProvider extends ServiceProvider
 
         // Registered Vanda permissions become Gate abilities: $user->can('platform.users').
         Gate::before(function ($user, string $ability) {
+            if (Authorizer::$allowAll) {
+                return true;
+            }
             if (! method_exists($user, 'hasAccess') || ! app(PermissionRegistry::class)->has($ability)) {
                 return null;
             }
@@ -122,7 +127,7 @@ final class VandaServiceProvider extends ServiceProvider
         });
 
         if ($this->app->runningInConsole()) {
-            $this->commands([AdminCommand::class, InspectCommand::class, ScreensCommand::class]);
+            $this->commands([AdminCommand::class, CheckCommand::class, InspectCommand::class, ScreensCommand::class]);
         }
     }
 }
