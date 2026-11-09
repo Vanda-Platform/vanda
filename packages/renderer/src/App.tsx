@@ -1,12 +1,13 @@
 import { Link, router } from '@inertiajs/react';
 import { useEffect, useLayoutEffect, useRef, useState, type ContextType, type ReactNode } from 'react';
-import { Button as AriaButton, Dialog, DialogTrigger, Modal, ModalOverlay, Popover, Tooltip, TooltipTriggerStateContext } from 'react-aria-components';
+import { Button as AriaButton, Dialog, DialogTrigger, Menu, MenuItem as AriaMenuItem, MenuTrigger, Modal, ModalOverlay, Popover, Tooltip, TooltipTriggerStateContext } from 'react-aria-components';
 import { Inspector } from './Inspector';
 import defaultAuthBackground from './assets/auth-background.webp';
 import { VandaLogo, VandaSymbol } from './logo';
 import { NotificationsBell } from './Notifications';
 import { openPalette, Palette } from './Palette';
 import { DropDownView, type ButtonNode } from './nodes/actions';
+import { isFormLayout } from './formLayout';
 import { BlockList } from './nodes/layout';
 import { NodeList, NodeView } from './nodes/NodeView';
 import { COLLAPSED_GROUPS, DENSITY, FAVORITES, MENU_RAIL, useStoredList, useStoredValue } from './menuPrefs';
@@ -44,7 +45,15 @@ export function App() {
   const brand = { '--v-accent': page.app.brand } as React.CSSProperties;
   const mobile = useMediaQuery(MOBILE_QUERY);
   const [density] = useDensity();
-  const [rail, toggleRail] = useRail();
+  const [rail, toggleRail, roomy] = useRail();
+  // Below 1024px the menu stays a rail and opens over the content when asked.
+  const [drawer, setDrawer] = useState(false);
+  useEffect(() => router.on('navigate', () => setDrawer(false)), []);
+  useEffect(() => {
+    if (roomy) setDrawer(false);
+  }, [roomy]);
+  // A page of forms keeps to 1120px (its header too); lists and dashboards take the full width.
+  const measure = isFormLayout(page.layout) && 'max-w-280';
 
   useEffect(() => {
     document.documentElement.dataset.density = density;
@@ -112,7 +121,7 @@ export function App() {
               <MobileTopBar crumbs={crumbsFor(page)} name={page.app.name} />
             ) : (
               <div className="flex min-w-0 items-center gap-2.5">
-                <MenuToggle rail={rail} onToggle={toggleRail} />
+                <MenuToggle expanded={roomy ? !rail : drawer} controls={roomy ? 'vanda-menu' : 'vanda-menu-drawer'} onToggle={roomy ? toggleRail : () => setDrawer(true)} />
                 <Breadcrumbs crumbs={crumbsFor(page)} />
               </div>
             )}
@@ -127,38 +136,44 @@ export function App() {
             {/* A record's screen (with an avatar) gets the design's centred header with a rule under it. */}
             <section
               className={cx(
-                'flex flex-wrap justify-between gap-4',
                 mobile ? 'px-4' : 'px-8 compact:px-6',
-                page.avatar ? cx('items-center gap-5 border-b border-line', mobile ? 'py-5' : 'py-7 compact:py-5') : cx('items-end pb-5 compact:pb-4', mobile ? 'pt-5' : 'pt-7 compact:pt-5'),
+                page.avatar ? cx('border-b border-line', mobile ? 'py-5' : 'py-7 compact:py-5') : cx('pb-5 compact:pb-4', mobile ? 'pt-5' : 'pt-7 compact:pt-5'),
               )}
             >
-              <div className="flex min-w-0 items-center gap-4">
-                {page.avatar && <Avatar initials={page.avatar.initials} hue={page.avatar.hue} image={page.avatar.image} size="lg" />}
-                <div className="flex min-w-0 flex-col gap-1">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    {page.title && <h1 className={cx('font-semibold tracking-[-0.015em]', mobile ? 'text-[20px] leading-7' : 'text-[24px] leading-8')}>{page.title}</h1>}
-                    {page.badge && <NodeView node={page.badge} />}
+              <div className={cx('flex flex-wrap justify-between', page.avatar ? 'items-center gap-5' : 'items-end gap-4', measure)}>
+                <div className="flex min-w-0 items-center gap-4">
+                  {page.avatar && <Avatar initials={page.avatar.initials} hue={page.avatar.hue} image={page.avatar.image} size="lg" />}
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      {page.title && <h1 className={cx('font-semibold tracking-[-0.015em]', mobile ? 'text-[20px] leading-7' : 'text-[24px] leading-8')}>{page.title}</h1>}
+                      {page.badge && <NodeView node={page.badge} />}
+                    </div>
+                    {page.description && <p className="text-fg-2">{page.description}</p>}
                   </div>
-                  {page.description && <p className="text-fg-2">{page.description}</p>}
                 </div>
+                {page.commandBar.length > 0 && (mobile ? <FoldedCommandBar nodes={page.commandBar} phone /> : <CommandBar nodes={page.commandBar} />)}
               </div>
-              {page.commandBar.length > 0 &&
-                (mobile ? (
-                  <MobileCommandBar nodes={page.commandBar} />
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    <NodeList nodes={page.commandBar} />
-                  </div>
-                ))}
             </section>
 
-            <div className={cx('flex flex-col gap-4', mobile ? 'px-4 pb-8' : 'px-8 pb-10 compact:px-6 compact:pb-8', page.avatar && (mobile ? 'pt-5' : 'pt-8 compact:pt-6'))}>
-              <BlockList nodes={page.layout} />
+            <div className={cx(mobile ? 'px-4 pb-8' : 'px-8 pb-10 compact:px-6 compact:pb-8', page.avatar && (mobile ? 'pt-5' : 'pt-8 compact:pt-6'))}>
+              <div className={cx('flex flex-col gap-4', measure)}>
+                <BlockList nodes={page.layout} />
+              </div>
             </div>
             <UnsavedBar mobile={mobile} />
           </div>
         </main>
       </div>
+      {!mobile && !roomy && (
+        <ModalOverlay isOpen={drawer} onOpenChange={setDrawer} isDismissable className="fixed inset-0 z-40 bg-(--v-scrim) data-[entering]:animate-[vanda-fade-in_160ms_ease-out] motion-reduce:animate-none">
+          <Modal className="fixed inset-y-0 left-0 flex border-r border-line bg-bg shadow-pop outline-none data-[entering]:animate-[vanda-drawer-in_220ms_cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:animate-none">
+            {/* A link in it leads away: the menu closes (also for the page already open). */}
+            <Dialog aria-label={t('menu')} className="flex outline-none" onClick={(event) => (event.target as HTMLElement).closest('a') && setDrawer(false)}>
+              <Sidebar rail={false} id="vanda-menu-drawer" />
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      )}
       {mobile && <MobileNav />}
       <Toasts />
       <Palette />
@@ -206,29 +221,75 @@ function crumbsFor(page: Page): Crumb[] {
   return crumbs;
 }
 
+/**
+ * The trail above the page. More than three crumbs: the first, «…» with the ones between (a menu)
+ * and the last two. It stays on one line: a long name ends with «…» (its own page shows it whole).
+ */
 function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
+  const hidden = crumbs.length > 3 ? crumbs.slice(1, -2) : [];
+  const shown = hidden.length > 0 ? [crumbs[0]!, null, ...crumbs.slice(-2)] : crumbs;
+
   return (
-    <nav aria-label={t('breadcrumbs')} className="flex flex-wrap items-center gap-1.5 text-[13.5px] text-fg-3">
-      {crumbs.map((crumb, index) => {
-        const last = index === crumbs.length - 1;
-        return (
-          <span key={`${crumb.label}-${index}`} className="flex items-center gap-1.5">
-            {index > 0 && <Icon name="chevron-right" className="size-3.5" />}
-            {last ? (
-              <span aria-current="page" className="font-medium text-fg">
-                {crumb.label}
-              </span>
-            ) : crumb.href ? (
-              <Link href={crumb.href} className="hover:text-fg">
-                {crumb.label}
-              </Link>
-            ) : (
-              <span>{crumb.label}</span>
-            )}
-          </span>
-        );
-      })}
+    <nav aria-label={t('breadcrumbs')} className="min-w-0 text-[13.5px] text-fg-3">
+      <ol className="flex min-w-0 items-center gap-1.5">
+        {shown.map((crumb, index) => {
+          const last = index === shown.length - 1;
+          return (
+            <li key={crumb ? `${crumb.label}-${index}` : '\u2026'} className={cx('flex min-w-0 items-center gap-1.5', !last && 'max-w-64 shrink-[2]')}>
+              {index > 0 && <Icon name="chevron-right" className="size-3.5 shrink-0" />}
+              {crumb === null ? (
+                <HiddenCrumbs crumbs={hidden} />
+              ) : last ? (
+                <span aria-current="page" title={crumb.label} className="truncate font-medium text-fg">
+                  {crumb.label}
+                </span>
+              ) : crumb.href ? (
+                <Link href={crumb.href} title={crumb.label} className="truncate hover:text-fg">
+                  {crumb.label}
+                </Link>
+              ) : (
+                <span title={crumb.label} className="truncate">
+                  {crumb.label}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
     </nav>
+  );
+}
+
+/** «…» in a long trail: the crumbs it stands for, as a menu. */
+function HiddenCrumbs({ crumbs }: { crumbs: Crumb[] }) {
+  return (
+    <MenuTrigger>
+      <AriaButton aria-label={t('wholePath')} className="grid h-6 w-7 shrink-0 place-items-center rounded-md hover:bg-surface-2 hover:text-fg">
+        <Icon name="more" className="size-4" />
+      </AriaButton>
+      <Popover placement="bottom start" className="max-w-80 min-w-48 rounded-xl border border-line bg-surface p-1 shadow-pop outline-none">
+        <Menu
+          aria-label={t('wholePath')}
+          className="outline-none"
+          disabledKeys={crumbs.flatMap((crumb, index) => (crumb.href ? [] : [String(index)]))}
+          onAction={(key) => {
+            const href = crumbs[Number(key)]?.href;
+            if (href) router.visit(href);
+          }}
+        >
+          {crumbs.map((crumb, index) => (
+            <AriaMenuItem
+              key={index}
+              id={String(index)}
+              textValue={crumb.label}
+              className="flex h-8 cursor-pointer items-center rounded-md px-2 text-[14px] text-fg outline-none data-[disabled]:cursor-default data-[disabled]:text-fg-3 data-[focused]:bg-surface-2"
+            >
+              <span className="truncate">{crumb.label}</span>
+            </AriaMenuItem>
+          ))}
+        </Menu>
+      </Popover>
+    </MenuTrigger>
   );
 }
 
@@ -428,14 +489,17 @@ function UserCard() {
 let menuScrollTop = 0;
 
 /**
- * Whether the menu is a rail of icons: the user's choice in this browser, else a rail on screens
- * narrower than 1280px, where the content needs the width.
+ * Whether the menu beside the content is a rail of icons, a way to switch it, and whether the
+ * window has room for the open menu at all. From 1024px: the user's choice in this browser, else
+ * a rail below 1280px. Narrower, it is always the rail (beside an open menu a form would be left
+ * with half a screen); the toggle then opens the menu over the content.
  */
-function useRail(): [boolean, () => void] {
+function useRail(): [rail: boolean, toggle: () => void, roomy: boolean] {
   const [stored, store] = useStoredValue(MENU_RAIL);
   const wide = useMediaQuery('(min-width: 1280px)');
-  const rail = stored === null ? !wide : stored === '1';
-  return [rail, () => store(rail ? '0' : '1')];
+  const roomy = useMediaQuery('(min-width: 1024px)');
+  const rail = !roomy || (stored === null ? !wide : stored === '1');
+  return [rail, () => store(rail ? '0' : '1'), roomy];
 }
 
 /** The density in use: the user's choice in this browser, else the panel's (config('vanda.density')). */
@@ -447,29 +511,29 @@ function useDensity(): [Density, (density: Density) => void] {
   return [density, (next) => store(next === panel ? null : next)];
 }
 
-/** The button that folds the menu into a rail of icons and back, left of the breadcrumbs. */
-function MenuToggle({ rail, onToggle }: { rail: boolean; onToggle: () => void }) {
-  const label = t(rail ? 'expandMenu' : 'collapseMenu');
+/** The button that folds the menu into a rail of icons and back (or opens it over the content), left of the breadcrumbs. */
+function MenuToggle({ expanded, controls, onToggle }: { expanded: boolean; controls: string; onToggle: () => void }) {
+  const label = t(expanded ? 'collapseMenu' : 'expandMenu');
 
   return (
     <>
       <button
         type="button"
-        aria-controls="vanda-menu"
-        aria-expanded={!rail}
+        aria-controls={controls}
+        aria-expanded={expanded}
         aria-label={label}
         title={label}
         onClick={onToggle}
         className="grid size-8 shrink-0 place-items-center rounded-lg text-fg-3 hover:bg-surface-2 hover:text-fg"
       >
-        <Icon name={rail ? 'sidebar-open' : 'sidebar-close'} />
+        <Icon name={expanded ? 'sidebar-close' : 'sidebar-open'} />
       </button>
       <span aria-hidden="true" className="h-4 w-px shrink-0 bg-line" />
     </>
   );
 }
 
-function Sidebar({ rail }: { rail: boolean }) {
+function Sidebar({ rail, id = 'vanda-menu' }: { rail: boolean; id?: string }) {
   const app = useSnapshot((s) => s.page.app);
   const menu = useRef<HTMLDivElement>(null);
 
@@ -490,7 +554,7 @@ function Sidebar({ rail }: { rail: boolean }) {
     // As high as the window (the page does not scroll): the logo, search and the user stay in
     // place, only a long menu scrolls between them (as one scrolling column, flex squeezed the
     // search box to fit the screen).
-    <aside id="vanda-menu" className={cx('flex shrink-0 flex-col', rail ? 'w-16' : 'w-[248px]')}>
+    <aside id={id} className={cx('flex shrink-0 flex-col', rail ? 'w-16' : 'w-[248px]')}>
       <div className={cx('flex shrink-0 flex-col gap-1 px-3 pt-3.5', rail && 'items-center')}>
         <Logo name={app.name} rail={rail} />
 
@@ -691,23 +755,80 @@ function MobileTopBar({ crumbs, name }: { crumbs: Crumb[]; name: string }) {
   );
 }
 
-/** Phones: the primary buttons take the width, everything else goes into a "⋯" menu. */
-function MobileCommandBar({ nodes }: { nodes: UiNode[] }) {
-  const primary = nodes.filter((node) => ['button', 'link', 'modaltoggle'].includes(node.type) && node.variant === 'primary');
-  const rest = nodes.filter((node) => !primary.includes(node)).flatMap((node) => (node.type === 'dropdown' ? (node.children ?? []) : [node]));
+const isPrimary = (node: UiNode) => ['button', 'link', 'modaltoggle'].includes(node.type) && node.variant === 'primary';
+
+/**
+ * The command bar with its secondary buttons in a «⋯» menu. Phones always show it so, the primary
+ * buttons taking the width. On a desktop a button with a hotkey stays out too: inside the menu
+ * its key would do nothing.
+ */
+function FoldedCommandBar({ nodes, phone = false }: { nodes: UiNode[]; phone?: boolean }) {
+  const kept = nodes.filter((node) => isPrimary(node) || (!phone && Boolean(node.hotkey)));
+  const rest = nodes.filter((node) => !kept.includes(node)).flatMap((node) => (node.type === 'dropdown' ? (node.children ?? []) : [node]));
 
   return (
-    <div className="flex w-full gap-2">
-      {rest.length === 1 && primary.length === 0 ? (
+    <div className={cx('flex gap-2', phone && 'w-full')}>
+      {rest.length === 1 && kept.length === 0 ? (
         <NodeView node={rest[0]!} />
       ) : (
         rest.length > 0 && <DropDownView node={{ type: 'dropdown', id: 'commandbar.more', icon: 'more', variant: 'secondary', children: rest } as UiNode} />
       )}
-      {primary.map((node) => (
-        <div key={node.id} className="flex flex-1 [&>*]:w-full">
-          <NodeView node={node} />
-        </div>
-      ))}
+      {kept.map((node) =>
+        phone ? (
+          <div key={node.id} className="flex flex-1 [&>*]:w-full">
+            <NodeView node={node} />
+          </div>
+        ) : (
+          <NodeView key={node.id} node={node} />
+        ),
+      )}
+    </div>
+  );
+}
+
+/**
+ * The page's buttons beside its title. When they no longer fit there in one line, the secondary
+ * ones fold into «⋯» (FoldedCommandBar); they come back when there is room again. The room is
+ * measured at the natural widths of the title and of the whole bar, so nothing jumps back and forth.
+ */
+function CommandBar({ nodes }: { nodes: UiNode[] }) {
+  const bar = useRef<HTMLDivElement>(null);
+  const full = useRef(0);
+  const [folded, setFolded] = useState(false);
+  const kept = nodes.filter((node) => isPrimary(node) || Boolean(node.hotkey));
+  const foldable = nodes.length - kept.length > 1 || (nodes.length > kept.length && kept.length > 0);
+
+  // New buttons (another page, a changed record) are measured unfolded first.
+  useLayoutEffect(() => setFolded(false), [nodes]);
+
+  useLayoutEffect(() => {
+    const element = bar.current;
+    const row = element?.parentElement;
+    const title = row?.firstElementChild;
+    if (!element || !row || !(title instanceof HTMLElement) || !foldable) return;
+    const natural = (box: HTMLElement) => {
+      const { width, flexWrap } = box.style;
+      box.style.width = 'max-content';
+      box.style.flexWrap = 'nowrap';
+      const size = box.getBoundingClientRect().width;
+      box.style.width = width;
+      box.style.flexWrap = flexWrap;
+      return size;
+    };
+    const check = () => {
+      if (!folded) full.current = natural(element);
+      const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+      setFolded(natural(title) + gap + full.current > row.clientWidth + 0.5);
+    };
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [folded, foldable, nodes]);
+
+  return (
+    <div ref={bar} className="flex flex-wrap gap-2">
+      {folded ? <FoldedCommandBar nodes={nodes} /> : <NodeList nodes={nodes} />}
     </div>
   );
 }

@@ -176,9 +176,41 @@
   }
 }
 
-/* The phone menu sheet slides up over a fading scrim. */
+/* Phones: Safari zooms the page into any field whose text is under 16px, so fields type at 16px
+   there (unlayered, so it wins over a size set by a utility class). */
+@media (width < 48rem) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]),
+  textarea,
+  select,
+  [contenteditable="true"] {
+    font-size: 16px;
+  }
+}
+
+/* A row that scrolls sideways fades on the edge where more of it waits (useOverflowFade). */
+.vanda-fade-x {
+  scrollbar-width: none;
+  --vanda-fade: 40px;
+}
+.vanda-fade-x::-webkit-scrollbar {
+  display: none;
+}
+.vanda-fade-x[data-fade="right"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--vanda-fade)), transparent);
+}
+.vanda-fade-x[data-fade="left"] {
+  mask-image: linear-gradient(to left, #000 calc(100% - var(--vanda-fade)), transparent);
+}
+.vanda-fade-x[data-fade="both"] {
+  mask-image: linear-gradient(to right, transparent, #000 var(--vanda-fade), #000 calc(100% - var(--vanda-fade)), transparent);
+}
+
+/* The phone menu sheet slides up over a fading scrim; on a narrow desktop the menu slides in from the side. */
 @keyframes vanda-sheet-in {
   from { transform: translateY(100%); }
+}
+@keyframes vanda-drawer-in {
+  from { transform: translateX(-100%); }
 }
 @keyframes vanda-fade-in {
   from { opacity: 0; }

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } 
 import { Button as AriaButton, Dialog, DialogTrigger, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import { t } from '../i18n';
 import { isInternal, nodeAttributes } from '../store';
-import { buttonClass, controlClass, cx, Icon, Kbd, MOBILE_QUERY, useMediaQuery } from '../ui';
+import { buttonClass, controlClass, cx, Icon, Kbd, MOBILE_QUERY, useMediaQuery, useOverflowFade } from '../ui';
 import type { Option, UiNode } from '../types';
 import { ButtonView, DropDownView, type ButtonNode } from './actions';
 import { NodeView } from './NodeView';
@@ -250,10 +250,12 @@ export function TableView({ node }: { node: TableNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.export, rows]);
 
+  const viewTabs = useOverflowFade<HTMLDivElement>();
+
   return (
     <div className="-mx-(--v-gutter) flex flex-col" {...nodeAttributes(node)}>
       {views.length > 0 && (
-        <div role="tablist" aria-label={t('views')} className="mx-(--v-gutter) mb-1 flex gap-6 overflow-x-auto border-b border-line">
+        <div ref={viewTabs} role="tablist" aria-label={t('views')} className="vanda-fade-x mx-(--v-gutter) mb-1 flex gap-6 overflow-x-auto border-b border-line">
           {views.map((view) => (
             <button
               key={view.label}

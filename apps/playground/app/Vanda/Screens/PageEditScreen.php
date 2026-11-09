@@ -53,7 +53,13 @@ final class PageEditScreen extends Screen
 
     public function breadcrumbs(): iterable
     {
-        return [Crumb::make('Сайт'), Crumb::make('Страницы')->to(PageListScreen::class), Crumb::make($this->title())];
+        // The pages above this one in the tree, each a way to its own form (a long trail folds into «…»).
+        $ancestors = [];
+        for ($parent = $this->page->parent; $parent !== null && count($ancestors) < 10; $parent = $parent->parent) {
+            array_unshift($ancestors, Crumb::make($parent->title)->to(self::class, ['page' => $parent]));
+        }
+
+        return [Crumb::make('Сайт'), Crumb::make('Страницы')->to(PageListScreen::class), ...$ancestors, Crumb::make($this->title())];
     }
 
     public function commandBar(): iterable

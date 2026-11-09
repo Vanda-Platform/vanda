@@ -4,24 +4,28 @@ import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { t } from '../i18n';
 import { walk } from '../patch';
 import { isInternal, nodeAttributes, useSnapshot, useStore } from '../store';
-import { Avatar, buttonClass, cx, Icon } from '../ui';
+import { Avatar, buttonClass, cx, Icon, useOverflowFade } from '../ui';
 import type { UiNode } from '../types';
 import type { ButtonNode } from './actions';
 import { CopyButton } from '../copy';
 import { BlockTitleContext } from './blockTitle';
 import { NodeList, NodeView } from './NodeView';
 
+/**
+ * Columns follow the width of the block they are in, not the window: a form beside an open menu,
+ * in a modal or in half a grid gets one column where two would leave its fields too narrow.
+ */
 const COLUMNS: Record<number, string> = {
   1: 'grid-cols-1',
-  2: 'grid-cols-1 md:grid-cols-2',
-  3: 'grid-cols-1 md:grid-cols-3',
-  4: 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4',
+  2: 'grid-cols-1 @xl:grid-cols-2',
+  3: 'grid-cols-1 @3xl:grid-cols-3',
+  4: 'grid-cols-1 @xl:grid-cols-2 @5xl:grid-cols-4',
 };
 
 /**
  * A titled block of a form. Blocks on a page sit 16px apart (cards, charts, alerts);
  * a section adds 24px above itself, so sections are 40px apart, as in the design.
- * Its width stays within the design's 1120px page, while tables and charts use the full width.
+ * A page made of such blocks stays within 1120px (formLayout.ts), tables and charts take the full width.
  */
 export function SectionView({ node }: { node: UiNode & { title: string; description?: string; commandIds?: string[] } }) {
   const commands = new Set(node.commandIds ?? []);
@@ -86,9 +90,13 @@ export function CardView({ node }: { node: UiNode & { title: string; description
 
 export function GridView({ node }: { node: UiNode & { columns?: number } }) {
   return (
-    // *:mt-0!: blocks side by side start at the same height (a section adds space above itself in a column).
-    <div className={cx('grid gap-(--v-stack) *:mt-0!', COLUMNS[node.columns ?? 1] ?? COLUMNS[2])} {...nodeAttributes(node)}>
-      <NodeList nodes={node.children ?? []} />
+    // The wrapper is the container the columns measure (a container query never styles the
+    // container itself); w-full keeps it from collapsing in a row.
+    <div className="@container w-full min-w-0">
+      {/* *:mt-0!: blocks side by side start at the same height (a section adds space above itself in a column). */}
+      <div className={cx('grid gap-(--v-stack) *:mt-0!', COLUMNS[node.columns ?? 1] ?? COLUMNS[2])} {...nodeAttributes(node)}>
+        <NodeList nodes={node.children ?? []} />
+      </div>
     </div>
   );
 }
@@ -139,12 +147,14 @@ export function TabsView({ node }: { node: UiNode }) {
     window.history.replaceState(window.history.state, '', url);
   };
 
+  const tablist = useOverflowFade<HTMLDivElement>();
+
   const hasErrors = (tab: UiNode) =>
     walk(tab.children ?? []).some((child) => typeof child.path === 'string' && Object.keys(errors).some((key) => key === child.path || key.startsWith(`${child.path}.`)));
 
   return (
     <div className="flex flex-col gap-6" {...nodeAttributes(node)}>
-      <div role="tablist" className="flex gap-6 overflow-x-auto border-b border-line">
+      <div ref={tablist} role="tablist" className="vanda-fade-x flex gap-6 overflow-x-auto border-b border-line">
         {tabs.map((tab, index) => (
           <button
             key={tab.id}
@@ -381,10 +391,10 @@ export function EmptyStateView({ node }: { node: UiNode & { title: string; descr
   );
 }
 
-/** Layout::actions(): rows edge to edge in a section card, separated by rules. */
+/** Layout::actions(): rows edge to edge in a section card (its gutter, whatever the density), separated by rules. */
 export function ActionListView({ node }: { node: UiNode }) {
   return (
-    <div className="-m-6 flex flex-col divide-y divide-line" {...nodeAttributes(node)}>
+    <div className="-m-(--v-gutter) flex flex-col divide-y divide-line" {...nodeAttributes(node)}>
       <NodeList nodes={node.children ?? []} />
     </div>
   );
@@ -392,7 +402,7 @@ export function ActionListView({ node }: { node: UiNode }) {
 
 export function ActionRowView({ node }: { node: UiNode & { title: string; description?: string } }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-[18px]" {...nodeAttributes(node)}>
+    <div className="flex flex-wrap items-center justify-between gap-4 px-(--v-gutter) py-[18px] compact:py-3.5" {...nodeAttributes(node)}>
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="font-medium">{node.title}</span>
         {node.description && <span className="text-[12.5px] text-fg-3">{node.description}</span>}

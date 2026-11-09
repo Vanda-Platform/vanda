@@ -125,7 +125,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type RefCallback } from 'react';
 
 /** Icon names accepted by ->icon() in PHP. */
 const ICONS: Record<string, LucideIcon> = {
@@ -378,4 +378,45 @@ export function useMediaQuery(query: string): boolean {
   }, [query]);
 
   return matches;
+}
+
+/**
+ * A horizontal scroller (tabs, a toolbar) that hides part of its row: data-fade="left", "right" or
+ * "both" says on which side something waits, and the .vanda-fade-x class fades that edge, so the
+ * row never looks complete when it is not. The selected item (aria-selected) is brought into view.
+ *
+ *     const ref = useOverflowFade<HTMLDivElement>();
+ *     <div ref={ref} role="tablist" className="vanda-fade-x flex overflow-x-auto">…</div>
+ */
+export function useOverflowFade<T extends HTMLElement>(): RefCallback<T> {
+  // A ref callback (with React 19's cleanup), so a scroller that appears later is watched too.
+  return useCallback((element: T | null) => {
+    if (!element) return;
+    const update = () => {
+      // Measured on the screen, so it holds in both writing directions (scrollLeft is negative in RTL).
+      const box = element.getBoundingClientRect();
+      const first = element.firstElementChild?.getBoundingClientRect();
+      const last = element.lastElementChild?.getBoundingClientRect();
+      const left = first ? first.left < box.left - 1 : false;
+      const right = last ? last.right > box.right + 1 : false;
+      const fade = left && right ? 'both' : left ? 'left' : right ? 'right' : '';
+      if (fade) element.dataset.fade = fade;
+      else delete element.dataset.fade;
+    };
+    const selected = element.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (selected) {
+      // By hand: scrollIntoView would also move the page's own scroll containers.
+      const box = element.getBoundingClientRect();
+      const item = selected.getBoundingClientRect();
+      if (item.left < box.left || item.right > box.right) element.scrollLeft += item.left - box.left - (box.width - item.width) / 2;
+    }
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    element.addEventListener('scroll', update, { passive: true });
+    return () => {
+      observer.disconnect();
+      element.removeEventListener('scroll', update);
+    };
+  }, []);
 }
