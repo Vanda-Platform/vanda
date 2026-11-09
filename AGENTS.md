@@ -36,6 +36,7 @@ cd apps/playground && php artisan migrate:fresh --seed && php artisan serve
 php artisan vanda:screens
 php artisan vanda:inspect /admin/users/1/edit        # add --json for the raw IR
 php artisan vanda:check                              # build every screen; --json for agents, exit 1 on problems
+bin/release-core v0.2.0                              # publish packages/core to Vanda-Platform/core (Packagist reads it), tagged
 ```
 
 ## Rules
