@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
+use Vanda\Fields\Input;
+use Vanda\Fields\Repeater;
 use Vanda\Panel;
+use Vanda\Schema\SchemaContext;
 use Vanda\Tests\Fixtures\FieldsScreen;
+use Vanda\Tests\Fixtures\TinyMceScreen;
 use Vanda\Tests\Fixtures\User;
 
 beforeEach(function () {
@@ -92,8 +96,8 @@ it('explains a missing Blade view', function () {
 })->throws(Vanda\VandaException::class, 'Create resources/views/admin/missing.blade.php');
 
 it('picks how a repeater draws its rows from its fields', function () {
-    $layout = fn (array $fields) => Vanda\Fields\Repeater::make('rows')->fields($fields)->resolvedLayout();
-    $input = fn (string $path) => Vanda\Fields\Input::make($path);
+    $layout = fn (array $fields) => Repeater::make('rows')->fields($fields)->resolvedLayout();
+    $input = fn (string $path) => Input::make($path);
 
     expect($layout([$input('name')]))->toBe(Vanda\Fields\RepeaterLayout::List)
         ->and($layout([$input('name'), Vanda\Fields\Select::make('unit'), Vanda\Fields\Switcher::make('on')]))->toBe(Vanda\Fields\RepeaterLayout::Table)
@@ -101,5 +105,16 @@ it('picks how a repeater draws its rows from its fields', function () {
         ->and($layout([$input('title'), Vanda\Fields\Upload::make('image')]))->toBe(Vanda\Fields\RepeaterLayout::Blocks)
         ->and($layout([$input('title'), Vanda\Fields\Select::make('tags')->multiple()]))->toBe(Vanda\Fields\RepeaterLayout::Blocks)
         ->and($layout([Vanda\Fields\TextArea::make('text')]))->toBe(Vanda\Fields\RepeaterLayout::Blocks)
-        ->and(Vanda\Fields\Repeater::make('rows')->fields([$input('name')])->layout(Vanda\Fields\RepeaterLayout::Blocks)->resolvedLayout())->toBe(Vanda\Fields\RepeaterLayout::Blocks);
+        ->and(Repeater::make('rows')->fields([$input('name')])->layout(Vanda\Fields\RepeaterLayout::Blocks)->resolvedLayout())->toBe(Vanda\Fields\RepeaterLayout::Blocks);
+});
+
+it('sends a hint as an icon by default and as text under the field when asked', function () {
+    $context = new SchemaContext(new TinyMceScreen, []);
+
+    expect(Input::make('slug')->help('Latin letters')->toSchema($context))
+        ->toMatchArray(['help' => 'Latin letters'])->not->toHaveKey('helpInline')
+        ->and(Input::make('inn')->help('10 or 12 digits', inline: true)->toSchema($context))
+        ->toMatchArray(['help' => '10 or 12 digits', 'helpInline' => true])
+        ->and(Repeater::make('specs')->fields([Input::make('name')->help('As on the pack', inline: true)])->toSchema($context)['fields'][0])
+        ->toMatchArray(['help' => 'As on the pack', 'helpInline' => true]);
 });

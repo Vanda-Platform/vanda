@@ -7,6 +7,7 @@ use App\Enums\PageStatus;
 use App\Enums\UserStatus;
 use App\Models\Page;
 use App\Models\User;
+use App\Vanda\DemoFiles;
 use App\Vanda\Screens\PageListScreen;
 use App\Vanda\Screens\UserEditScreen;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -77,6 +78,9 @@ class DatabaseSeeder extends Seeder
         $this->seedMorePeople();
         $this->seedPages();
         $this->seedNotifications($vera);
+
+        // Pictures and documents for the file browser demo (/admin/files).
+        DemoFiles::generate();
     }
 
     /**

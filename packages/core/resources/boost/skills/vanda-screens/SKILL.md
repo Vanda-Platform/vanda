@@ -82,12 +82,13 @@ final class UserForm extends Form
 
 ## Fields
 
-Every field takes a path and has `->label()`, `->help()`, `->placeholder()`, `->required()`, `->readonly()` (looks like a value, not an input), `->disabled()`, `->rules([...])`, `->live()` (send each change to the server), and the expressions below.
+Every field takes a path and has `->label()`, `->help()` (an «i» by the label with the text in a tooltip; `->help('…', inline: true)` keeps it as text under the field when it must not be missed), `->placeholder()`, `->required()`, `->readonly()` (looks like a value, not an input), `->disabled()`, `->rules([...])`, `->live()` (send each change to the server), and the expressions below.
 
 | Field | For |
 |---|---|
 | `Input` | text; `->inputType(InputType::Email)`, `->prefix('/')`, `->suffix('₽')`, `->mask(…)`, `->maxLength(…)`, `->min/max/step` |
 | `TextArea`, `Password`, `Markdown`, `RichText`, `Code` | longer text; `RichText::make(…)->uploads(5)->embeds(['youtube.com'])` |
+| `TinyMce` | HTML written in TinyMCE (Orchid's editor), its classes, styles and `data-*` kept: `TinyMce::make('form.body')->height(500)->uploads(5)->linkList(fn () => [['title' => 'Catalog', 'value' => '/catalog']])`; `->toolbar('bold italic \| link')`, `->plugins([...TinyMce::PLUGINS, 'autoresize'])`, `->menubar(false)`, `->embeds(['youtube.com'])`. Prefer `RichText` for new texts |
 | `Select` | a choice: `->options(UserStatus::class)` (an enum), `->options(['a' => 'A'])` or a closure; `->multiple()`, `->searchable()`, `->allowCustom()`, `->tree(fn () => …, label: 'title')` |
 | `Relation` | records of a model: `->model(User::class, 'name')->searchColumns('name', 'email')`, `->multiple()`; the options come from the server as the user types |
 | `CheckBox`, `Switcher`, `Radio`, `RadioButtons` | flags and short choices |
@@ -110,6 +111,7 @@ Every field takes a path and has `->label()`, `->help()`, `->placeholder()`, `->
 - `Layout::tabs([__('Main') => [...], __('Advanced') => [...]])`.
 - `Layout::actions([ActionRow::make(__('Block access'))->description('…')->buttons([...])])` — rows of one action each (danger zone).
 - `Layout::legend($record, [Sight::make('email', __('Email'))])`, `Layout::metrics([Metric::make(__('Orders'), 120)])`, `Layout::activity($record)` (the record's history), `Alert::make('…')`, `EmptyState::make('…')`.
+- `Layout::files()->id('files')->folder($name, $href, meta: '12 files')->file($key, $name, url: $url, mime: $mime, size: $bytes, date: $date)->fileAction(fn (string $key) => ModalToggle::make(__('Open'))->modal('file')->load($this->loadFile(...), ['id' => (int) $key]))->selected($key)` — a file browser (tiles or a list, the user switches and the browser remembers per node id). A folder opens its address, a file runs its node like `rowAction()`. Search is a field of the screen plus `->dependsOn('q')`. `Files::size($bytes)` writes «3.4 MB».
 - `Layout::view('blade.name', fn () => [...])` — static HTML from a Blade view (scripts do not run). Anything interactive is a Vanda node, not a Blade island.
 
 A page made only of sections keeps to a readable width by itself; tables and charts take the full width. Do not add wrappers for spacing or width.
@@ -154,7 +156,13 @@ Layout::table()
     ->exportable('users.csv');
 ```
 
-A bulk action receives `array $ids`. The first column is the row's name and becomes a link by itself when `rowLink()` is set. Filters and views live in the URL.
+A bulk action receives `array $ids`. The first column is the row's name and becomes a link by itself when `rowLink()` is set. Filters and views live in the URL, and each user's view (search, filters, sort, rows per page, page) is remembered in the database by itself: coming back through the menu or a breadcrumb restores it (the page only from the list's own screens). Turn it off with `->remember(false)`; never rebuild it yourself with the session. Columns the user hides (`->hideable()`, `->defaultHidden()`) are kept per user and table by Vanda too. Nested records (categories) filter with `Filter::select('category_id', __('Category'))->tree(fn () => Category::all())`: a tree with search, and a parent matches together with its subcategories.
+
+A row that opens a modal (or runs a button) instead of a page takes `->rowAction()`: the closure returns a `ModalToggle`, `Button` or `Link` built for the row, and a click anywhere on the row (or Enter on its name) runs it. Use it instead of `->rowLink()`, never with it (that throws). A row whose node the user may not use is not clickable; return `null` for a row that opens nothing.
+
+```php
+->rowAction(fn (Page $page) => ModalToggle::make(__('SEO'))->modal('seo')->load($this->loadSeo(...), ['page' => $page]))
+```
 
 ## Trees
 
@@ -165,9 +173,11 @@ Layout::tree()
     ->searchable()
     ->expanded(1)
     ->columns([TD::make('title', __('Title'))])
-    ->rowLink(fn (Page $page) => Panel::url(PageEditScreen::class, ['page' => $page]))
+    ->rowLink(fn (Page $page) => Panel::url(PageEditScreen::class, ['page' => $page]))   // or ->rowAction(fn (Page $page) => ModalToggle::make(…)->…)
     ->reorderable($this->move(...));             // #[Action] public function move(int $id, ?int $parent, int $position)
 ```
+
+A flat reorderable list (records without parents) is a tree too: it shows no expand buttons until a move nests a row.
 
 ## Modals
 
@@ -188,7 +198,7 @@ public function loadQuick(User $user): Result
 }
 ```
 
-A button inside a modal validates only that modal's fields. The id in `->modal()` must be a modal of the same screen.
+A button inside a modal validates only that modal's fields. The id in `->modal()` must be a modal of the same screen. «Отмена» is added to the footer by itself; a `->danger()` button there stands apart at the left edge.
 
 ## The panel
 

@@ -24,6 +24,14 @@ export function hasChildren(items: TreeItem[], key: string): boolean {
 }
 
 /** The key and every key below it. */
+/**
+ * Whether any row has children: only then the tree needs «Expand all», «Collapse all» and room for the
+ * arrows. A flat list (banners in order, say) has none; a move that nests a row makes it a tree.
+ */
+export function hasBranches(items: TreeItem[]): boolean {
+  return items.some((item) => parentOf(item) !== null);
+}
+
 export function branch(items: TreeItem[], key: string): Set<string> {
   const keys = new Set([key]);
   for (const item of items) if (item.parent && keys.has(item.parent)) keys.add(item.key);

@@ -132,6 +132,59 @@ export function ButtonView({ node, size = 'md', ids }: { node: ButtonNode; size?
   );
 }
 
+/** Modifier keys and the button of the click that opens a link (Cmd/Ctrl, Shift or the middle button: a new tab). */
+export type LinkEvent = { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; button?: number };
+
+/**
+ * Opens a link: in a new tab with Cmd/Ctrl, Shift or the middle button (as a link would),
+ * else through Inertia (a panel page) or the browser (any other address).
+ */
+export function openLink(href: string, event?: LinkEvent) {
+  if (event && (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1)) window.open(href, '_blank', 'noopener');
+  else if (isInternal(href)) router.visit(href);
+  else window.location.assign(href);
+}
+
+/** A link, a modal toggle or a button, as a menu or a table row holds them. */
+export type ActivatableNode = ButtonNode & { href?: string; external?: boolean; modal?: string };
+
+/**
+ * Does what a click on a link, a modal toggle or a button does: a link opens its page, a modal toggle
+ * its modal (filled by its load action first), a button calls its action, asking first when it has
+ * ->confirm(). Render `dialog` once next to the things that call `activate`.
+ */
+export function useActivate() {
+  const store = useStore();
+  const [confirming, setConfirming] = useState<ActivatableNode | null>(null);
+
+  const activate = (item: ActivatableNode, event?: LinkEvent) => {
+    if (item.type === 'link' && item.href) {
+      if (item.external) window.open(item.href, '_blank', 'noopener');
+      else openLink(item.href, event);
+    } else if (item.type === 'modaltoggle') {
+      if (item.action) void store.runAction(item.id, item.action);
+      else if (item.modal) store.openModal(item.modal);
+    } else if (item.action) {
+      if (item.confirm) setConfirming(item);
+      else void store.runAction(item.id, item.action);
+    }
+  };
+
+  const dialog = confirming?.confirm ? (
+    <ConfirmDialog
+      open
+      onOpenChange={(open) => !open && setConfirming(null)}
+      confirm={confirming.confirm}
+      danger={confirming.variant === 'danger' || Boolean(confirming.confirm.danger)}
+      icon={confirming.icon}
+      label={confirming.label}
+      onConfirm={() => confirming.action && void store.runAction(confirming.id, confirming.action)}
+    />
+  ) : null;
+
+  return { activate, dialog };
+}
+
 export function LinkView({ node, size = 'md' }: { node: UiNode & { label: string; href?: string; variant?: string; icon?: string; external?: boolean }; size?: 'sm' | 'md' }) {
   const className = node.variant === 'link' ? 'inline-flex items-center gap-1.5 font-medium text-accent-fg underline-offset-4 hover:underline' : buttonClass(node.variant, size);
   const content = (
@@ -175,31 +228,15 @@ export function ModalToggleView({ node, compact }: { node: UiNode & { label: str
   );
 }
 
-type MenuEntry = ButtonNode & { href?: string; external?: boolean; modal?: string };
-
 /**
  * "⋯" and other menus of buttons, links and modal toggles. An icon-only menu is named «Действия»,
  * or by `name` («Действия: Анна Смирнова») where many of them stand in a list; `tabbable={false}`
  * leaves it out of the Tab order where arrow keys reach it (a row of a tree).
  */
 export function DropDownView({ node, compact, name, tabbable = true }: { node: UiNode & { label?: string; icon?: string; variant?: string }; compact?: boolean; name?: string; tabbable?: boolean }) {
-  const store = useStore();
-  const [confirming, setConfirming] = useState<MenuEntry | null>(null);
-  const items = (node.children ?? []) as MenuEntry[];
+  const { activate, dialog } = useActivate();
+  const items = (node.children ?? []) as ActivatableNode[];
   const iconOnly = !node.label;
-
-  const activate = (item: MenuEntry) => {
-    if (item.type === 'link' && item.href) {
-      if (!item.external && isInternal(item.href)) router.visit(item.href);
-      else window.open(item.href, item.external ? '_blank' : '_self');
-    } else if (item.type === 'modaltoggle') {
-      if (item.action) void store.runAction(item.id, item.action);
-      else if (item.modal) store.openModal(item.modal);
-    } else if (item.action) {
-      if (item.confirm) setConfirming(item);
-      else void store.runAction(item.id, item.action);
-    }
-  };
 
   return (
     <>
@@ -242,17 +279,7 @@ export function DropDownView({ node, compact, name, tabbable = true }: { node: U
         </Popover>
       </MenuTrigger>
 
-      {confirming?.confirm && (
-        <ConfirmDialog
-          open
-          onOpenChange={(open) => !open && setConfirming(null)}
-          confirm={confirming.confirm}
-          danger={confirming.variant === 'danger' || Boolean(confirming.confirm.danger)}
-          icon={confirming.icon}
-          label={confirming.label}
-          onConfirm={() => confirming.action && void store.runAction(confirming.id, confirming.action)}
-        />
-      )}
+      {dialog}
     </>
   );
 }

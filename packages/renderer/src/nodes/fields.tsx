@@ -14,6 +14,7 @@ import {
   SliderTrack,
   Switch as AriaSwitch,
 } from 'react-aria-components';
+import { optionClass, popoverClass } from '../choice';
 import { getPath, isTrue } from '../expr';
 import { t } from '../i18n';
 import { nodeAttributes, useSnapshot, useStore } from '../store';
@@ -21,6 +22,8 @@ import { controlClass, cx, Icon, invalidClass, readonlyClass, Spinner } from '..
 import type { FieldNode, Option } from '../types';
 import { ComboField } from './combo';
 import { maskedChange } from '../mask';
+import { describedBy, helpPlace } from '../fieldHelp';
+import { HelpTip } from './help';
 
 export function useField(node: FieldNode) {
   const store = useStore();
@@ -62,30 +65,61 @@ export function FieldFrame({
   as?: 'div' | 'fieldset';
 }) {
   const Root = as;
+  const helpId = `${inputId}-help`;
+  // The hint (Field::help()): an «i» by the label (or beside a field without one), text under the field with inline.
+  const place = helpPlace(node);
+  const tip = node.help && (place === 'label' || place === 'beside') ? <HelpTip text={node.help} label={node.label} describedBy={helpId} /> : null;
+  const showInline = place === 'inline' && !error;
+  const caption = (
+    <>
+      {node.label}
+      {required && <span className="text-danger-fg" aria-hidden="true">*</span>}
+    </>
+  );
+
   return (
     <Root className="m-0 flex min-w-0 flex-col gap-1.5 border-0 p-0" data-vanda-path={node.path} {...nodeAttributes(node)}>
       {node.label &&
         (as === 'fieldset' ? (
-          <legend className="mb-1.5 flex items-center gap-1 text-[13px] font-medium text-fg">
-            {node.label}
-            {required && <span className="text-danger-fg" aria-hidden="true">*</span>}
+          <legend className="mb-1.5 flex w-full items-center gap-1 text-[13px] font-medium text-fg">
+            {caption}
+            {place === 'label' && <span className="ml-auto flex">{tip}</span>}
           </legend>
+        ) : place === 'label' ? (
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor={inputId} className="flex min-w-0 items-center gap-1 text-[13px] font-medium text-fg">
+              {caption}
+            </label>
+            {tip}
+          </div>
         ) : (
           <label htmlFor={inputId} className={cx('flex items-center gap-1 text-[13px] font-medium text-fg', node.labelHidden && 'sr-only')}>
-            {node.label}
-            {required && <span className="text-danger-fg" aria-hidden="true">*</span>}
+            {caption}
           </label>
         ))}
-      {children}
+      {place === 'beside' ? (
+        <div className="flex items-start gap-1.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">{children}</div>
+          <span className="flex h-(--v-control) shrink-0 items-center">{tip}</span>
+        </div>
+      ) : (
+        children
+      )}
+      {/* Screen readers hear the hint with the field (aria-describedby), wherever the eyes see it. */}
+      {node.help && !showInline && (
+        <span id={helpId} className="sr-only">
+          {node.help}
+        </span>
+      )}
       {error ? (
         <span id={`${inputId}-error`} className="flex items-center gap-1.5 text-[12.5px] text-danger-fg">
           <Icon name="alert" className="size-3.5" />
           {error}
         </span>
       ) : (
-        (node.help || counter) && (
+        (showInline || counter) && (
           <span className="flex justify-between gap-2 text-[12.5px] text-fg-3">
-            <span id={`${inputId}-help`}>{node.help}</span>
+            {showInline ? <span id={helpId}>{node.help}</span> : <span />}
             {counter && <span className="tabular-nums">{counter}</span>}
           </span>
         )
@@ -120,7 +154,7 @@ export function InputField({
       readOnly={field.readonly}
       required={field.required}
       aria-invalid={field.error ? true : undefined}
-      aria-describedby={field.error ? `${id}-error` : node.help ? `${id}-help` : undefined}
+      aria-describedby={describedBy(id, field.error, node.help)}
       className={cx(controlClass, field.error && invalidClass, field.readonly && readonlyClass, (node.prefix || node.suffix) && 'shadow-none', node.prefix && 'rounded-l-none', node.suffix && 'rounded-r-none')}
     />
   );
@@ -177,6 +211,7 @@ export function PasswordField({ node }: { node: FieldNode & { strength?: boolean
           disabled={field.disabled && !field.readonly}
           readOnly={field.readonly}
           aria-invalid={field.error ? true : undefined}
+          aria-describedby={describedBy(id, field.error, node.help)}
           className={cx(controlClass, 'pr-10', field.error && invalidClass, field.readonly && readonlyClass)}
         />
         <button
@@ -219,15 +254,13 @@ export function TextAreaField({ node }: { node: FieldNode & { rows?: number; max
         disabled={field.disabled && !field.readonly}
         readOnly={field.readonly}
         aria-invalid={field.error ? true : undefined}
+        aria-describedby={describedBy(id, field.error, node.help)}
         className={cx(controlClass, 'h-auto resize-y py-2 leading-relaxed', field.error && invalidClass, field.readonly && 'resize-none', field.readonly && readonlyClass)}
       />
     </FieldFrame>
   );
 }
 
-const popoverClass = 'min-w-(--trigger-width) overflow-auto rounded-xl border border-line bg-surface p-1 shadow-pop outline-none';
-const optionClass =
-  'flex h-8 cursor-pointer items-center justify-between gap-3 rounded-md px-2 text-[14px] text-fg outline-none data-[focused]:bg-surface-2 data-[selected]:font-medium data-[selected]:text-accent-fg';
 
 export function SelectField({ node }: { node: FieldNode & { options?: Option[]; multiple?: boolean; searchable?: boolean; allowCustom?: boolean } }) {
   // Long lists and custom values need a text box to type into.
@@ -275,6 +308,7 @@ function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multipl
         <AriaSelect
           id={id}
           aria-label={node.label ?? node.path}
+          aria-describedby={describedBy(id, field.error, node.help)}
           selectionMode="multiple"
           value={selected}
           onChange={(keys) => field.setValue(keys.map((key) => byKey(key)?.value ?? key))}
@@ -304,6 +338,7 @@ function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multipl
       <AriaSelect
         id={id}
         aria-label={node.label ?? node.path}
+        aria-describedby={describedBy(id, field.error, node.help)}
         value={current ? String(current.value) : null}
         onChange={(key) => field.setValue(byKey(key)?.value ?? null)}
         isDisabled={field.disabled}
@@ -330,28 +365,71 @@ function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multipl
   );
 }
 
+/**
+ * The hint of a field that draws its own label (checkbox, switch, radio, slider): the «i» to put at the
+ * end of its label row (null when the hint is inline or missing), the text under it with inline, and
+ * the hidden copy screen readers get through `id`.
+ */
+function useHint(node: FieldNode) {
+  const id = `${useId()}-help`;
+  const place = helpPlace(node);
+  const help = node.help ?? '';
+  return {
+    id: node.help ? id : undefined,
+    tip: place === 'label' || place === 'beside' ? <HelpTip text={help} label={node.label} describedBy={id} /> : null,
+    inline: place === 'inline' ? (
+      <span id={id} className="text-[12.5px] text-fg-3">
+        {help}
+      </span>
+    ) : null,
+    hidden:
+      node.help && place !== 'inline' ? (
+        <span id={id} className="sr-only">
+          {help}
+        </span>
+      ) : null,
+  };
+}
+
+/** The label row of a group of options: the label at the start, the hint's «i» at the end. */
+function GroupLabel({ label, tip, className }: { label?: string; tip: React.ReactNode; className?: string }) {
+  if (!label && !tip) return null;
+  return (
+    <div className={cx('flex items-center justify-between gap-2', className)}>
+      <span className="text-[13px] font-medium">{label}</span>
+      {tip}
+    </div>
+  );
+}
+
 const box =
   'grid size-4 shrink-0 place-items-center rounded-[4.5px] border border-control-line bg-surface text-on-accent shadow-sm transition group-data-[selected]:border-accent group-data-[selected]:bg-accent group-data-[focus-visible]:ring-3 group-data-[focus-visible]:ring-ring';
 
 export function CheckboxField({ node }: { node: FieldNode }) {
   const field = useField(node);
+  const hint = useHint(node);
 
   return (
     <div className="flex flex-col gap-1.5" data-vanda-path={node.path} {...nodeAttributes(node)}>
-      <AriaCheckbox
-        isSelected={Boolean(field.value)}
-        onChange={(selected) => field.setValue(selected)}
-        isDisabled={field.disabled}
-        className="group flex cursor-pointer items-start gap-2.5 text-[14px] data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60"
-      >
-        <span className={cx(box, 'mt-[3px]')}>
-          <Icon name="check" className="size-3 opacity-0 group-data-[selected]:opacity-100" />
-        </span>
-        <span className="flex flex-col">
-          <span>{node.label}</span>
-          {node.help && <span className="text-[12.5px] text-fg-3">{node.help}</span>}
-        </span>
-      </AriaCheckbox>
+      <div className="flex items-start gap-1">
+        <AriaCheckbox
+          isSelected={Boolean(field.value)}
+          onChange={(selected) => field.setValue(selected)}
+          isDisabled={field.disabled}
+          aria-describedby={hint.id}
+          className="group flex cursor-pointer items-start gap-2.5 text-[14px] data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60"
+        >
+          <span className={cx(box, 'mt-[3px]')}>
+            <Icon name="check" className="size-3 opacity-0 group-data-[selected]:opacity-100" />
+          </span>
+          <span className="flex flex-col">
+            <span>{node.label}</span>
+            {hint.inline}
+          </span>
+        </AriaCheckbox>
+        {hint.tip && <span className="mt-[3px] flex">{hint.tip}</span>}
+      </div>
+      {hint.hidden}
       {field.error && <span className="text-[12.5px] text-danger-fg">{field.error}</span>}
     </div>
   );
@@ -359,23 +437,29 @@ export function CheckboxField({ node }: { node: FieldNode }) {
 
 export function SwitchField({ node }: { node: FieldNode }) {
   const field = useField(node);
+  const hint = useHint(node);
 
   return (
     <div className="flex flex-col gap-1.5" data-vanda-path={node.path} {...nodeAttributes(node)}>
-      <AriaSwitch
-        isSelected={Boolean(field.value)}
-        onChange={(selected) => field.setValue(selected)}
-        isDisabled={field.disabled}
-        className="group flex cursor-pointer items-start gap-2.5 text-[14px] data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60"
-      >
-        <span className="mt-0.5 flex h-[18px] w-8 shrink-0 items-center rounded-full bg-line-strong px-0.5 transition-colors group-data-[selected]:bg-accent group-data-[focus-visible]:ring-3 group-data-[focus-visible]:ring-ring">
-          <span className="size-3.5 rounded-full bg-white shadow transition-transform group-data-[selected]:translate-x-3.5" />
-        </span>
-        <span className="flex flex-col">
-          <span className="font-medium">{node.label}</span>
-          {node.help && <span className="text-[12.5px] text-fg-3">{node.help}</span>}
-        </span>
-      </AriaSwitch>
+      <div className="flex items-start gap-1">
+        <AriaSwitch
+          isSelected={Boolean(field.value)}
+          onChange={(selected) => field.setValue(selected)}
+          isDisabled={field.disabled}
+          aria-describedby={hint.id}
+          className="group flex cursor-pointer items-start gap-2.5 text-[14px] data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60"
+        >
+          <span className="mt-0.5 flex h-[18px] w-8 shrink-0 items-center rounded-full bg-line-strong px-0.5 transition-colors group-data-[selected]:bg-accent group-data-[focus-visible]:ring-3 group-data-[focus-visible]:ring-ring">
+            <span className="size-3.5 rounded-full bg-white shadow transition-transform group-data-[selected]:translate-x-3.5" />
+          </span>
+          <span className="flex flex-col">
+            <span className="font-medium">{node.label}</span>
+            {hint.inline}
+          </span>
+        </AriaSwitch>
+        {hint.tip && <span className="mt-[3px] flex">{hint.tip}</span>}
+      </div>
+      {hint.hidden}
       {field.error && <span className="text-[12.5px] text-danger-fg">{field.error}</span>}
     </div>
   );
@@ -383,19 +467,22 @@ export function SwitchField({ node }: { node: FieldNode }) {
 
 export function RadioField({ node }: { node: FieldNode & { options?: Option[]; inline?: boolean } }) {
   const field = useField(node);
+  const hint = useHint(node);
   const options = node.options ?? [];
 
   return (
     <div className="flex flex-col gap-1.5" data-vanda-path={node.path} {...nodeAttributes(node)}>
+      {/* The label row stays out of the radio group: the «i» is a button of its own, not one of the options. */}
+      <GroupLabel label={node.label} tip={hint.tip} className="mb-0.5" />
       <RadioGroup
         aria-label={node.label ?? node.path}
+        aria-describedby={hint.id}
         value={field.value === null || field.value === undefined ? null : String(field.value)}
         onChange={(key) => field.setValue(options.find((option) => String(option.value) === key)?.value ?? key)}
         isDisabled={field.disabled}
         orientation={node.inline ? 'horizontal' : 'vertical'}
         className="flex flex-col gap-2"
       >
-        {node.label && <span className="text-[13px] font-medium">{node.label}</span>}
         <div className={cx('flex gap-2.5', node.inline ? 'flex-row flex-wrap gap-x-5' : 'flex-col')}>
           {options.map((option) => (
             <AriaRadio key={String(option.value)} value={String(option.value)} className="group flex cursor-pointer items-center gap-2.5 text-[14px]">
@@ -405,6 +492,8 @@ export function RadioField({ node }: { node: FieldNode & { options?: Option[]; i
           ))}
         </div>
       </RadioGroup>
+      {hint.inline}
+      {hint.hidden}
       {field.error && <span className="text-[12.5px] text-danger-fg">{field.error}</span>}
     </div>
   );
@@ -412,19 +501,21 @@ export function RadioField({ node }: { node: FieldNode & { options?: Option[]; i
 
 export function SegmentedField({ node }: { node: FieldNode & { options?: Option[] } }) {
   const field = useField(node);
+  const hint = useHint(node);
   const options = node.options ?? [];
 
   return (
     <div className="flex flex-col gap-1.5" data-vanda-path={node.path} {...nodeAttributes(node)}>
+      <GroupLabel label={node.label} tip={hint.tip} />
       <RadioGroup
         aria-label={node.label ?? node.path}
+        aria-describedby={hint.id}
         orientation="horizontal"
         value={field.value === null || field.value === undefined ? null : String(field.value)}
         onChange={(key) => field.setValue(options.find((option) => String(option.value) === key)?.value ?? key)}
         isDisabled={field.disabled}
         className="flex flex-col gap-1.5"
       >
-        {node.label && <span className="text-[13px] font-medium">{node.label}</span>}
         <div className="inline-flex gap-0.5 self-start rounded-lg border border-line bg-surface-2 p-0.5">
           {options.map((option) => (
             <AriaRadio
@@ -437,6 +528,8 @@ export function SegmentedField({ node }: { node: FieldNode & { options?: Option[
           ))}
         </div>
       </RadioGroup>
+      {hint.inline}
+      {hint.hidden}
       {field.error && <span className="text-[12.5px] text-danger-fg">{field.error}</span>}
     </div>
   );
@@ -444,15 +537,29 @@ export function SegmentedField({ node }: { node: FieldNode & { options?: Option[
 
 export function RangeField({ node }: { node: FieldNode & { min?: number; max?: number; step?: number; suffix?: string } }) {
   const field = useField(node);
+  const hint = useHint(node);
   const min = node.min ?? 0;
   const max = node.max ?? 100;
   const value = typeof field.value === 'number' ? field.value : Number(field.value ?? min) || min;
 
   return (
     <div className="flex flex-col gap-2" data-vanda-path={node.path} {...nodeAttributes(node)}>
-      <Slider value={value} onChange={(next) => field.setValue(next)} minValue={min} maxValue={max} step={node.step ?? 1} isDisabled={field.disabled} aria-label={node.label ?? node.path}>
-        <div className="mb-2 flex justify-between text-[13px]">
-          <span className="font-medium">{node.label}</span>
+      <Slider
+        value={value}
+        onChange={(next) => field.setValue(next)}
+        minValue={min}
+        maxValue={max}
+        step={node.step ?? 1}
+        isDisabled={field.disabled}
+        aria-label={node.label ?? node.path}
+        aria-describedby={hint.id}
+      >
+        <div className="mb-2 flex items-center justify-between gap-2 text-[13px]">
+          {/* The value takes the end of the row: the «i» follows the label. */}
+          <span className="flex items-center gap-1 font-medium">
+            {node.label}
+            {hint.tip}
+          </span>
           <span className="text-fg-2 tabular-nums">
             {value}
             {node.suffix ? ` ${node.suffix}` : ''}
@@ -468,7 +575,8 @@ export function RangeField({ node }: { node: FieldNode & { min?: number; max?: n
           )}
         </SliderTrack>
       </Slider>
-      {node.help && <span className="text-[12.5px] text-fg-3">{node.help}</span>}
+      {hint.inline}
+      {hint.hidden}
     </div>
   );
 }
@@ -493,6 +601,7 @@ export function NumberRangeField({ node }: { node: FieldNode & { suffix?: string
               onChange={(event) => update(key, event.target.value)}
               disabled={field.disabled}
               aria-label={`${node.label ?? ''} ${t(key)}`}
+              aria-describedby={key === 'from' ? describedBy(id, field.error, node.help) : undefined}
               className={cx(controlClass, 'rounded-l-none tabular-nums', node.suffix && 'rounded-r-none')}
             />
             {node.suffix && <span className="flex items-center rounded-r-lg border border-l-0 border-control-line bg-surface-2 px-2.5 text-fg-2">{node.suffix}</span>}
@@ -519,7 +628,14 @@ export function ColorField({ node }: { node: FieldNode & { presets?: string[] } 
           disabled={field.disabled}
           className="h-(--v-control) w-10 shrink-0 cursor-pointer rounded-lg border border-control-line bg-surface p-1"
         />
-        <input id={id} value={text(field.value)} onChange={(event) => field.setValue(event.target.value)} disabled={field.disabled} className={cx(controlClass, 'font-mono text-[13.5px]')} />
+        <input
+          id={id}
+          value={text(field.value)}
+          onChange={(event) => field.setValue(event.target.value)}
+          disabled={field.disabled}
+          aria-describedby={describedBy(id, field.error, node.help)}
+          className={cx(controlClass, 'font-mono text-[13.5px]')}
+        />
       </div>
       {node.presets && node.presets.length > 0 && (
         <div className="flex gap-1.5" role="group" aria-label={node.label}>

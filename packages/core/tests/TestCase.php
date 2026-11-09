@@ -66,6 +66,7 @@ abstract class TestCase extends Orchestra
         (require __DIR__.'/../database/migrations/2026_11_06_000001_create_vanda_attachment_tables.php')->up();
         (require __DIR__.'/../database/migrations/2026_11_07_000001_create_vanda_notifications_table.php')->up();
         (require __DIR__.'/../database/migrations/2026_11_08_000001_create_vanda_activity_table.php')->up();
+        (require __DIR__.'/../database/migrations/2026_11_09_000001_create_vanda_preferences_table.php')->up();
     }
 
     protected function defineRoutes($router): void
@@ -76,6 +77,9 @@ abstract class TestCase extends Orchestra
             Route::screen('users/{user}/edit', UserEditScreen::class)->name('users.edit');
             Route::screen('showcase', ShowcaseScreen::class)->name('showcase');
             Route::screen('table', Fixtures\TableScreen::class)->name('table');
+            Route::screen('plain-table', Fixtures\PlainTableScreen::class)->name('plain-table');
+            Route::screen('rows', Fixtures\RowActionScreen::class)->name('rows');
+            Route::screen('tinymce', Fixtures\TinyMceScreen::class)->name('tinymce');
             Route::screen('upload', Fixtures\UploadScreen::class)->name('upload');
             Route::screen('profile/{user}', Fixtures\ProfileScreen::class)->name('profile');
             Route::screen('articles/{article}', Fixtures\ArticleScreen::class)->name('articles.edit');

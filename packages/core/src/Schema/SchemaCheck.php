@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vanda\Schema;
 
+use Vanda\Fields\TinyMce;
 use Vanda\Screen\Screen;
 use Vanda\Support\Icons;
 use Vanda\Support\Suggest;
@@ -13,8 +14,9 @@ use Vanda\VandaException;
  * Checks a page before it leaves the server for references that would fail quietly in the
  * browser: a field bound to a path the screen's state does not have, a visibleWhen / requiredWhen /
  * disabledWhen / computed or dependsOn that reads such a path, a ModalToggle for a modal the screen
- * does not have, an icon the renderer does not draw. Every problem names the node, its file:line
- * and what was probably meant, so the fix needs no reading of Vanda's source.
+ * does not have, an icon the renderer does not draw, a TinyMCE plugin the renderer does not bundle.
+ * Every problem names the node, its file:line and what was probably meant, so the fix needs no
+ * reading of Vanda's source.
  *
  * On in development and tests (and always in `vanda:inspect`); production pages are not checked.
  *
@@ -97,6 +99,22 @@ final class SchemaCheck
 
             if (is_string($node['icon'] ?? null) && ! Icons::exists($node['icon'])) {
                 $problems[] = sprintf('%s has the icon "%s", %s.%s', $where, $node['icon'], self::NO_ICON, self::iconHint($node['icon']));
+            }
+
+            if ($node['type'] === 'tinymce') {
+                $bundled = TinyMce::bundledPlugins();
+                foreach (is_array($node['plugins'] ?? null) ? $node['plugins'] : [] as $plugin) {
+                    if (is_string($plugin) && ! in_array($plugin, $bundled, true)) {
+                        $closest = Suggest::closest($plugin, $bundled);
+                        $problems[] = sprintf(
+                            '%s has the TinyMCE plugin "%s", which the renderer does not bundle, so the editor would try to download it and fail.%s Bundled plugins: %s.',
+                            $where,
+                            $plugin,
+                            $closest !== null ? sprintf(' Did you mean "%s"?', $closest) : '',
+                            implode(', ', $bundled),
+                        );
+                    }
+                }
             }
         }
 

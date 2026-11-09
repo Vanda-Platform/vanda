@@ -9,12 +9,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Vanda\Screen\RememberedView;
 use Vanda\Screen\ScreenRuntime;
 
 /**
  * Serves every route registered with Route::screen():
  * GET renders the page (HTML shell or JSON IR), POST runs a reaction or an action,
- * stores an upload or finds the options of a Relation field.
+ * stores an upload, finds the options of a Relation field or saves the columns a user hid in a table.
  */
 final class ScreenController
 {
@@ -28,6 +29,11 @@ final class ScreenController
         if (! $request->isMethod('POST')) {
             if (is_string($request->query('export')) && $request->header('X-Vanda') !== 'true') {
                 return $runtime->export($request->query('export'));
+            }
+
+            // The view a table's user left it in: saved from this visit, or the address to go to instead.
+            if (($remembered = RememberedView::handle($request, $runtime, $parameters)) !== null) {
+                return $remembered;
             }
 
             $page = $runtime->ir();
@@ -50,6 +56,7 @@ final class ScreenController
         return match ($payload['type'] ?? null) {
             'react' => new JsonResponse($runtime->react($client)),
             'options' => new JsonResponse($runtime->options($client, (string) ($payload['field'] ?? ''), (string) ($payload['query'] ?? ''))),
+            'columns' => new JsonResponse($runtime->saveColumns((string) ($payload['table'] ?? ''), $payload['hidden'] ?? [])),
             'action' => new JsonResponse(...$this->flip($runtime->act(
                 (string) ($payload['action'] ?? ''),
                 (array) ($payload['args'] ?? []),
@@ -59,7 +66,7 @@ final class ScreenController
                 (bool) ($payload['bulk'] ?? false),
                 isset($payload['inputs']) ? (array) $payload['inputs'] : null,
             ))),
-            default => abort(400, 'Unknown Vanda request type. Expected "react", "action" or "options".'),
+            default => abort(400, 'Unknown Vanda request type. Expected "react", "action", "options" or "columns".'),
         };
     }
 

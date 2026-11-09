@@ -62,6 +62,20 @@ final class Layout
     }
 
     /**
+     * Folders and files as tiles or a list, with thumbnails of images and icons of file types;
+     * a click on a folder opens its address, a click on a file runs ->fileAction():
+     *
+     *     Layout::files()->id('files')
+     *         ->folder('Certificates', Panel::url(FolderScreen::class, ['folder' => 3]), '12 files')
+     *         ->file('42', 'price.pdf', url: $file->url, mime: 'application/pdf', size: 52_000)
+     *         ->fileAction(fn (string $key) => ModalToggle::make('Open')->modal('file')->load($this->loadFile(...), ['id' => (int) $key])),
+     */
+    public static function files(): Files
+    {
+        return Files::make();
+    }
+
+    /**
      * Nested records with expand/collapse and drag-and-drop ordering.
      */
     public static function tree(): TreeTable

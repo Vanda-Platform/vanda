@@ -8,6 +8,7 @@ import { Avatar, buttonClass, cx, Icon, useOverflowFade } from '../ui';
 import type { UiNode } from '../types';
 import type { ButtonNode } from './actions';
 import { CopyButton } from '../copy';
+import { modalFooter } from '../modalFooter';
 import { BlockTitleContext } from './blockTitle';
 import { NodeList, NodeView } from './NodeView';
 
@@ -154,7 +155,9 @@ export function TabsView({ node }: { node: UiNode }) {
     setActive(index);
     const url = new URL(window.location.href);
     url.searchParams.set('tab', String(index));
-    window.history.replaceState(window.history.state, '', url);
+    // Through Inertia, not history.replaceState: an action's in-place update (router.replaceProp)
+    // writes Inertia's own page url back to the address bar, and the tab has to be in it.
+    router.replace({ url: `${url.pathname}${url.search}${url.hash}`, preserveScroll: true, preserveState: true, preserveFlash: true });
   };
 
   const tablist = useOverflowFade<HTMLDivElement>();
@@ -208,6 +211,8 @@ export function ModalView({ node }: { node: UiNode & { title: string; descriptio
   const buttons = new Set(node.buttonIds ?? []);
   const content = (node.children ?? []).filter((child) => !buttons.has(child.id));
   const footer = (node.children ?? []).filter((child) => buttons.has(child.id));
+  // «Удалить» stands apart at the left edge, away from «Отмена» and «Сохранить» (modalFooter()).
+  const { left, right } = modalFooter(footer);
 
   return (
     // On phones a modal is a sheet from the bottom, scrolling inside, its buttons pinned to the bottom.
@@ -247,11 +252,19 @@ export function ModalView({ node }: { node: UiNode & { title: string; descriptio
               <div className="flex flex-col gap-3.5 px-5 py-4">
                 <NodeList nodes={content} />
               </div>
-              <div className="flex justify-end gap-2 border-t border-line bg-surface px-5 pt-3 pb-4 max-md:sticky max-md:bottom-0 max-md:pb-[calc(16px+env(safe-area-inset-bottom))]">
-                <button type="button" onClick={close} className={buttonClass('secondary')}>
-                  {t('cancel')}
-                </button>
-                <NodeList nodes={footer} />
+              <div className="flex flex-wrap items-center gap-2 border-t border-line bg-surface px-5 pt-3 pb-4 max-md:sticky max-md:bottom-0 max-md:pb-[calc(16px+env(safe-area-inset-bottom))]">
+                {left.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <NodeList nodes={left} />
+                  </div>
+                )}
+                {/* ml-auto keeps «Отмена» and the rest at the right edge, on a line of their own when the footer wraps. */}
+                <div className="ml-auto flex flex-wrap justify-end gap-2">
+                  <button type="button" onClick={close} className={buttonClass('secondary')}>
+                    {t('cancel')}
+                  </button>
+                  <NodeList nodes={right} />
+                </div>
               </div>
               <button type="submit" tabIndex={-1} aria-hidden="true" className="sr-only" />
             </form>
@@ -281,11 +294,12 @@ const TONES: Record<string, string> = {
 export function BadgeView({ node }: { node: UiNode & { label: string; tone?: string; dot?: boolean } }) {
   return (
     <span
-      className={cx('inline-flex h-[22px] items-center gap-1.5 rounded-full border px-2 text-[12px] font-medium whitespace-nowrap', TONES[node.tone ?? 'neutral'])}
+      className={cx('inline-flex h-[22px] max-w-full items-center gap-1.5 rounded-full border px-2 text-[12px] font-medium whitespace-nowrap', TONES[node.tone ?? 'neutral'])}
       {...nodeAttributes(node)}
     >
-      {node.dot && <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />}
-      {node.label}
+      {node.dot && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />}
+      {/* A label longer than its place ends with «…» instead of running out of the badge. */}
+      <span className="min-w-0 truncate">{node.label}</span>
     </span>
   );
 }
@@ -332,15 +346,24 @@ export function PersonaView({ node }: { node: UiNode & { name: string; subtitle?
   );
 }
 
+/**
+ * Layout::legend(): labels and values side by side. The label column is as wide as its longest label
+ * (up to 40%), the values take the rest. A value never runs past its block: a long URL or a word
+ * without spaces (a MIME type, a token) breaks anywhere, and the legend's own smallest width stays
+ * small, so a grid or a modal around it does not grow either.
+ */
 export function LegendView({ node }: { node: UiNode & { items?: { label: string; value: UiNode; copyable?: boolean }[] } }) {
   return (
-    <dl className="grid grid-cols-[minmax(120px,180px)_minmax(0,1fr)] gap-x-6 gap-y-3 text-[14px]" {...nodeAttributes(node)}>
+    // The label column takes what its labels need, up to 40%: short values («09.11.2026 13:30») keep one line in a narrow block.
+    <dl className="grid min-w-0 grid-cols-[fit-content(40%)_minmax(0,1fr)] gap-x-6 gap-y-3 text-[14px] [overflow-wrap:anywhere]" {...nodeAttributes(node)}>
       {(node.items ?? []).map((item) => (
         <div key={item.label} className="contents">
-          <dt className="text-fg-3">{item.label}</dt>
+          <dt className="min-w-0 text-fg-3">{item.label}</dt>
           <dd className="m-0 flex min-w-0 items-center gap-1.5">
-            <NodeView node={item.value} compact />
-            {item.copyable && item.value.type === 'text' && <CopyButton text={String(item.value.text)} />}
+            <div className="min-w-0 max-w-full">
+              <NodeView node={item.value} compact />
+            </div>
+            {item.copyable && item.value.type === 'text' && <CopyButton text={String(item.value.text)} className="shrink-0" />}
           </dd>
         </div>
       ))}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyMove, dropMove, keyboardMove, type TreeItem } from './treeMove';
+import { applyMove, dropMove, hasBranches, keyboardMove, type TreeItem } from './treeMove';
 
 // home, about (team, careers), blog
 const items: TreeItem[] = [
@@ -31,5 +31,18 @@ describe('tree moves', () => {
     expect(keyboardMove(items, 'blog', 'in')).toEqual({ key: 'blog', parent: 'about', position: 2 });
     expect(keyboardMove(items, 'team', 'out')).toEqual({ key: 'team', parent: null, position: 2 });
     expect(shape(applyMove(items, keyboardMove(items, 'team', 'out')!))).toBe('home about -careers team blog');
+  });
+
+  it('tells a tree from a flat list, also after a move nests or un-nests a row', () => {
+    const flat: TreeItem[] = [
+      { key: 'a', parent: null, depth: 0 },
+      { key: 'b', parent: null, depth: 0 },
+    ];
+
+    expect(hasBranches(items)).toBe(true);
+    expect(hasBranches(flat)).toBe(false);
+    expect(hasBranches([])).toBe(false);
+    expect(hasBranches(applyMove(flat, { key: 'b', parent: 'a', position: 0 }))).toBe(true);
+    expect(hasBranches(applyMove(applyMove(flat, { key: 'b', parent: 'a', position: 0 }), { key: 'b', parent: null, position: 1 }))).toBe(false);
   });
 });

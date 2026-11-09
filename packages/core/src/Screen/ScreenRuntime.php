@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -26,7 +27,7 @@ use Vanda\Attributes\Updated;
 use Vanda\Fields\Field;
 use Vanda\Fields\Relation;
 use Vanda\Fields\Repeater;
-use Vanda\Fields\RichText;
+use Vanda\Fields\StoresImages;
 use Vanda\Fields\Upload;
 use Vanda\Form\Form;
 use Vanda\Layouts\Table;
@@ -40,6 +41,7 @@ use Vanda\Schema\Tree;
 use Vanda\State\ScreenState;
 use Vanda\State\Snapshot;
 use Vanda\Support\Paths;
+use Vanda\Support\Preferences;
 use Vanda\VandaException;
 
 /**
@@ -129,18 +131,18 @@ final class ScreenRuntime
     }
 
     /**
-     * Stores a file sent to an Upload field of this screen, or an image pasted into a RichText
-     * with ->uploads() (multipart POST with type=upload).
+     * Stores a file sent to an Upload field of this screen, or an image pasted into a RichText or
+     * a TinyMce with ->uploads() (multipart POST with type=upload).
      *
      * @return array{0: int, 1: array<string, mixed>} HTTP status and JSON body
      */
     public function upload(string $path, ?UploadedFile $file): array
     {
         $field = $this->editableField($path);
-        // A RichText with ->uploads() stores images through an Upload of its own.
-        $field = $field instanceof RichText ? $field->uploader() : $field;
+        // An editor with ->uploads() (RichText, TinyMce) stores images through an Upload of its own.
+        $field = $field instanceof StoresImages ? $field->uploader() : $field;
         if (! $field instanceof Upload) {
-            throw new HttpException(404, "There is no editable Upload field (or RichText with ->uploads()) [{$path}] on ".$this->screen::class.'.');
+            throw new HttpException(404, "There is no editable Upload field (or RichText/TinyMce with ->uploads()) [{$path}] on ".$this->screen::class.'.');
         }
 
         try {
@@ -169,6 +171,33 @@ final class ScreenRuntime
         }
 
         return ['options' => $field->search(mb_substr($term, 0, 200), new Get($this->state()))];
+    }
+
+    /**
+     * Saves the columns the signed-in user hid in a table of this screen (JSON request with
+     * type=columns). The key is never the browser's: it comes from this screen and a table found on
+     * it, and only names of the table's hideable columns are kept.
+     *
+     * @return array{hidden: list<string>}
+     */
+    public function saveColumns(string $tableId, mixed $hidden): array
+    {
+        $table = $this->tree()->find($tableId);
+
+        if (! $table instanceof Table || ! $this->tree()->isShown($table, $this->state())) {
+            throw new HttpException(404, "There is no table [{$tableId}] on ".$this->screen::class.'.');
+        }
+
+        $user = Auth::guard(config('vanda.guard'))->user();
+        if ($user === null) {
+            throw new HttpException(403, 'Only a signed-in user keeps hidden columns on the server; a guest keeps them in the browser.');
+        }
+
+        $names = array_values(array_unique(array_filter(is_array($hidden) ? $hidden : [], 'is_string')));
+        $kept = array_values(array_intersect($table->hideableColumns(), $names));
+        Preferences::put($user, $table->columnsKey($this->screen::class), ['hidden' => $kept]);
+
+        return ['hidden' => $kept];
     }
 
     /**
@@ -387,6 +416,7 @@ final class ScreenRuntime
     public function act(string $name, array $arguments, string $token, array $client, ?string $trigger = null, bool $bulk = false, ?array $inputs = null): array
     {
         $attribute = ActionCall::attribute($this->screen::class, $name);
+        $loading = false;
 
         if ($attribute === null) {
             throw new HttpException(404, VandaException::unknownAction($this->screen::class, $name)->getMessage());
@@ -406,6 +436,9 @@ final class ScreenRuntime
             );
         } else {
             $valid = ActionCall::verify($this->screen::class, $name, $arguments, $token);
+            // A ModalToggle signs its load with ActionCall::LOAD: it only fills a modal.
+            $loading = ! $valid && ActionCall::verify($this->screen::class, $name, [...$arguments, ...ActionCall::LOAD], $token);
+            $valid = $valid || $loading;
         }
 
         if (! $valid) {
@@ -428,7 +461,7 @@ final class ScreenRuntime
 
         try {
             $returned = app(ActivityLog::class)->during(
-                $this->activityContext($name, $attribute, $trigger, $bound, $bulk ? $arguments : []),
+                $this->activityContext($name, $attribute, $trigger, $bound, $bulk ? $arguments : [], $loading),
                 fn () => app()->call([$this->screen, $name], $bound),
             );
         } catch (ValidationException $exception) {
@@ -459,8 +492,9 @@ final class ScreenRuntime
      *
      * @param array<string, mixed> $bound arguments of the method (a row's record among them)
      * @param array<string, mixed> $bulk selected ids of a bulk action
+     * @param bool $loading the call fills a modal (a ModalToggle's ->load(), signed with ActionCall::LOAD)
      */
-    private function activityContext(string $name, Action $attribute, ?string $trigger, array $bound, array $bulk): ActivityContext
+    private function activityContext(string $name, Action $attribute, ?string $trigger, array $bound, array $bulk, bool $loading): ActivityContext
     {
         $button = $trigger === null ? null : $this->tree()->find($trigger);
 
@@ -495,7 +529,7 @@ final class ScreenRuntime
             labels: array_diff_key($labels, array_flip($ambiguous)),
             properties: isset($bulk['ids']) ? ['ids' => $bulk['ids']] : [],
             // Opening a modal loads its values: nothing was done yet.
-            recordsCall: $attribute->activity && ! $button instanceof ModalToggle,
+            recordsCall: $attribute->activity && ! $loading && ! $button instanceof ModalToggle,
             batch: (string) Str::uuid(),
         );
     }

@@ -20,6 +20,8 @@ abstract class Field extends Node
 
     protected ?string $help = null;
 
+    protected bool $helpInline = false;
+
     protected ?string $placeholder = null;
 
     protected bool $required = false;
@@ -71,9 +73,18 @@ abstract class Field extends Node
         return $this->label;
     }
 
-    public function help(string $help): static
+    /**
+     * A hint about the field. It shows as an «i» at the end of the label row, with the text in a
+     * tooltip (on hover, keyboard focus or a tap); screen readers hear it with the field. Where a
+     * mistake is easy without it, `inline: true` keeps the text under the field instead.
+     *
+     *     Input::make('form.slug')->help('Latin letters, digits and hyphens')
+     *     Input::make('form.inn')->help('12 digits for a person, 10 for a company', inline: true)
+     */
+    public function help(string $help, bool $inline = false): static
     {
         $this->help = $help;
+        $this->helpInline = $inline;
 
         return $this;
     }
@@ -231,6 +242,7 @@ abstract class Field extends Node
             'path' => $this->path,
             'label' => $this->label,
             'help' => $this->help,
+            'helpInline' => $this->help !== null && $this->helpInline,
             'placeholder' => $this->placeholder,
             'required' => $this->required,
             'disabled' => $this->disabled,

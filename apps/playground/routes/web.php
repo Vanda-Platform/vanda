@@ -1,6 +1,7 @@
 <?php
 
 use App\Vanda\Screens\DashboardScreen;
+use App\Vanda\Screens\FileBrowserScreen;
 use App\Vanda\Screens\PageEditScreen;
 use App\Vanda\Screens\PageListScreen;
 use App\Vanda\Screens\RoleEditScreen;
@@ -26,6 +27,8 @@ Route::vanda('admin', function () {
     Route::screen('pages/create', PageEditScreen::class)->name('admin.pages.create');
     Route::screen('pages/{page}/edit', PageEditScreen::class)->name('admin.pages.edit');
     Route::screen('showcase', ShowcaseScreen::class)->name('admin.showcase');
+    Route::screen('files', FileBrowserScreen::class)->name('admin.files');
+    Route::screen('files/{folder}', FileBrowserScreen::class)->name('admin.files.folder');
     Route::screen('activity', ActivityListScreen::class)->name('admin.activity');
     Route::screen('activity/{activity}', ActivityScreen::class)->name('admin.activity.show');
 });

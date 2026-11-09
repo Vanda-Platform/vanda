@@ -1,13 +1,18 @@
-import { Link, router } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton, Dialog, DialogTrigger, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
+import { ChoiceSelect, triggerFocusClass } from '../choice';
 import { t } from '../i18n';
-import { nodeAttributes } from '../store';
+import { initialHidden, localColumnsKey, readLocalColumns, writeLocalColumns, type ColumnChoice } from '../tableColumns';
+import { TABLE_VISIT_HEADERS, urlWith, visitWith, type FilterValue } from '../tableVisit';
+import { saveColumns } from '../transport';
+import { nodeAttributes, useStore } from '../store';
 import { buttonClass, controlClass, cx, Icon, Kbd, MOBILE_QUERY, useMediaQuery, useOverflowFade } from '../ui';
 import type { Option, UiNode } from '../types';
-import { ButtonView, DropDownView, type ButtonNode } from './actions';
+import { ButtonView, DropDownView, type ActivatableNode, type ButtonNode, type LinkEvent } from './actions';
 import { NodeView } from './NodeView';
-import { cellText, rowClickHandlers, RowLinkCell } from './rows';
+import { cellText, opensSomething, rowClickHandlers, RowOpenCell, useRowOpener, type RowOpens } from './rows';
+import { TreeList } from './treePicker';
 
 interface Column {
   name: string;
@@ -26,7 +31,10 @@ interface Column {
 
 interface Row {
   key: string;
+  /** Table::rowLink(): a click on the row opens this address. */
   link?: string;
+  /** Table::rowAction(): a click on the row runs this node (a modal toggle, a button or a link). */
+  action?: ActivatableNode;
   cells: Record<string, UiNode>;
   actions?: UiNode;
 }
@@ -41,13 +49,14 @@ interface Pagination {
   options?: number[];
 }
 
-type FilterValue = string | { start: string | null; end: string | null };
 
 interface Filter {
   name: string;
   label: string;
   kind: 'select' | 'text' | 'daterange';
-  options?: Option[];
+  options?: (Option & { parent?: string | number })[];
+  /** Filter::select()->tree(): the options are nested and picked in a tree. */
+  tree?: boolean;
   value?: FilterValue;
   display?: string;
 }
@@ -73,34 +82,9 @@ type TableNode = UiNode & {
   empty?: UiNode;
   /** Ids of children that are toolbar buttons (Table::commands()). */
   commandIds?: string[];
+  /** Whether the signed-in user chose hidden columns on the server ('saved') or not yet ('none'); missing for a guest. */
+  columnChoice?: ColumnChoice;
 };
-
-/** The address of this screen with changed query parameters (and filters, which start on page 1). */
-export function urlWith(params: Record<string, string | null>, filters?: Record<string, FilterValue | null>): string {
-  const url = new URL(window.location.href);
-  for (const [key, value] of Object.entries(params)) {
-    if (value === null || value === '') url.searchParams.delete(key);
-    else url.searchParams.set(key, value);
-  }
-  if (filters) {
-    for (const key of [...url.searchParams.keys()]) if (key.startsWith('filter[')) url.searchParams.delete(key);
-    for (const [name, value] of Object.entries(filters)) {
-      if (value === null || value === '') continue;
-      if (typeof value === 'string') url.searchParams.set(`filter[${name}]`, value);
-      else {
-        if (value.start) url.searchParams.set(`filter[${name}][start]`, value.start);
-        if (value.end) url.searchParams.set(`filter[${name}][end]`, value.end);
-      }
-    }
-    url.searchParams.delete('page');
-  }
-  return url.toString();
-}
-
-/** Visit the same screen with changed query parameters, keeping scroll and local state. */
-export function visitWith(params: Record<string, string | null>, filters?: Record<string, FilterValue | null>) {
-  router.visit(urlWith(params, filters), { preserveScroll: true, preserveState: true, replace: true });
-}
 
 /** The shadow the first column casts on the columns scrolled under it. */
 const stuckShadow = 'shadow-[6px_0_8px_-6px_oklch(0_0_0/0.14)]';
@@ -165,29 +149,43 @@ function useScrollEdges(ref: RefObject<HTMLElement | null>, content: unknown) {
 const currentFilters = (filters: Filter[]) =>
   Object.fromEntries(filters.filter((filter) => filter.value !== undefined).map((filter) => [filter.name, filter.value!]));
 
-const hiddenKey = (node: UiNode) => `vanda:columns:${window.location.pathname}:${node.id}`;
+/**
+ * The hidden columns: the server's choice for a signed-in user (it drew the table with them), saved
+ * there on every toggle; a guest's in the browser. A user's old choice in this browser is sent to the
+ * server once, when the server has none yet, and then forgotten by the browser.
+ */
+function useHiddenColumns(node: TableNode, columns: Column[]) {
+  const store = useStore();
+  const localKey = localColumnsKey(window.location.pathname, node.id);
+  const onServer = node.columnChoice !== undefined;
+  const [start] = useState(() => initialHidden(node.columnChoice, columns.filter((column) => column.hidden).map((column) => column.name), readLocalColumns(localKey)));
+  const [hidden, setHidden] = useState<string[]>(start.hidden);
 
-function useHiddenColumns(node: UiNode, columns: Column[]) {
-  const [hidden, setHidden] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(hiddenKey(node));
-      if (saved) return JSON.parse(saved) as string[];
-    } catch {
-      // Private mode or blocked storage: fall back to the defaults.
+  const save = (next: string[]) => {
+    if (!onServer) {
+      writeLocalColumns(localKey, next);
+      return Promise.resolve(true);
     }
-    return columns.filter((column) => column.hidden).map((column) => column.name);
-  });
+    return saveColumns(store.get().page, node.id, next).then(
+      () => true,
+      () => {
+        store.notify(t('requestFailed'), { tone: 'danger' });
+        return false;
+      },
+    );
+  };
 
-  const toggle = (name: string) =>
-    setHidden((current) => {
-      const next = current.includes(name) ? current.filter((item) => item !== name) : [...current, name];
-      try {
-        localStorage.setItem(hiddenKey(node), JSON.stringify(next));
-      } catch {
-        // Not remembered, still applied.
-      }
-      return next;
-    });
+  useEffect(() => {
+    if (start.migrate) void save(start.hidden).then((saved) => saved && writeLocalColumns(localKey, null));
+    // Once, on the first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggle = (name: string) => {
+    const next = hidden.includes(name) ? hidden.filter((item) => item !== name) : [...hidden, name];
+    setHidden(next);
+    void save(next);
+  };
 
   return [hidden, toggle] as const;
 }
@@ -257,6 +255,8 @@ export function TableView({ node }: { node: TableNode }) {
   }, [node.export, rows]);
 
   const viewTabs = useOverflowFade<HTMLDivElement>();
+  // Clicks on rows: their links, or their action nodes (a ->confirm() of a button asks in `opener.dialog`).
+  const opener = useRowOpener();
 
   return (
     <div className="-mx-(--v-gutter) flex flex-col" {...nodeAttributes(node)}>
@@ -270,6 +270,7 @@ export function TableView({ node }: { node: TableNode }) {
               preserveScroll
               preserveState
               replace
+              headers={TABLE_VISIT_HEADERS}
               aria-current={view.active ? 'page' : undefined}
               className={cx(
                 'flex items-center gap-2 py-2.5 text-[14px] font-medium whitespace-nowrap text-fg-2 hover:text-fg',
@@ -351,28 +352,24 @@ export function TableView({ node }: { node: TableNode }) {
           <div className="flex-grow" />
 
           {sortable.length > 0 && (
-            <label className="relative inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium text-fg-2 hover:bg-surface-2">
+            <ChoiceSelect
+              label={t('sort')}
+              value={node.sort ?? ''}
+              choices={[
+                { value: '', label: t('sortDefault') },
+                ...sortable.flatMap((column) => [
+                  { value: column.name, label: `${column.label} ↑` },
+                  { value: `-${column.name}`, label: `${column.label} ↓` },
+                ]),
+              ]}
+              onChange={(sort) => visitWith({ sort: sort || null, page: null })}
+              placement="bottom end"
+              triggerClassName="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium text-fg-2 outline-none hover:bg-surface-2 data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring data-[pressed]:bg-surface-2"
+            >
               <Icon name="sort" className="size-3.5" />
               <span>{sortable.find((column) => node.sort === column.name || node.sort === `-${column.name}`)?.label ?? t('sort')}</span>
               {node.sort && <Icon name={node.sort.startsWith('-') ? 'arrow-down' : 'arrow-up'} className="size-3.5" />}
-              {/* The native list: on phones it opens as the system picker. */}
-              <select
-                aria-label={t('sort')}
-                value={node.sort ?? ''}
-                onChange={(event) => visitWith({ sort: event.target.value || null, page: null })}
-                className="absolute inset-0 cursor-pointer opacity-0"
-              >
-                <option value="">{t('sortDefault')}</option>
-                {sortable.flatMap((column) => [
-                  <option key={column.name} value={column.name}>
-                    {column.label} ↑
-                  </option>,
-                  <option key={`-${column.name}`} value={`-${column.name}`}>
-                    {column.label} ↓
-                  </option>,
-                ])}
-              </select>
-            </label>
+            </ChoiceSelect>
           )}
 
           {hideable.length > 0 && (
@@ -437,7 +434,7 @@ export function TableView({ node }: { node: TableNode }) {
       )}
 
       {mobile ? (
-        <MobileRows rows={rows} columns={visible.filter((column) => column.mobile !== false)} selectable={bulk.length > 0} selected={selected} toggle={toggle} />
+        <MobileRows rows={rows} columns={visible.filter((column) => column.mobile !== false)} selectable={bulk.length > 0} selected={selected} toggle={toggle} open={opener.open} />
       ) : (
       <div className="relative">
       <div ref={scroller} className="@container relative overflow-x-auto">
@@ -500,7 +497,7 @@ export function TableView({ node }: { node: TableNode }) {
               // A cell that stays in place while the rest scrolls under it needs a solid background.
               const stuckClass = cx('sticky z-[1]', isSelected ? 'bg-accent-soft' : 'bg-surface group-hover:bg-[color-mix(in_oklab,var(--v-surface-2)_60%,var(--v-surface))]');
               return (
-                <tr key={row.key} className={cx('group', row.link && 'cursor-pointer')} {...rowClickHandlers(row.link)}>
+                <tr key={row.key} className={cx('group', opensSomething(row) && 'cursor-pointer')} {...rowClickHandlers(row, opener.open)}>
                   {bulk.length > 0 && (
                     <td className={cx(cellClass, 'pl-5', edges.overflow ? cx(stuckClass, 'left-0') : tint)}>
                       <input type="checkbox" aria-label={name ? t('selectRowFor', { label: name }) : t('selectRow')} checked={isSelected} onChange={() => toggle(row.key)} className="vanda-check" />
@@ -522,8 +519,8 @@ export function TableView({ node }: { node: TableNode }) {
                         )}
                       >
                         <Clamp maxWidth={maxWidth}>
-                          {cell && index === 0 && row.link ? (
-                            <RowLinkCell cell={cell} href={row.link} openLabel={t('openRow')} />
+                          {cell && index === 0 && opensSomething(row) ? (
+                            <RowOpenCell cell={cell} row={row} open={opener.open} openLabel={t('openRow')} />
                           ) : cell ? (
                             <NodeView node={cell} compact />
                           ) : null}
@@ -557,6 +554,8 @@ export function TableView({ node }: { node: TableNode }) {
         ))}
 
       {pagination && (pagination.lastPage > 1 || pagination.options) && pagination.total > 0 && <PaginationBar pagination={pagination} />}
+
+      {opener.dialog}
     </div>
   );
 }
@@ -568,7 +567,21 @@ const blankCell = (cell: UiNode | undefined) => !cell || (cell.type === 'text' &
  * Phones: each row is a card. The first column is its title, the others are
  * "label: value" lines; empty values are left out.
  */
-function MobileRows({ rows, columns, selectable, selected, toggle }: { rows: Row[]; columns: Column[]; selectable: boolean; selected: string[]; toggle: (key: string) => void }) {
+function MobileRows({
+  rows,
+  columns,
+  selectable,
+  selected,
+  toggle,
+  open,
+}: {
+  rows: Row[];
+  columns: Column[];
+  selectable: boolean;
+  selected: string[];
+  toggle: (key: string) => void;
+  open: (row: RowOpens, event: LinkEvent) => void;
+}) {
   const [first, ...rest] = columns;
 
   return (
@@ -580,14 +593,14 @@ function MobileRows({ rows, columns, selectable, selected, toggle }: { rows: Row
         return (
           <li
             key={row.key}
-            {...rowClickHandlers(row.link)}
-            className={cx('flex items-start gap-3 border-t border-line px-(--v-gutter) py-3', row.link && 'cursor-pointer active:bg-surface-2', selected.includes(row.key) && 'bg-accent-soft')}
+            {...rowClickHandlers(row, open)}
+            className={cx('flex items-start gap-3 border-t border-line px-(--v-gutter) py-3', opensSomething(row) && 'cursor-pointer active:bg-surface-2', selected.includes(row.key) && 'bg-accent-soft')}
           >
             {selectable && <input type="checkbox" aria-label={name ? t('selectRowFor', { label: name }) : t('selectRow')} checked={selected.includes(row.key)} onChange={() => toggle(row.key)} className="vanda-check mt-1" />}
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               {title && !blankCell(title) && (
                 <div className="min-w-0 text-[14.5px] font-medium">
-                  {row.link ? <RowLinkCell cell={title} href={row.link} openLabel={t('openRow')} /> : title.type === 'text' ? String(title.text) : <NodeView node={title} compact />}
+                  {opensSomething(row) ? <RowOpenCell cell={title} row={row} open={open} openLabel={t('openRow')} /> : title.type === 'text' ? String(title.text) : <NodeView node={title} compact />}
                 </div>
               )}
               <dl className="grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13.5px]">
@@ -606,7 +619,7 @@ function MobileRows({ rows, columns, selectable, selected, toggle }: { rows: Row
               </dl>
             </div>
             {row.actions && <DropDownView node={row.actions} compact name={name || undefined} />}
-            {row.link && !row.actions && <Icon name="chevron-right" className="mt-1 size-4 shrink-0 text-fg-3" />}
+            {opensSomething(row) && !row.actions && <Icon name="chevron-right" className="mt-1 size-4 shrink-0 text-fg-3" />}
           </li>
         );
       })}
@@ -626,20 +639,17 @@ function PaginationBar({ pagination }: { pagination: Pagination }) {
       <span className="tabular-nums">{t('shown', { from: pagination.from ?? 0, to: pagination.to ?? 0, total: pagination.total.toLocaleString() })}</span>
       <span className="flex flex-wrap items-center gap-4">
         {pagination.options && (
-          <label className="flex items-center gap-2 whitespace-nowrap text-fg-2">
-            {t('perPage')}
-            <select
-              value={pagination.perPage}
-              onChange={(event) => visitWith({ perPage: event.target.value, page: null })}
-              className={cx(controlClass, 'h-7 w-[72px] px-2 text-[13px]')}
-            >
-              {pagination.options.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
+          <ChoiceSelect
+            label={t('perPage')}
+            labelClassName="text-fg-2"
+            value={String(pagination.perPage)}
+            // the current size is always in the list, even one typed into the address
+            choices={[...new Set([...pagination.options, pagination.perPage])].sort((a, b) => a - b).map((option) => ({ value: String(option), label: String(option) }))}
+            onChange={(perPage) => visitWith({ perPage, page: null })}
+            placement="top end"
+            className="flex items-center gap-2 whitespace-nowrap"
+            triggerClassName={cx(controlClass, triggerFocusClass, 'flex h-7 w-[72px] cursor-pointer items-center justify-between gap-1 px-2 text-[13px] tabular-nums')}
+          />
         )}
         {pagination.lastPage > 1 && (
           <span className="flex items-center gap-0.5">
@@ -694,21 +704,44 @@ function PaginationBar({ pagination }: { pagination: Pagination }) {
 function FilterValueInput({ filter, value, onChange }: { filter: Filter; value: FilterValue | null; onChange: (value: FilterValue | null) => void }) {
   const id = `filter-${filter.name}`;
 
+  if (filter.kind === 'select' && filter.tree) {
+    // the tree with search right in the filter popover (a popover from a popover would close both);
+    // a branch matches with everything inside it
+    return (
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[13px] font-medium text-fg-2">{filter.label}</span>
+        <TreeList
+          label={filter.label}
+          options={filter.options ?? []}
+          value={typeof value === 'string' ? value : null}
+          onChange={(next) => onChange(next === null || next === undefined ? null : String(next))}
+          clearable
+          className="overflow-hidden rounded-lg border border-control-line"
+        />
+      </div>
+    );
+  }
+
+  if (filter.kind === 'select') {
+    return (
+      <ChoiceSelect
+        label={filter.label}
+        labelClassName="text-[13px] font-medium text-fg-2"
+        value={typeof value === 'string' ? value : ''}
+        choices={[{ value: '', label: t('any') }, ...(filter.options ?? []).map((option) => ({ value: String(option.value), label: option.label }))]}
+        onChange={(next) => onChange(next || null)}
+        autoFocus
+        className="flex flex-col gap-1.5"
+        triggerClassName={cx(controlClass, triggerFocusClass, 'flex cursor-pointer items-center justify-between gap-2 text-left')}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-[13px] font-medium text-fg-2">
         {filter.label}
       </label>
-      {filter.kind === 'select' && (
-        <select id={id} autoFocus value={typeof value === 'string' ? value : ''} onChange={(event) => onChange(event.target.value || null)} className={controlClass}>
-          <option value="">{t('any')}</option>
-          {(filter.options ?? []).map((option) => (
-            <option key={String(option.value)} value={String(option.value)}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      )}
       {filter.kind === 'text' && (
         <input id={id} type="text" autoFocus value={typeof value === 'string' ? value : ''} onChange={(event) => onChange(event.target.value || null)} className={controlClass} />
       )}
@@ -762,7 +795,7 @@ function FilterPopover({ filters, active, children }: { filters: Filter[]; activ
       }}
     >
       {children}
-      <Popover placement="bottom start" className="w-72 rounded-xl border border-line bg-surface shadow-pop outline-none">
+      <Popover placement="bottom start" className={cx('rounded-xl border border-line bg-surface shadow-pop outline-none', picked?.tree ? 'w-96 max-w-[calc(100vw-2rem)]' : 'w-72')}>
         <Dialog aria-label={picked?.label ?? t('filter')} className="outline-none">
           {({ close }) =>
             picked ? (

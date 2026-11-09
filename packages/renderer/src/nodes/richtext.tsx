@@ -9,6 +9,7 @@ import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton, Dialog, DialogTrigger, Heading, Modal, ModalOverlay, Popover } from 'react-aria-components';
+import { ChoiceSelect } from '../choice';
 import { t } from '../i18n';
 import { useStore } from '../store';
 import { upload } from '../transport';
@@ -119,7 +120,9 @@ function ToolButton({ label, active, disabled, onPress, children }: { label: str
 
 const Divider = () => <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-line" />;
 
-const selectClass = 'h-8 shrink-0 rounded-md bg-transparent px-1.5 text-[13px] font-medium text-fg-2 hover:bg-surface-2 focus:outline-none md:h-7';
+/** A list in the toolbar: looks like its buttons until opened. */
+const selectClass =
+  'flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md px-1.5 text-[13px] font-medium text-fg-2 outline-none hover:bg-surface-2 hover:text-fg data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring data-[pressed]:bg-surface-2 md:h-7';
 
 /** Text colour and highlight, one popover with two palettes. */
 function ColorPicker({ editor, color, background }: { editor: Editor; color?: string; background?: string }) {
@@ -350,7 +353,7 @@ interface Tool {
 }
 
 /** The narrow toolbar's «⋯»: every tool that did not fit, with its name. */
-function Overflow({ tools, extra }: { tools: Tool[]; extra: ReactNode }) {
+function Overflow({ tools, extra }: { tools: Tool[]; extra: (close: () => void) => ReactNode }) {
   return (
     <DialogTrigger>
       <AriaButton aria-label={t('moreTools')} className="grid size-8 shrink-0 place-items-center rounded-md text-fg-2 hover:bg-surface-2 hover:text-fg md:size-7">
@@ -360,7 +363,7 @@ function Overflow({ tools, extra }: { tools: Tool[]; extra: ReactNode }) {
         <Dialog aria-label={t('moreTools')} className="flex flex-col outline-none">
           {({ close }) => (
             <>
-              <div className="px-1.5 pt-1 pb-2">{extra}</div>
+              <div className="px-1.5 pt-1 pb-2">{extra(close)}</div>
               {tools.map((tool) => (
                 <button
                   key={tool.id}
@@ -638,40 +641,38 @@ export function RichTextField({ node }: { node: RichTextNode }) {
   const primary: (keyof typeof tools)[] = ['bold', 'italic', 'link', 'bulletList', 'image'];
   const folded = groups.flat().filter((key) => !primary.includes(key));
 
+  // The command runs at once; Tiptap's focus() brings the caret back to the text, so the list does
+  // not return focus to its own button when it closes (React Aria restores only a lost focus).
   const blockSelect = (
-    <select
-      aria-label={t('paragraph')}
+    <ChoiceSelect
+      label={t('paragraph')}
       value={state.block}
-      onChange={(event) => {
-        const block = event.target.value;
-        run((chain) => (block === 'p' ? chain.setParagraph() : block === 'pre' ? chain.setCodeBlock() : chain.setHeading({ level: Number(block.slice(1)) as 2 | 3 | 4 })));
-      }}
-      className={selectClass}
-    >
-      <option value="p">{t('paragraph')}</option>
-      {[2, 3, 4].map((level) => (
-        <option key={level} value={`h${level}`}>
-          {t('heading', { level })}
-        </option>
-      ))}
-      <option value="pre">{t('codeBlock')}</option>
-    </select>
+      choices={[
+        { value: 'p', label: t('paragraph') },
+        ...[2, 3, 4].map((level) => ({ value: `h${level}`, label: t('heading', { level }) })),
+        { value: 'pre', label: t('codeBlock') },
+      ]}
+      onChange={(block) => run((chain) => (block === 'p' ? chain.setParagraph() : block === 'pre' ? chain.setCodeBlock() : chain.setHeading({ level: Number(block.slice(1)) as 2 | 3 | 4 })))}
+      className="shrink-0"
+      triggerClassName={selectClass}
+    />
   );
 
-  const sizeSelect = (
-    <select
-      aria-label={t('fontSize')}
+  // a size the text already has (pasted, typed in HTML) stays visible in the list
+  const sizes = state.fontSize && !SIZES.includes(state.fontSize) ? [...SIZES, state.fontSize].sort((a, b) => parseFloat(a) - parseFloat(b)) : SIZES;
+  // in the «⋯» menu a pick also closes the menu, as its other tools do
+  const sizeSelect = (done?: () => void) => (
+    <ChoiceSelect
+      label={t('fontSize')}
       value={state.fontSize}
-      onChange={(event) => run((chain) => (event.target.value ? chain.setFontSize(event.target.value) : chain.unsetFontSize()))}
-      className={cx(selectClass, compact && 'w-full border border-line')}
-    >
-      <option value="">{t('defaultSize')}</option>
-      {SIZES.map((size) => (
-        <option key={size} value={size}>
-          {size.replace('px', '')}
-        </option>
-      ))}
-    </select>
+      choices={[{ value: '', label: t('defaultSize') }, ...sizes.map((size) => ({ value: size, label: size.replace('px', '') }))]}
+      onChange={(size) => {
+        run((chain) => (size ? chain.setFontSize(size) : chain.unsetFontSize()));
+        done?.();
+      }}
+      className={compact ? 'w-full' : 'shrink-0'}
+      triggerClassName={cx(selectClass, compact && 'w-full justify-between border border-line')}
+    />
   );
 
   const button = (key: keyof typeof tools) => {
@@ -717,7 +718,7 @@ export function RichTextField({ node }: { node: RichTextNode }) {
             {mode === 'visual' && (
               <>
                 {blockSelect}
-                {!compact && sizeSelect}
+                {!compact && sizeSelect()}
                 <Divider />
                 {compact ? (
                   <>
@@ -744,7 +745,7 @@ export function RichTextField({ node }: { node: RichTextNode }) {
             <span className="ml-auto flex shrink-0 items-center gap-0.5">
               {mode === 'visual' &&
                 (compact ? (
-                  <Overflow tools={[...folded, 'clear', 'find', 'fullscreen'].map((key) => tools[key as keyof typeof tools]!)} extra={sizeSelect} />
+                  <Overflow tools={[...folded, 'clear', 'find', 'fullscreen'].map((key) => tools[key as keyof typeof tools]!)} extra={(close) => sizeSelect(close)} />
                 ) : (
                   <>
                     {button('find')}

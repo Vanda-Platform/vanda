@@ -4,7 +4,9 @@ import { nodeAttributes, useStore, type Store } from '../store';
 import { buttonClass, controlClass, cx, Icon, MOBILE_QUERY, readonlyClass, useMediaQuery } from '../ui';
 import { BlockTitleContext } from './blockTitle';
 import type { FieldNode, UiNode } from '../types';
+import { repeaterHints } from '../fieldHelp';
 import { FieldFrame, useField } from './fields';
+import { HelpTip } from './help';
 import { NodeView } from './NodeView';
 
 type Row = Record<string, unknown>;
@@ -39,7 +41,7 @@ type RepeaterNode = FieldNode & {
 };
 
 /** Fields that need the whole width of a block. */
-const WIDE = new Set(['richtext', 'markdown', 'code', 'textarea', 'repeater', 'keyvalue', 'map', 'permissions']);
+const WIDE = new Set(['richtext', 'tinymce', 'markdown', 'code', 'textarea', 'repeater', 'keyvalue', 'map', 'permissions']);
 
 const same = (a?: string | null, b?: string | null) => Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase());
 
@@ -153,9 +155,10 @@ export function RepeaterField({ node }: { node: RepeaterNode }) {
   const remove = (index: number) => removeRow(store, node.path, rows, index);
   const { rows: rowRefs, drag, gripProps, rowStyle } = useRowDrag(rows.length, move);
 
+  // A field whose label a header or the list stands for keeps its hint for screen readers only; the «i» is above.
   const child = (template: FieldNode, index: number, hideLabel: boolean) => {
     const path = `${node.path}.${index}.${template.path}`;
-    return <NodeView key={path} node={{ ...template, id: path, path, labelHidden: hideLabel, help: hideLabel ? undefined : template.help } as UiNode} />;
+    return <NodeView key={path} node={{ ...template, id: path, path, labelHidden: hideLabel } as UiNode} />;
   };
 
   const grip = (index: number) =>
@@ -178,28 +181,40 @@ export function RepeaterField({ node }: { node: RepeaterNode }) {
       </button>
     );
 
-  // Help of a single field is said once, under the list, not under every row.
-  const helps = [...new Set([...(layout === 'blocks' ? [] : templates.map((template) => template.help)), node.help].filter(Boolean))];
+  // Hints are said once: the list's own and its single field's by its label, a column's in its header.
+  const hints = repeaterHints(layout, node, templates);
+  const tip = hints.label.length > 0 ? <HelpTip text={hints.label.join('\n')} label={node.label ?? blockTitle ?? undefined} /> : null;
 
   return (
     <div role="group" aria-labelledby={node.label ? labelId : undefined} className="flex flex-col gap-2" data-vanda-path={node.path} {...nodeAttributes(node)}>
-      {node.label && (
-        <span id={labelId} className={cx('flex items-center gap-1 text-[13px] font-medium', same(node.label, blockTitle) && 'sr-only')}>
-          {node.label}
-          {field.required && <span className="text-danger-fg" aria-hidden="true">*</span>}
-        </span>
+      {(node.label || tip) && (
+        <div className="flex items-center justify-between gap-2">
+          {node.label ? (
+            <span id={labelId} className={cx('flex items-center gap-1 text-[13px] font-medium', same(node.label, blockTitle) && 'sr-only')}>
+              {node.label}
+              {field.required && <span className="text-danger-fg" aria-hidden="true">*</span>}
+            </span>
+          ) : (
+            <span />
+          )}
+          {tip}
+        </div>
       )}
 
+      {/* The column names are for the eyes (every input has its own label); a column's «i» is for everyone. */}
       {layout === 'table' && rows.length > 0 && (
-        <div aria-hidden="true" className="flex items-center gap-1.5 text-[12.5px] font-medium text-fg-3">
-          {!field.disabled && <span className="w-9 shrink-0" />}
+        <div className="flex items-center gap-1.5 text-[12.5px] font-medium text-fg-3">
+          {!field.disabled && <span aria-hidden="true" className="w-9 shrink-0" />}
           {templates.map((template) => (
-            <span key={template.path} className="min-w-0 flex-1 truncate">
-              {template.label ?? template.path}
-              {template.required && <span className="ml-0.5 text-danger-fg">*</span>}
+            <span key={template.path} className="flex min-w-0 flex-1 items-center gap-1">
+              <span aria-hidden="true" className="truncate">
+                {template.label ?? template.path}
+                {template.required && <span className="ml-0.5 text-danger-fg">*</span>}
+              </span>
+              {hints.columns[template.path] && <HelpTip text={hints.columns[template.path]!} label={template.label ?? template.path} />}
             </span>
           ))}
-          {!field.disabled && <span className="w-9 shrink-0" />}
+          {!field.disabled && <span aria-hidden="true" className="w-9 shrink-0" />}
         </div>
       )}
 
@@ -264,7 +279,7 @@ export function RepeaterField({ node }: { node: RepeaterNode }) {
           {field.error}
         </span>
       ) : (
-        helps.length > 0 && <span className={cx('text-[12.5px] text-fg-3', layout !== 'blocks' && rows.length > 0 && !field.disabled && 'pl-[42px]')}>{helps.join(' · ')}</span>
+        hints.inline.length > 0 && <span className={cx('text-[12.5px] text-fg-3', layout !== 'blocks' && rows.length > 0 && !field.disabled && 'pl-[42px]')}>{hints.inline.join(' · ')}</span>
       )}
     </div>
   );
@@ -348,7 +363,13 @@ export function PermissionsField({ node }: { node: FieldNode & { groups?: Permis
 
   return (
     <div className="flex flex-col gap-1" data-vanda-path={node.path} {...nodeAttributes(node)}>
-      {node.label && <span className="mb-1 text-[13px] font-medium">{node.label}</span>}
+      {(node.label || (node.help && !node.helpInline)) && (
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <span className="text-[13px] font-medium">{node.label}</span>
+          {node.help && !node.helpInline && <HelpTip text={node.help} label={node.label} />}
+        </div>
+      )}
+      {node.help && node.helpInline && <span className="mb-1 text-[12.5px] text-fg-3">{node.help}</span>}
       <div className="overflow-hidden rounded-xl border border-line">
         {(node.groups ?? []).map((group) => (
           <div key={group.title}>

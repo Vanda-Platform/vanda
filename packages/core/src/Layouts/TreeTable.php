@@ -10,6 +10,7 @@ use Vanda\Actions\Button;
 use Vanda\Actions\DropDown;
 use Vanda\Actions\Link;
 use Vanda\Actions\ModalToggle;
+use Vanda\Layouts\Concerns\OpensRows;
 use Vanda\Schema\Node;
 use Vanda\Schema\SchemaContext;
 use Vanda\Screen\ActionCall;
@@ -27,10 +28,14 @@ use Vanda\Screen\ActionCall;
  *
  * The first column holds the expand toggle. With ->reorderable() rows can be dragged
  * (or moved with Alt+arrows); the action receives `$id`, `$parent` and `$position`
- * (0-based among the new siblings) and is expected to save the new order.
+ * (0-based among the new siblings) and is expected to save the new order. Instead of ->rowLink(),
+ * a click on a row (or Enter on it) may run a node built for it, a modal for instance:
+ * ->rowAction(fn (Page $page) => ModalToggle::make('SEO')->modal('seo')->load($this->loadSeo(...), ['id' => $page->id])).
  */
 final class TreeTable extends Node
 {
+    use OpensRows;
+
     /** @var iterable<mixed>|Closure */
     private iterable|Closure $items = [];
 
@@ -44,8 +49,6 @@ final class TreeTable extends Node
 
     /** @var list<TD> */
     private array $columns = [];
-
-    private ?Closure $rowLink = null;
 
     private ?Closure $rowActions = null;
 
@@ -119,16 +122,6 @@ final class TreeTable extends Node
     public function columns(array $columns): self
     {
         $this->columns = array_values($columns);
-
-        return $this;
-    }
-
-    /**
-     * @param Closure(mixed $row): ?string $link
-     */
-    public function rowLink(Closure $link): self
-    {
-        $this->rowLink = $link;
 
         return $this;
     }
@@ -217,7 +210,7 @@ final class TreeTable extends Node
                     'key' => $key,
                     'parent' => $parent === '' ? null : $parent,
                     'depth' => $depth,
-                    'link' => $this->rowLink ? ($this->rowLink)($record) : null,
+                    ...$this->rowOpens($record, $key, $context),
                     'cells' => $cells,
                     'actions' => $actions,
                 ], static fn ($value) => $value !== null);

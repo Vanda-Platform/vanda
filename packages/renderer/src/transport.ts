@@ -43,6 +43,14 @@ export function options(page: Page, field: string, query: string, signal?: Abort
   return post<{ options: Option[] }>(page, { type: 'options', snapshot: page.snapshot, state: page.state, field, query }, signal);
 }
 
+/**
+ * Saves the columns the signed-in user hid in a table of this screen (ScreenRuntime::saveColumns()):
+ * the server keeps only the table's hideable columns.
+ */
+export function saveColumns(page: Page, table: string, hidden: string[]) {
+  return post<{ hidden: string[] }>(page, { type: 'columns', snapshot: page.snapshot, state: {}, table, hidden });
+}
+
 export function react(page: Page, state: State, signal: AbortSignal) {
   return post<ReactResponse>(page, { type: 'react', snapshot: page.snapshot, state }, signal);
 }

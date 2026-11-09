@@ -1,7 +1,7 @@
 import type { UiNode } from './types';
 
-/** What needs the page's full width: rows of data, charts, numbers side by side. */
-const WIDE = new Set(['card', 'table', 'treetable', 'metrics', 'chart']);
+/** What needs the page's full width: rows of data, files, charts, numbers side by side. */
+const WIDE = new Set(['card', 'table', 'treetable', 'files', 'metrics', 'chart']);
 
 const isWide = (node: UiNode): boolean => WIDE.has(node.type) || (node.children ?? []).some(isWide);
 

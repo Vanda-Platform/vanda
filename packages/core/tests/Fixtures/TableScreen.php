@@ -30,6 +30,13 @@ final class TableScreen extends Screen
                     Filter::select('domain', 'Domain')->options(['example.com' => 'Example'])
                         ->apply(fn (Builder $query, string $domain) => $query->where('email', 'like', "%@{$domain}")),
                     Filter::dateRange('created', 'Created')->column('created_at'),
+                    Filter::select('city', 'City')->tree([
+                        ['id' => 1, 'name' => 'Russia', 'parent_id' => null],
+                        ['id' => 2, 'name' => 'Moscow', 'parent_id' => 1],
+                        ['id' => 3, 'name' => 'Kazan', 'parent_id' => 1],
+                        ['id' => 4, 'name' => 'Germany', 'parent_id' => null],
+                        ['id' => 5, 'name' => 'Berlin', 'parent_id' => 4],
+                    ]),
                 ])
                 ->views([View::make('All'), View::make('Germany', ['country' => 'DE'])])
                 ->defaultSort('id')

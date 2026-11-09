@@ -27,6 +27,12 @@ final class ActionCall
     public const BULK = ['__bulk' => true];
 
     /**
+     * Signed next to the arguments of a ModalToggle's ->load(): the server then knows the call only
+     * fills a modal (the activity log leaves it out), wherever the toggle was drawn (a table row too).
+     */
+    public const LOAD = ['__load' => true];
+
+    /**
      * The screen and method behind a first-class callable such as `$this->move(...)`,
      * checked to be an #[Action] of a screen.
      *

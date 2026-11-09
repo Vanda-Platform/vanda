@@ -7,13 +7,16 @@ namespace Vanda\Layouts;
 use Closure;
 use Illuminate\Contracts\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Vanda\Actions\Button;
 use Vanda\Actions\DropDown;
 use Vanda\Actions\Link;
 use Vanda\Actions\ModalToggle;
+use Vanda\Layouts\Concerns\OpensRows;
 use Vanda\Schema\Node;
 use Vanda\Schema\SchemaContext;
+use Vanda\Support\Preferences;
 use Vanda\Support\Search;
 
 /**
@@ -27,14 +30,18 @@ use Vanda\Support\Search;
  *         ->views([View::make('All'), View::make('Blocked', ['status' => 'blocked'])])
  *         ->paginate(25, [10, 25, 50])
  *         ->columns([TD::make('name', 'Name')->sortable(), TD::make('email', 'Email')])
+ *         ->rowLink(fn (User $user) => Panel::url(UserEditScreen::class, ['user' => $user]))
  *         ->rowActions(fn (User $user) => [Link::make('Edit')->to(UserEditScreen::class, ['user' => $user])])
  *         ->bulkActions([Button::make('Delete')->danger()->action($this->deleteMany(...))])
  *         ->exportable('users.csv')
  *
- * Or pass ready data with ->rows([...]).
+ * Or pass ready data with ->rows([...]). A click on a row opens ->rowLink() or runs ->rowAction()
+ * (a modal for the row, say): ->rowAction(fn (User $user) => ModalToggle::make('Open')->modal('quick')->load(…)).
  */
 final class Table extends Node
 {
+    use OpensRows;
+
     /** @var iterable<mixed>|Closure */
     private iterable|Closure $rows = [];
 
@@ -70,13 +77,13 @@ final class Table extends Node
 
     private ?Closure $rowActions = null;
 
-    private ?Closure $rowLink = null;
-
     private ?string $exportFile = null;
 
     private ?string $emptyText = null;
 
     private ?EmptyState $empty = null;
+
+    private bool $remember = true;
 
     public static function make(): self
     {
@@ -224,16 +231,6 @@ final class Table extends Node
     }
 
     /**
-     * @param Closure(mixed $row): ?string $link
-     */
-    public function rowLink(Closure $link): self
-    {
-        $this->rowLink = $link;
-
-        return $this;
-    }
-
-    /**
      * Adds an "Export" link that downloads every filtered row as CSV
      * (UTF-8 with BOM and ";" separators, so Excel opens it as is).
      */
@@ -247,6 +244,109 @@ final class Table extends Node
     public function isExportable(): bool
     {
         return $this->exportFile !== null && $this->query !== null;
+    }
+
+    /**
+     * Whether the table keeps the user's view (search, filters, sort, rows per page, page) in their
+     * account and brings it back when they return to the screen (on by default; see RememberedView).
+     */
+    public function remember(bool $remember = true): self
+    {
+        $this->remember = $remember;
+
+        return $this;
+    }
+
+    /**
+     * @internal A table of a query whose view is remembered.
+     */
+    public function remembers(): bool
+    {
+        return $this->remember && $this->query !== null;
+    }
+
+    /**
+     * The parameters of the table's view in `$raw` (a URL's query or a saved view) that this table
+     * accepts, cleaned as they are when read from the URL: a search of a searchable table, filter
+     * values a filter takes, a sortable column, a page size it offers, a page after the first.
+     *
+     * @internal
+     * @param array<string, mixed> $raw
+     * @return array<string, mixed> in the URL's shape: ['q' => …, 'filter' => [name => value], 'sort' => …, 'perPage' => …, 'page' => …]
+     */
+    public function viewOf(array $raw): array
+    {
+        $view = [];
+
+        $search = is_scalar($raw['q'] ?? null) ? trim((string) $raw['q']) : '';
+        if ($search !== '' && $this->searchable !== []) {
+            $view['q'] = mb_substr($search, 0, 200);
+        }
+
+        $filters = $this->filterValues(is_array($raw['filter'] ?? null) ? $raw['filter'] : []);
+        foreach ($filters as $name => $value) {
+            $view['filter'][$name] = is_array($value) ? array_filter($value, static fn ($part) => $part !== null) : $value;
+        }
+
+        $sort = is_string($raw['sort'] ?? null) ? $raw['sort'] : '';
+        if ($this->isSortable($sort)) {
+            $view['sort'] = $sort;
+        }
+
+        $perPage = is_scalar($raw['perPage'] ?? null) ? (string) $raw['perPage'] : '';
+        if (ctype_digit($perPage) && in_array((int) $perPage, $this->perPageOptions, true)) {
+            $view['perPage'] = (string) (int) $perPage;
+        }
+
+        $page = is_scalar($raw['page'] ?? null) ? (string) $raw['page'] : '';
+        if (ctype_digit($page) && (int) $page > 1) {
+            $view['page'] = (string) (int) $page;
+        }
+
+        return $view;
+    }
+
+    /**
+     * Where a user's hidden columns of this table are kept (Vanda\Support\Preferences): per screen
+     * and table, not per route parameters, since the columns are the same in every folder.
+     */
+    public function columnsKey(string $screen): string
+    {
+        return 'columns:'.$screen.':'.$this->id;
+    }
+
+    /**
+     * @return list<string> names of the columns the user may hide or show
+     */
+    public function hideableColumns(): array
+    {
+        return array_values(array_map(static fn (TD $column) => $column->name(), array_filter($this->columns, static fn (TD $column) => $column->isHideable())));
+    }
+
+    /**
+     * The headers of the columns, hidden as the signed-in user chose (TD::defaultHidden() for a user
+     * who never did), and whether they chose: 'saved', 'none', or null for a guest.
+     *
+     * @return array{0: list<array<string, mixed>>, 1: ?string}
+     */
+    private function columnHeaders(SchemaContext $context): array
+    {
+        $headers = array_map(static fn (TD $column) => $column->header(), $this->columns);
+        $hideable = $this->hideableColumns();
+        $user = $hideable === [] ? null : Auth::guard(config('vanda.guard'))->user();
+
+        if ($user === null) {
+            return [$headers, null];
+        }
+
+        $saved = Preferences::get($user, $this->columnsKey($context->screen::class));
+        if (! is_array($saved['hidden'] ?? null)) {
+            return [$headers, 'none'];
+        }
+
+        $headers = array_map(static fn (TD $column) => $column->header(in_array($column->name(), $saved['hidden'], true)), $this->columns);
+
+        return [$headers, 'saved'];
     }
 
     public function emptyText(string $text): self
@@ -269,6 +369,7 @@ final class Table extends Node
     protected function properties(SchemaContext $context): array
     {
         [$data, $sort, $search, $filters] = $this->load();
+        [$columns, $columnChoice] = $this->columnHeaders($context);
         $pagination = null;
 
         if ($data instanceof LengthAwarePaginator) {
@@ -300,7 +401,7 @@ final class Table extends Node
 
             $rows[] = array_filter([
                 'key' => $key,
-                'link' => $this->rowLink ? ($this->rowLink)($row) : null,
+                ...$this->rowOpens($row, $key, $context),
                 'cells' => $cells,
                 'actions' => $actions,
             ], static fn ($value) => $value !== null);
@@ -314,7 +415,9 @@ final class Table extends Node
         }
 
         return [
-            'columns' => array_map(static fn (TD $column) => $column->header(), $this->columns),
+            'columns' => $columns,
+            // Whether the signed-in user chose the hidden columns already ('saved' / 'none'); a guest's stay in the browser.
+            'columnChoice' => $columnChoice,
             'rows' => $rows,
             'commandIds' => array_map(static fn (Node $node) => $node->getId(), array_filter($this->commands, static fn (Node $node) => $node->isVisible())),
             'pagination' => $pagination,
@@ -364,8 +467,14 @@ final class Table extends Node
             $perPage = $this->perPage;
         }
 
+        $page = $this->filteredQuery()->paginate($perPage)->withQueryString();
+        // A remembered page past the end (rows were deleted meanwhile) shows the last one instead.
+        if ($page->currentPage() > $page->lastPage() && $page->total() > 0) {
+            $page = $this->filteredQuery()->paginate($perPage, ['*'], 'page', $page->lastPage())->withQueryString();
+        }
+
         return [
-            $this->filteredQuery()->paginate($perPage)->withQueryString(),
+            $page,
             $this->isSortable($sort) ? $sort : null,
             trim((string) request()->query('q', '')),
             $this->filterValues((array) request()->query('filter', [])),

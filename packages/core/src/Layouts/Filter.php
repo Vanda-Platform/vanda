@@ -9,6 +9,7 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Vanda\Fields\Concerns\HasOptions;
 use Vanda\Schema\Get;
 use Vanda\Support\Search;
+use Vanda\Support\TreeOptions;
 
 /**
  * A table filter. Its value travels in the URL as ?filter[name]=…, the same as in Orchid,
@@ -18,6 +19,7 @@ use Vanda\Support\Search;
  *         ->apply(fn (Builder $query, string $slug) => $query->whereHas('roles', fn ($q) => $q->where('slug', $slug))),
  *     Filter::text('email', 'Email'),                       // email contains the text, any case
  *     Filter::dateRange('created', 'Created')->column('created_at'),
+ *     Filter::select('category_id', 'Category')->tree(fn () => Category::all()),  // a category with its subcategories
  *
  * Without ->apply() the filter compares its column (the name by default) with the value.
  */
@@ -28,6 +30,12 @@ final class Filter
     private ?string $column = null;
 
     private ?Closure $apply = null;
+
+    /** @var array{items: iterable<mixed>|Closure, label: string, parent: string, key: string}|null */
+    private ?array $tree = null;
+
+    /** @var list<array{value: int|string, label: string, parent?: int|string, hint?: string}>|null built once per request */
+    private ?array $choices = null;
 
     private function __construct(
         private readonly string $name,
@@ -70,6 +78,24 @@ final class Filter
         return $this;
     }
 
+    /**
+     * Options from nested records, picked in a tree with search as in Select::tree():
+     *
+     *     Filter::select('category_id', 'Category')->tree(fn () => Category::query()->orderBy('sort')->get(), label: 'name')
+     *
+     * A record matches together with everything inside it: a parent category lists the products of all
+     * its subcategories. With ->apply() the closure gets the chosen value and decides itself.
+     *
+     * @param iterable<mixed>|Closure(): iterable<mixed> $items records with key, label and parent key
+     */
+    public function tree(iterable|Closure $items, string $label = 'name', string $parent = 'parent_id', string $key = 'id'): self
+    {
+        $this->tree = ['items' => $items, 'label' => $label, 'parent' => $parent, 'key' => $key];
+        $this->choices = null;
+
+        return $this;
+    }
+
     public function name(): string
     {
         return $this->name;
@@ -100,7 +126,7 @@ final class Filter
         $value = trim((string) $raw);
 
         if ($this->kind === FilterType::Select) {
-            $allowed = array_map(static fn (array $option) => (string) $option['value'], $this->resolveOptions(new Get([])));
+            $allowed = array_map(static fn (array $option) => (string) $option['value'], $this->choices());
 
             return in_array($value, $allowed, true) ? $value : null;
         }
@@ -122,7 +148,9 @@ final class Filter
         $column = $this->column ?? $this->name;
 
         match ($this->kind) {
-            FilterType::Select => $query->where($column, $value),
+            FilterType::Select => $this->tree !== null
+                ? $query->whereIn($column, TreeOptions::branch($this->choices(), (string) $value))
+                : $query->where($column, $value),
             FilterType::Text => Search::contains($query, $column, (string) $value),
             FilterType::DateRange => $query
                 ->when($value['start'] ?? null, static fn ($q, $start) => $q->whereDate($column, '>=', $start))
@@ -136,16 +164,31 @@ final class Filter
      */
     public function toArray(string|array|null $value): array
     {
-        $options = $this->kind === FilterType::Select ? $this->resolveOptions(new Get([])) : null;
+        $options = $this->kind === FilterType::Select ? $this->choices() : null;
 
         return array_filter([
             'name' => $this->name,
             'label' => $this->label,
             'kind' => $this->kind->value,
             'options' => $options,
+            'tree' => $this->tree !== null ? true : null,
             'value' => $value,
             'display' => $value === null ? null : $this->display($value, $options ?? []),
         ], static fn ($item) => $item !== null);
+    }
+
+    /**
+     * @return list<array{value: int|string, label: string, parent?: int|string, hint?: string}>
+     */
+    private function choices(): array
+    {
+        if ($this->tree === null) {
+            return $this->resolveOptions(new Get([]));
+        }
+
+        ['items' => $items, 'label' => $label, 'parent' => $parent, 'key' => $key] = $this->tree;
+
+        return $this->choices ??= TreeOptions::build($items, $label, $parent, $key);
     }
 
     /**

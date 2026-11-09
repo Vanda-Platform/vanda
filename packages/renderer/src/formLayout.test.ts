@@ -16,6 +16,7 @@ describe('isFormLayout', () => {
     expect(isFormLayout([node('section'), node('grid', [node('chart'), node('chart')])])).toBe(false);
     expect(isFormLayout([node('tabs', [node('tab', [node('section')]), node('tab', [node('card', [node('table')])])])])).toBe(false);
     expect(isFormLayout([node('metrics'), node('section')])).toBe(false);
+    expect(isFormLayout([node('section', [node('files')])])).toBe(false);
   });
 
   it('needs at least one section: a page of loose fields or alerts stays as it is', () => {

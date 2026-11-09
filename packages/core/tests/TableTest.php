@@ -41,6 +41,24 @@ it('ignores filter values that are not among the options', function () {
         ->and($table['filters'][0])->not->toHaveKey('value');
 });
 
+it('filters by a tree branch: a parent matches everything inside it', function () {
+    User::query()->whereKey(1)->update(['city' => 2]); // Anna, Moscow
+    User::query()->whereKey(2)->update(['city' => 3]); // Boris, Kazan
+    User::query()->whereKey(3)->update(['city' => 5]); // Clara, Berlin
+
+    $russia = table('?filter[city]=1');
+
+    expect(array_column($russia['rows'], 'key'))->toBe(['1', '2'])
+        ->and($russia['pagination']['total'])->toBe(2)
+        ->and($russia['filters'][4])->toMatchArray(['name' => 'city', 'kind' => 'select', 'tree' => true, 'value' => '1', 'display' => 'Russia'])
+        ->and($russia['filters'][4]['options'][1])->toBe(['value' => 2, 'label' => 'Moscow', 'parent' => 1])
+        ->and(table('?filter[city]=2')['pagination']['total'])->toBe(1)
+        ->and(array_column(table('?filter[city]=4')['rows'], 'key'))->toBe(['3'])
+        // not among the records: ignored
+        ->and(table('?filter[city]=99')['pagination']['total'])->toBe(3)
+        ->and(table()['filters'][0])->not->toHaveKey('tree');
+});
+
 it('counts rows of every view and marks the one matching the URL', function () {
     $all = table()['views'];
     $germany = table('?filter[country]=DE')['views'];

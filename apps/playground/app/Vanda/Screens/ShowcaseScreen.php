@@ -7,7 +7,9 @@ use App\Models\User;
 use App\Vanda\Forms\ShowcaseForm;
 use Vanda\Actions\Button;
 use Vanda\Actions\Link;
+use Vanda\Actions\ModalToggle;
 use Vanda\Attributes\Action;
+use Vanda\Attributes\Locked;
 use Vanda\Fields\CheckBox;
 use Vanda\Fields\Code;
 use Vanda\Fields\CodeLanguage;
@@ -33,6 +35,7 @@ use Vanda\Fields\Select;
 use Vanda\Fields\Switcher;
 use Vanda\Fields\TextArea;
 use Vanda\Fields\TimeZone;
+use Vanda\Fields\TinyMce;
 use Vanda\Fields\Upload;
 use Vanda\Fields\UploadTarget;
 use Vanda\Fields\Utm;
@@ -41,6 +44,7 @@ use Vanda\Layouts\Alert;
 use Vanda\Layouts\EmptyState;
 use Vanda\Layouts\Layout;
 use Vanda\Layouts\Sight;
+use Vanda\Layouts\TD;
 use Vanda\Schema\Expr;
 use Vanda\Screen\Result;
 use Vanda\Screen\Screen;
@@ -51,6 +55,14 @@ use Vanda\Screen\Screen;
 final class ShowcaseScreen extends Screen
 {
     public ShowcaseForm $form;
+
+    /** The page whose SEO the modal shows (opened by a click on a row of the pages table). */
+    #[Locked]
+    public ?int $seoPage = null;
+
+    public string $seoTitle = '';
+
+    public string $seoText = '';
 
     public function query(): array
     {
@@ -117,9 +129,9 @@ final class ShowcaseScreen extends Screen
                     ]),
                 ],
                 'Списки' => [
-                    Layout::section('Повторитель', 'Строки с одинаковыми полями. Правила полей проверяются для каждой строки.')->schema([
-                        Repeater::make('form.specs')->label('Характеристики')->fields([
-                            Input::make('name')->label('Название')->rules('required'),
+                    Layout::section('Повторитель', 'Строки с одинаковыми полями. Правила полей проверяются для каждой строки. Подсказка колонки — «i» в её заголовке.')->schema([
+                        Repeater::make('form.specs')->label('Характеристики')->help('Показываются в карточке товара в этом порядке')->fields([
+                            Input::make('name')->label('Название')->rules('required')->help('Как на упаковке: «Вес», «Обжарка»'),
                             Input::make('value')->label('Значение'),
                         ])->addLabel('Добавить характеристику')->max(6),
                     ]),
@@ -173,24 +185,41 @@ final class ShowcaseScreen extends Screen
                     Layout::section('Место на карте', 'Клик по карте, перетаскивание метки, координаты или поиск адреса.')->schema([
                         Map::make('form.location')->label('Точка самовывоза')->zoom(15),
                     ]),
+                    Layout::section('HTML-редактор TinyMCE', 'TinyMce — для текстов, написанных в TinyMCE в Orchid: классы, стили, таблицы и data-атрибуты не теряются. Ссылку на страницу можно выбрать из списка.')->schema([
+                        TinyMce::make('form.html')->label('Описание товара')->uploads(5)->height(420)
+                            ->linkList(fn () => Page::query()->orderBy('title')->get()->map(fn (Page $page) => ['title' => $page->title, 'value' => '/'.$page->slug])->all()),
+                        Repeater::make('form.blocks')->label('Блоки')->addLabel('Добавить блок')->fields([
+                            Input::make('title')->label('Заголовок'),
+                            TinyMce::make('text')->label('Текст')->height(260)->menubar(false)->uploads(5),
+                        ]),
+                    ]),
+                    Layout::section('Клик по строке', 'Table::rowAction(): строка открывает окно, загруженное для неё, как ModalToggle с ->load().')->schema([
+                        Layout::table()
+                            ->rows(fn () => Page::query()->orderBy('position')->limit(5)->get())
+                            ->columns([TD::make('title', 'Страница'), TD::make('slug', 'Адрес')->muted()])
+                            ->rowAction(fn (Page $page) => ModalToggle::make('SEO')->modal('seo')->load($this->loadSeo(...), ['page' => $page])),
+                    ]),
                     Layout::section('Прочее')->schema([
                         Layout::grid([
                             Input::make('form.phone')->label('Телефон')->mask('+7 (999) 999-99-99'),
                             DateTimer::make('form.opensAt')->label('Открытие')->timeOnly(),
                         ]),
                         Utm::make('form.campaignLink')->label('Ссылка в рассылке'),
-                        Label::make('form.code')->label('Код акции')->help('Label показывает значение, но не даёт его менять'),
+                        // Where a mistake is easy without the hint, it stays as text under the field.
+                        Label::make('form.code')->label('Код акции')->help('Label показывает значение, но не даёт его менять', inline: true),
                     ]),
                 ],
                 'Просмотр' => [
                     Layout::section('Карточка записи', 'Layout::legend() — значения только для чтения.')->schema([
                         Layout::legend(
-                            ['id' => '#10482', 'client' => 'Ирина Кузнецова', 'total' => '4 280 ₽', 'created' => '5 ноября 2026, 11:42'],
+                            ['id' => '#10482', 'client' => 'Ирина Кузнецова', 'total' => '4 280 ₽', 'created' => '5 ноября 2026, 11:42',
+                                'invoice' => 'https://kofe.example/orders/10482/invoice/9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08.pdf'],
                             [
                                 Sight::make('id', 'Заказ')->mono()->copyable(),
                                 Sight::make('client', 'Клиент'),
                                 Sight::make('total', 'Сумма'),
                                 Sight::make('created', 'Создан'),
+                                Sight::make('invoice', 'Счёт'),
                             ],
                         ),
                     ]),
@@ -209,7 +238,45 @@ final class ShowcaseScreen extends Screen
                     ]),
                 ],
             ]),
+            Layout::modal('seo', 'SEO страницы')->wide()
+                ->schema([
+                    Input::make('seoTitle')->label('Заголовок для поисковиков')->help('До 60 символов: длиннее поисковики обрезают'),
+                    TinyMce::make('seoText')->label('Текст под списком')->height(300)->menubar(false),
+                ])
+                // A dangerous button stands apart at the left edge of the footer.
+                ->buttons([
+                    Button::make('Сохранить')->primary()->action($this->saveSeo(...)),
+                    Button::make('Очистить SEO')->icon('trash')->danger()
+                        ->confirm('Заголовок и текст для поисковиков пропадут.', 'Очистить SEO страницы?', 'Очистить SEO')
+                        ->action($this->clearSeo(...)),
+                ]),
         ];
+    }
+
+    /** Fills the SEO modal for the page whose row was clicked. */
+    #[Action(validate: false)]
+    public function loadSeo(Page $page): Result
+    {
+        $this->seoPage = $page->id;
+        $this->seoTitle = $page->title;
+        $this->seoText = '<p>Страница «'.e($page->title).'»: <a href="/'.e($page->slug).'">/'.e($page->slug).'</a></p>';
+
+        return Result::refresh()->openModal('seo');
+    }
+
+    #[Action]
+    public function saveSeo(): Result
+    {
+        return Result::toast("SEO страницы #{$this->seoPage} в порядке: «{$this->seoTitle}»");
+    }
+
+    #[Action(validate: false)]
+    public function clearSeo(): Result
+    {
+        $this->seoTitle = '';
+        $this->seoText = '';
+
+        return Result::toast('SEO очищено (в песочнице ничего не сохраняется)');
     }
 
     #[Action]

@@ -116,6 +116,55 @@ final class VandaException extends RuntimeException
         ));
     }
 
+    /**
+     * @param string $layout "Layout::table()" or "Layout::tree()"
+     */
+    public static function rowActionWithRowLink(string $layout): self
+    {
+        return new self(sprintf(
+            '%s has both ->rowLink() and ->rowAction(), but a click on a row can do only one thing. '
+            .'Keep one of them: ->rowLink(fn ($row) => Panel::url(EditScreen::class, [\'item\' => $row])) opens a page, '
+            .'->rowAction(fn ($row) => ModalToggle::make(\'Open\')->modal(\'edit\')->load($this->loadEdit(...), [\'id\' => $row->id])) '
+            .'opens a modal or runs a button (a page opens there too: ->rowAction(fn ($row) => Link::make(\'Open\')->to(…))).',
+            $layout,
+        ));
+    }
+
+    /**
+     * @param string $layout "Layout::table()" or "Layout::tree()"
+     */
+    public static function invalidRowAction(string $layout, string $returned): self
+    {
+        return new self(sprintf(
+            'The closure given to %s->rowAction() returned %s. Return the node a click on the row runs: '
+            .'a ModalToggle, a Button or a Link built for that row (or null for a row that opens nothing), e.g. '
+            .'->rowAction(fn ($row) => ModalToggle::make(\'Open\')->modal(\'edit\')->load($this->loadEdit(...), [\'id\' => $row->id])).',
+            $layout,
+            $returned,
+        ));
+    }
+
+    public static function invalidFileAction(string $returned): self
+    {
+        return new self(sprintf(
+            'The closure given to Layout::files()->fileAction() returned %s. Return the node a click on the file runs: '
+            .'a ModalToggle, a Button or a Link built for that file (or null for a file that opens nothing), e.g. '
+            .'->fileAction(fn (string $key) => ModalToggle::make(\'Open\')->modal(\'file\')->load($this->loadFile(...), [\'id\' => (int) $key])).',
+            $returned,
+        ));
+    }
+
+    public static function invalidLinkList(string $path, string $problem): self
+    {
+        return new self(sprintf(
+            'TinyMce::make(\'%s\')->linkList(): %s. Give a list of links, each [\'title\' => \'Shown in the list\', \'value\' => \'/address\'], '
+            .'or a group [\'title\' => \'Group\', \'menu\' => [ …links… ]], e.g. '
+            .'->linkList(fn () => Product::query()->get()->map(fn (Product $product) => [\'title\' => $product->name, \'value\' => $product->url])->all()).',
+            $path,
+            $problem,
+        ));
+    }
+
     public static function duplicateNodeId(string $id, ?string $first, ?string $second): self
     {
         return new self(sprintf(

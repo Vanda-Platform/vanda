@@ -8,6 +8,7 @@ use Closure;
 use Vanda\Fields\Concerns\HasOptions;
 use Vanda\Schema\Get;
 use Vanda\Schema\SchemaContext;
+use Vanda\Support\TreeOptions;
 
 /**
  * Pick one value, or several with ->multiple():
@@ -156,43 +157,12 @@ final class Select extends Field
     }
 
     /**
-     * Records in tree order (parents before children), with parent keys and disabled branches.
-     *
      * @return list<array{value: int|string, label: string, parent?: int|string, disabled?: true}>
      */
     private function treeOptions(): array
     {
         ['items' => $items, 'label' => $label, 'parent' => $parent, 'key' => $key] = (array) $this->tree;
-        $items = $items instanceof Closure ? $items() : $items;
-        $items = is_array($items) ? $items : iterator_to_array($items, false);
 
-        $keys = [];
-        foreach ($items as $item) {
-            $keys[(string) data_get($item, $key)] = true;
-        }
-
-        $byParent = [];
-        foreach ($items as $item) {
-            $parentKey = data_get($item, $parent);
-            $byParent[$parentKey === null || ! isset($keys[(string) $parentKey]) ? '' : (string) $parentKey][] = $item;
-        }
-
-        $options = [];
-        $walk = function (string $parentKey, mixed $parentValue, bool $disabled) use (&$walk, &$options, $byParent, $label, $key): void {
-            foreach ($byParent[$parentKey] ?? [] as $item) {
-                $value = data_get($item, $key);
-                $off = $disabled || ($this->excludeBranch !== null && (string) $value === (string) $this->excludeBranch);
-                $options[] = array_filter([
-                    'value' => $value,
-                    'label' => (string) data_get($item, $label),
-                    'parent' => $parentValue,
-                    'disabled' => $off ?: null,
-                ], static fn ($v) => $v !== null);
-                $walk((string) $value, $value, $off);
-            }
-        };
-        $walk('', null, false);
-
-        return $options;
+        return TreeOptions::build($items, $label, $parent, $key, $this->excludeBranch);
     }
 }

@@ -106,7 +106,8 @@ final class TD
     }
 
     /**
-     * The user may hide this column from the "Columns" menu; the choice is remembered in the browser.
+     * The user may hide this column from the "Columns" menu; the choice is remembered in their
+     * account (per table, see Table::columnsKey()).
      */
     public function hideable(): self
     {
@@ -138,6 +139,14 @@ final class TD
         return $this;
     }
 
+    /**
+     * The user may hide or show it in the "Columns" menu (->hideable() or ->defaultHidden()).
+     */
+    public function isHideable(): bool
+    {
+        return $this->shownByDefault !== null;
+    }
+
     public function isSortable(): bool
     {
         return $this->sortable;
@@ -154,10 +163,13 @@ final class TD
     }
 
     /**
+     * @param bool|null $hidden the user's choice for a hideable column; null: TD::defaultHidden()
      * @return array<string, mixed>
      */
-    public function header(): array
+    public function header(?bool $hidden = null): array
     {
+        $hidden = $this->isHideable() && $hidden !== null ? $hidden : $this->shownByDefault === false;
+
         return array_filter([
             'name' => $this->name,
             'label' => $this->label,
@@ -167,7 +179,7 @@ final class TD
             'muted' => $this->muted ?: null,
             'sortable' => $this->sortable ?: null,
             'hideable' => $this->shownByDefault === null ? null : true,
-            'hidden' => $this->shownByDefault === false ? true : null,
+            'hidden' => $hidden ?: null,
             'mobile' => $this->onPhones ? null : false,
         ], static fn ($value) => $value !== null);
     }

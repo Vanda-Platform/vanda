@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Page;
 use App\Models\User;
 use App\Vanda\Screens\DashboardScreen;
+use App\Vanda\Screens\FileBrowserScreen;
 use App\Vanda\Screens\PageEditScreen;
 use App\Vanda\Screens\PageListScreen;
 use App\Vanda\Screens\RoleListScreen;
@@ -78,6 +79,7 @@ class AppServiceProvider extends ServiceProvider
             MenuItem::make('Активность')->icon('activity')->group('Доступ')->to(ActivityListScreen::class),
             MenuItem::make('Страницы')->icon('file')->group('Сайт')->to(PageListScreen::class),
             MenuItem::make('Витрина компонентов')->icon('grid')->group('Разработка')->to(ShowcaseScreen::class),
+            MenuItem::make('Файлы')->icon('files')->group('Разработка')->to(FileBrowserScreen::class),
         ]);
     }
 }

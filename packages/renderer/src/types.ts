@@ -21,6 +21,8 @@ export interface FieldNode extends BaseNode {
   path: string;
   label?: string;
   help?: string;
+  /** Field::help($text, inline: true): the hint stays as text under the field instead of an «i». */
+  helpInline?: boolean;
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;

@@ -21,7 +21,7 @@ use Vanda\Support\Html;
  * lost by just opening and saving a record. Markup the visual editor cannot keep opens in
  * HTML mode with a warning instead of being dropped silently.
  */
-final class RichText extends Field
+final class RichText extends Field implements StoresImages
 {
     private int $minHeight = 200;
 

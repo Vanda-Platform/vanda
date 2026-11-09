@@ -96,7 +96,7 @@ final class ModalToggle extends Node
             'action' => $this->load === null ? null : [
                 'name' => $this->load['name'],
                 'args' => $this->load['args'] === [] ? null : $this->load['args'],
-                'token' => ActionCall::sign($this->load['screen'], $this->load['name'], $this->load['args']),
+                'token' => ActionCall::sign($this->load['screen'], $this->load['name'], [...$this->load['args'], ...ActionCall::LOAD]),
             ],
         ];
     }

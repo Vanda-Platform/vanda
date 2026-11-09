@@ -93,4 +93,10 @@ final class ShowcaseForm extends Form
     public ?string $phone = null;
 
     public ?string $opensAt = '09:00';
+
+    /** HTML written in TinyMCE, as Orchid kept it: classes, styles and data-* attributes stay. */
+    public string $html = '<h2>Эспрессо-смесь «Бразилия»</h2><p class="lead">Плотное тело, ноты <span style="color: #b96ad9;">какао</span> и ореха. Подходит для <a href="/catalog/milk" data-product-id="7">напитков с молоком</a>.</p><table style="border-collapse: collapse; width: 100%;" border="1"><tbody><tr><td style="width: 50%;">Обжарка</td><td style="width: 50%;">Средняя</td></tr></tbody></table>';
+
+    /** @var list<array{title?: string, text?: string}> */
+    public array $blocks = [['title' => 'Доставка', 'text' => '<p>Бесплатно от <strong>3 000 ₽</strong>.</p>']];
 }

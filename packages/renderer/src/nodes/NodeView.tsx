@@ -23,6 +23,7 @@ import {
 } from './fields';
 import { ActionListView, ActionRowView, AlertView, BadgeView, CardView, EmptyStateView, GridView, LegendView, MetricsView, ModalView, PersonaView, SectionView, TabsView, TextView, ViewIsland } from './layout';
 import { KeyValueField, PermissionsField, RepeaterField } from './structured';
+import { FilesView } from './files';
 import { TableView } from './table';
 import { UploadField } from './upload';
 import { UtmField } from './utm';
@@ -37,6 +38,7 @@ function chunk<K extends string>(load: () => Promise<Record<K, NodeComponent>>, 
 const dates = () => import('./dates');
 const code = () => import('./code');
 const richtext = () => import('./richtext');
+const tinymce = () => import('./tinymce');
 const tree = () => import('./tree');
 const charts = () => import('./charts');
 const map = () => import('./map');
@@ -53,6 +55,7 @@ const REGISTRY: Record<string, NodeComponent> = {
   tabs: TabsView,
   modal: ModalView,
   table: TableView,
+  files: FilesView,
   treetable: chunk(tree, 'TreeTableView'),
   legend: LegendView,
   metrics: MetricsView,
@@ -88,6 +91,7 @@ const REGISTRY: Record<string, NodeComponent> = {
   utm: UtmField,
   label: LabelField,
   richtext: chunk(richtext, 'RichTextField'),
+  tinymce: chunk(tinymce, 'TinyMceField'),
   code: chunk(code, 'CodeField'),
   markdown: chunk(code, 'MarkdownField'),
   button: ({ node, compact }) => <ButtonView node={node} size={compact ? 'sm' : 'md'} />,
@@ -133,6 +137,9 @@ function Placeholder({ node }: { node: UiNode }) {
   switch (node.type) {
     case 'richtext':
       return field((sized.minHeight ?? 200) + RICHTEXT_CHROME);
+    case 'tinymce':
+      // TinyMCE's height is the whole editor's, menu and toolbar included.
+      return field(sized.height ?? 400);
     case 'code':
       return field((sized.minHeight ?? 160) + CODE_CHROME);
     case 'markdown':

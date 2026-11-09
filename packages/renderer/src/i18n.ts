@@ -259,6 +259,13 @@ const messages = {
     navigate: 'select',
     open: 'open',
     newTab: 'new tab',
+    hint: 'Hint',
+    hintFor: 'Hint: {label}',
+    folders: 'Folders',
+    files: 'Files',
+    filesView: 'View',
+    filesGrid: 'Tiles',
+    filesList: 'List',
   },
   ru: {
     cancel: 'Отмена',
@@ -520,6 +527,13 @@ const messages = {
     navigate: 'выбор',
     open: 'открыть',
     newTab: 'в новой вкладке',
+    hint: 'Подсказка',
+    hintFor: 'Подсказка: {label}',
+    folders: 'Папки',
+    files: 'Файлы',
+    filesView: 'Вид',
+    filesGrid: 'Плиткой',
+    filesList: 'Списком',
   },
 } as const;
 
