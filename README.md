@@ -3,12 +3,12 @@
 A screen-centric admin framework for Laravel — Orchid rethought for 2026:
 PHP-only screens, instant reactivity, and an API designed to be read and written by AI agents.
 
-> Status: phase 4. Tables with filters and views, trees, uploads with cropping, rich text, maps, charts,
-> ⌘K, record headers, an "unsaved changes" bar with undo, signing in as another user, the notification
-> bell and the activity log; search that ignores case in every alphabet; compact and comfortable
-> density and a menu that folds into a rail; keyboard and screen-reader support; pages checked for
-> wrong paths, modals and icons, and `vanda:check` for the whole panel. Next: MCP for agents and a
-> screen generator. See `vanda-analysis.md`.
+> Status: 0.1, early: the API may still change before 1.0. Tables with filters and views, trees,
+> uploads with cropping, rich text, maps, charts, ⌘K, record headers, an "unsaved changes" bar with
+> undo, signing in as another user, the notification bell and the activity log; search that ignores
+> case in every alphabet; compact and comfortable density and a menu that folds into a rail; keyboard
+> and screen-reader support; pages checked for wrong paths, modals and icons, and `vanda:check` for the
+> whole panel. Next: MCP for agents and a screen generator.
 
 ## Install
 

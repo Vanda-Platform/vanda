@@ -9,3 +9,6 @@
 .idea/
 *.log
 
+# Local tools: agents' settings, worktrees and preview servers, design-tool state.
+/.claude/
+/.impeccable/

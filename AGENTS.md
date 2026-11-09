@@ -2,7 +2,7 @@
 
 Vanda is a screen-centric admin framework for Laravel, a rethought Orchid. Screens are PHP
 classes; the server sends a typed page description (IR, `vanda/v1`) and a prebuilt React
-renderer draws it. Read `vanda-analysis.md` for the why; this file is the how.
+renderer draws it.
 
 This file is about developing Vanda itself. How to write screens with it (what an app's developer
 and their agent need) ships with the package in `packages/core/resources/boost/`: the short rules in
