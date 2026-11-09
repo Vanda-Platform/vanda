@@ -167,8 +167,12 @@ export function ModalToggleView({ node, compact }: { node: UiNode & { label: str
 
 type MenuEntry = ButtonNode & { href?: string; external?: boolean; modal?: string };
 
-/** "⋯" and other menus of buttons, links and modal toggles. */
-export function DropDownView({ node, compact }: { node: UiNode & { label?: string; icon?: string; variant?: string }; compact?: boolean }) {
+/**
+ * "⋯" and other menus of buttons, links and modal toggles. An icon-only menu is named «Действия»,
+ * or by `name` («Действия: Анна Смирнова») where many of them stand in a list; `tabbable={false}`
+ * leaves it out of the Tab order where arrow keys reach it (a row of a tree).
+ */
+export function DropDownView({ node, compact, name, tabbable = true }: { node: UiNode & { label?: string; icon?: string; variant?: string }; compact?: boolean; name?: string; tabbable?: boolean }) {
   const store = useStore();
   const [confirming, setConfirming] = useState<MenuEntry | null>(null);
   const items = (node.children ?? []) as MenuEntry[];
@@ -191,7 +195,8 @@ export function DropDownView({ node, compact }: { node: UiNode & { label?: strin
     <>
       <MenuTrigger>
         <AriaButton
-          aria-label={iconOnly ? t('actions') : undefined}
+          aria-label={iconOnly ? (name ? t('actionsFor', { label: name }) : t('actions')) : undefined}
+          excludeFromTabOrder={!tabbable}
           className={cx(buttonClass(node.variant, compact ? 'sm' : 'md'), iconOnly && (compact ? 'w-7 px-0' : 'w-9 px-0'))}
           {...nodeAttributes(node)}
         >

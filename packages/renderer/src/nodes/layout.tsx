@@ -1,6 +1,6 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { useState, type MouseEvent } from 'react';
-import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
+import { Dialog, Heading, Modal, ModalOverlay, Tab, TabList, TabPanel, Tabs } from 'react-aria-components';
 import { t } from '../i18n';
 import { walk } from '../patch';
 import { isInternal, nodeAttributes, useSnapshot, useStore } from '../store';
@@ -101,7 +101,6 @@ export function GridView({ node }: { node: UiNode & { columns?: number } }) {
   );
 }
 
-/** Tabs switch on the client and remember the active one in ?tab=…; a tab with errors is marked. */
 /** Nodes that are a block of their own on a page; fields and other content around them get a card. */
 const BLOCKS = new Set(['section', 'card', 'table', 'treetable', 'tabs', 'metrics', 'chart', 'alert', 'empty', 'actionlist']);
 
@@ -132,6 +131,11 @@ export function BlockList({ nodes }: { nodes: UiNode[] }) {
   );
 }
 
+/**
+ * Tabs switch on the client and remember the active one in ?tab=…; a tab with errors is marked.
+ * React Aria's Tabs: one Tab stop, arrows (and Home, End) move between the tabs. Every panel stays
+ * mounted (its fields keep their values and errors); the hidden ones are inert.
+ */
 export function TabsView({ node }: { node: UiNode }) {
   const tabs = node.children ?? [];
   const errors = useSnapshot((s) => s.errors);
@@ -141,6 +145,7 @@ export function TabsView({ node }: { node: UiNode }) {
   });
 
   const select = (index: number) => {
+    if (index < 0) return;
     setActive(index);
     const url = new URL(window.location.href);
     url.searchParams.set('tab', String(index));
@@ -153,33 +158,42 @@ export function TabsView({ node }: { node: UiNode }) {
     walk(tab.children ?? []).some((child) => typeof child.path === 'string' && Object.keys(errors).some((key) => key === child.path || key.startsWith(`${child.path}.`)));
 
   return (
-    <div className="flex flex-col gap-6" {...nodeAttributes(node)}>
-      <div ref={tablist} role="tablist" className="vanda-fade-x flex gap-6 overflow-x-auto border-b border-line">
-        {tabs.map((tab, index) => (
-          <button
+    <Tabs
+      selectedKey={tabs[active]?.id}
+      onSelectionChange={(key) => select(tabs.findIndex((tab) => tab.id === key))}
+      className="flex flex-col gap-6"
+      {...nodeAttributes(node)}
+    >
+      <TabList ref={tablist} className="vanda-fade-x flex gap-6 overflow-x-auto border-b border-line">
+        {tabs.map((tab) => (
+          <Tab
             key={tab.id}
-            type="button"
-            role="tab"
-            id={`${tab.id}-tab`}
-            aria-selected={index === active}
-            aria-controls={`${tab.id}-panel`}
-            onClick={() => select(index)}
-            className={cx(
-              'relative flex items-center gap-2 py-2.5 text-[14px] font-medium whitespace-nowrap text-fg-2 hover:text-fg compact:py-2',
-              index === active && 'text-fg shadow-[inset_0_-2px_0_var(--v-accent)]',
-            )}
+            id={tab.id}
+            className={({ isSelected }) =>
+              cx(
+                'relative flex cursor-pointer items-center gap-2 rounded-t-md py-2.5 text-[14px] font-medium whitespace-nowrap text-fg-2 outline-none hover:text-fg compact:py-2',
+                // Inside the scroller an outer ring would be cut off: it is drawn inside the tab.
+                'data-[focus-visible]:outline-2 data-[focus-visible]:-outline-offset-2 data-[focus-visible]:outline-accent data-[focus-visible]:outline-solid',
+                isSelected && 'text-fg shadow-[inset_0_-2px_0_var(--v-accent)]',
+              )
+            }
           >
             {String(tab.title)}
-            {hasErrors(tab) && <span aria-label={t('hasErrors')} className="size-1.5 rounded-full bg-danger" />}
-          </button>
+            {hasErrors(tab) && (
+              <>
+                <span aria-hidden="true" className="size-1.5 rounded-full bg-danger" />
+                <span className="sr-only">{t('hasErrors')}</span>
+              </>
+            )}
+          </Tab>
         ))}
-      </div>
-      {tabs.map((tab, index) => (
-        <div key={tab.id} role="tabpanel" id={`${tab.id}-panel`} aria-labelledby={`${tab.id}-tab`} hidden={index !== active} className="flex flex-col gap-4">
+      </TabList>
+      {tabs.map((tab) => (
+        <TabPanel key={tab.id} id={tab.id} shouldForceMount className="flex flex-col gap-4 outline-none data-[inert]:hidden">
           <BlockList nodes={tab.children ?? []} />
-        </div>
+        </TabPanel>
       ))}
-    </div>
+    </Tabs>
   );
 }
 
@@ -287,10 +301,17 @@ export function AlertView({ node }: { node: UiNode & { text: string; title?: str
 }
 
 export function PersonaView({ node }: { node: UiNode & { name: string; subtitle?: string; initials: string; hue?: number; image?: string; href?: string } }) {
+  // A panel page opens through Inertia (and still in a new tab with Cmd/Ctrl or the middle button).
   const name = node.href ? (
-    <a href={node.href} className="truncate font-medium text-fg underline-offset-4 hover:underline">
-      {node.name}
-    </a>
+    isInternal(node.href) ? (
+      <Link href={node.href} className="truncate font-medium text-fg underline-offset-4 hover:underline">
+        {node.name}
+      </Link>
+    ) : (
+      <a href={node.href} className="truncate font-medium text-fg underline-offset-4 hover:underline">
+        {node.name}
+      </a>
+    )
   ) : (
     <span className="truncate font-medium">{node.name}</span>
   );

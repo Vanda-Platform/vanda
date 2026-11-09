@@ -1,12 +1,13 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton, Dialog, DialogTrigger, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import { t } from '../i18n';
-import { isInternal, nodeAttributes } from '../store';
+import { nodeAttributes } from '../store';
 import { buttonClass, controlClass, cx, Icon, Kbd, MOBILE_QUERY, useMediaQuery, useOverflowFade } from '../ui';
 import type { Option, UiNode } from '../types';
 import { ButtonView, DropDownView, type ButtonNode } from './actions';
 import { NodeView } from './NodeView';
+import { cellText, rowClickHandlers, RowLinkCell } from './rows';
 
 interface Column {
   name: string;
@@ -74,8 +75,8 @@ type TableNode = UiNode & {
   commandIds?: string[];
 };
 
-/** Visit the same screen with changed query parameters, keeping scroll and local state. */
-export function visitWith(params: Record<string, string | null>, filters?: Record<string, FilterValue | null>) {
+/** The address of this screen with changed query parameters (and filters, which start on page 1). */
+export function urlWith(params: Record<string, string | null>, filters?: Record<string, FilterValue | null>): string {
   const url = new URL(window.location.href);
   for (const [key, value] of Object.entries(params)) {
     if (value === null || value === '') url.searchParams.delete(key);
@@ -93,7 +94,12 @@ export function visitWith(params: Record<string, string | null>, filters?: Recor
     }
     url.searchParams.delete('page');
   }
-  router.visit(url.toString(), { preserveScroll: true, preserveState: true, replace: true });
+  return url.toString();
+}
+
+/** Visit the same screen with changed query parameters, keeping scroll and local state. */
+export function visitWith(params: Record<string, string | null>, filters?: Record<string, FilterValue | null>) {
+  router.visit(urlWith(params, filters), { preserveScroll: true, preserveState: true, replace: true });
 }
 
 /** The shadow the first column casts on the columns scrolled under it. */
@@ -255,14 +261,16 @@ export function TableView({ node }: { node: TableNode }) {
   return (
     <div className="-mx-(--v-gutter) flex flex-col" {...nodeAttributes(node)}>
       {views.length > 0 && (
-        <div ref={viewTabs} role="tablist" aria-label={t('views')} className="vanda-fade-x mx-(--v-gutter) mb-1 flex gap-6 overflow-x-auto border-b border-line">
+        // Views are addresses of their own (a filter set), so they are links: one opens in a new tab too.
+        <nav ref={viewTabs} aria-label={t('views')} className="vanda-fade-x mx-(--v-gutter) mb-1 flex gap-6 overflow-x-auto border-b border-line">
           {views.map((view) => (
-            <button
+            <Link
               key={view.label}
-              type="button"
-              role="tab"
-              aria-selected={Boolean(view.active)}
-              onClick={() => visitWith({ q: null }, view.filters)}
+              href={urlWith({ q: null }, view.filters)}
+              preserveScroll
+              preserveState
+              replace
+              aria-current={view.active ? 'page' : undefined}
               className={cx(
                 'flex items-center gap-2 py-2.5 text-[14px] font-medium whitespace-nowrap text-fg-2 hover:text-fg',
                 view.active && 'text-fg shadow-[inset_0_-2px_0_var(--v-accent)]',
@@ -274,9 +282,9 @@ export function TableView({ node }: { node: TableNode }) {
                   {view.count.toLocaleString()}
                 </span>
               )}
-            </button>
+            </Link>
           ))}
-        </div>
+        </nav>
       )}
 
       {toolbar && selected.length === 0 && (
@@ -388,7 +396,7 @@ export function TableView({ node }: { node: TableNode }) {
                     >
                       {({ isSelected }) => (
                         <>
-                          <span className={cx('grid size-4 place-items-center rounded border', isSelected ? 'border-accent bg-accent text-white' : 'border-line-strong')}>
+                          <span className={cx('grid size-4 place-items-center rounded border', isSelected ? 'border-accent bg-accent text-white' : 'border-control-line')}>
                             {isSelected && <Icon name="check" className="size-3" />}
                           </span>
                           {column.label}
@@ -485,24 +493,17 @@ export function TableView({ node }: { node: TableNode }) {
           <tbody>
             {rows.map((row) => {
               const isSelected = selected.includes(row.key);
+              // The row's name for its checkbox and menu: «Выбрать: Анна Смирнова», not ten «Выбрать строку».
+              const name = cellText(visible[0] ? row.cells[visible[0].name] : undefined);
               const cellClass = 'border-t border-line py-(--v-cell-y) align-middle';
               const tint = isSelected ? 'bg-accent-soft' : 'group-hover:bg-surface-2/60';
               // A cell that stays in place while the rest scrolls under it needs a solid background.
               const stuckClass = cx('sticky z-[1]', isSelected ? 'bg-accent-soft' : 'bg-surface group-hover:bg-[color-mix(in_oklab,var(--v-surface-2)_60%,var(--v-surface))]');
               return (
-                <tr
-                  key={row.key}
-                  className={cx('group', row.link && 'cursor-pointer')}
-                  onClick={(event) => {
-                    if (row.link && !(event.target as HTMLElement).closest('a,button,input,[role="menu"],[role="dialog"]')) {
-                      if (isInternal(row.link)) router.visit(row.link);
-                      else window.location.assign(row.link);
-                    }
-                  }}
-                >
+                <tr key={row.key} className={cx('group', row.link && 'cursor-pointer')} {...rowClickHandlers(row.link)}>
                   {bulk.length > 0 && (
                     <td className={cx(cellClass, 'pl-5', edges.overflow ? cx(stuckClass, 'left-0') : tint)}>
-                      <input type="checkbox" aria-label={t('selectRow')} checked={isSelected} onChange={() => toggle(row.key)} className="vanda-check" />
+                      <input type="checkbox" aria-label={name ? t('selectRowFor', { label: name }) : t('selectRow')} checked={isSelected} onChange={() => toggle(row.key)} className="vanda-check" />
                     </td>
                   )}
                   {visible.map((column, index) => {
@@ -521,8 +522,8 @@ export function TableView({ node }: { node: TableNode }) {
                         )}
                       >
                         <Clamp maxWidth={maxWidth}>
-                          {cell && index === 0 && row.link && cell.type === 'text' ? (
-                            <span className="font-medium text-fg">{String(cell.text)}</span>
+                          {cell && index === 0 && row.link ? (
+                            <RowLinkCell cell={cell} href={row.link} openLabel={t('openRow')} />
                           ) : cell ? (
                             <NodeView node={cell} compact />
                           ) : null}
@@ -532,7 +533,7 @@ export function TableView({ node }: { node: TableNode }) {
                   })}
                   {hasActions && (
                     <td className={cx(cellClass, 'pr-4 text-right', stickActions ? cx(stuckClass, 'right-0', edges.right && stuckShadowRight) : tint)}>
-                      {row.actions && <DropDownView node={row.actions} compact />}
+                      {row.actions && <DropDownView node={row.actions} compact name={name || undefined} />}
                     </td>
                   )}
                 </tr>
@@ -573,23 +574,21 @@ function MobileRows({ rows, columns, selectable, selected, toggle }: { rows: Row
   return (
     <ul className="flex flex-col">
       {rows.map((row) => {
-        const open = () => {
-          if (!row.link) return;
-          if (isInternal(row.link)) router.visit(row.link);
-          else window.location.assign(row.link);
-        };
         const title = first ? row.cells[first.name] : undefined;
+        const name = cellText(title);
 
         return (
           <li
             key={row.key}
-            onClick={(event) => !(event.target as HTMLElement).closest('a,button,input,[role="menu"],[role="dialog"]') && open()}
+            {...rowClickHandlers(row.link)}
             className={cx('flex items-start gap-3 border-t border-line px-(--v-gutter) py-3', row.link && 'cursor-pointer active:bg-surface-2', selected.includes(row.key) && 'bg-accent-soft')}
           >
-            {selectable && <input type="checkbox" aria-label={t('selectRow')} checked={selected.includes(row.key)} onChange={() => toggle(row.key)} className="vanda-check mt-1" />}
+            {selectable && <input type="checkbox" aria-label={name ? t('selectRowFor', { label: name }) : t('selectRow')} checked={selected.includes(row.key)} onChange={() => toggle(row.key)} className="vanda-check mt-1" />}
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               {title && !blankCell(title) && (
-                <div className="min-w-0 text-[14.5px] font-medium">{title.type === 'text' ? String(title.text) : <NodeView node={title} compact />}</div>
+                <div className="min-w-0 text-[14.5px] font-medium">
+                  {row.link ? <RowLinkCell cell={title} href={row.link} openLabel={t('openRow')} /> : title.type === 'text' ? String(title.text) : <NodeView node={title} compact />}
+                </div>
               )}
               <dl className="grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13.5px]">
                 {rest.map((column) => {
@@ -606,7 +605,7 @@ function MobileRows({ rows, columns, selectable, selected, toggle }: { rows: Row
                 })}
               </dl>
             </div>
-            {row.actions && <DropDownView node={row.actions} compact />}
+            {row.actions && <DropDownView node={row.actions} compact name={name || undefined} />}
             {row.link && !row.actions && <Icon name="chevron-right" className="mt-1 size-4 shrink-0 text-fg-3" />}
           </li>
         );
@@ -623,7 +622,7 @@ function pageList(page: number, last: number): (number | null)[] {
 
 function PaginationBar({ pagination }: { pagination: Pagination }) {
   return (
-    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3.5 text-[13.5px] text-fg-3 compact:py-2.5">
+    <nav aria-label={t('pages')} className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3.5 text-[13.5px] text-fg-3 compact:py-2.5">
       <span className="tabular-nums">{t('shown', { from: pagination.from ?? 0, to: pagination.to ?? 0, total: pagination.total.toLocaleString() })}</span>
       <span className="flex flex-wrap items-center gap-4">
         {pagination.options && (
@@ -662,6 +661,7 @@ function PaginationBar({ pagination }: { pagination: Pagination }) {
                 <button
                   key={page}
                   type="button"
+                  aria-label={t('pageNumber', { page })}
                   aria-current={page === pagination.page ? 'page' : undefined}
                   onClick={() => visitWith({ page: String(page) })}
                   className={cx(

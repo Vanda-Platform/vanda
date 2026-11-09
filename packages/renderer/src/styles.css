@@ -14,6 +14,9 @@
   --v-surface-3: #eaeaed;
   --v-line: #e4e4e7;
   --v-line-strong: #d4d4d8;
+  /* The edge of a field, a checkbox or a radio: 3:1 against the surfaces it sits on (WCAG 1.4.11),
+     since the edge is what shows where to type. Lines and cards keep the softer --v-line(-strong). */
+  --v-control-line: #8b8b95;
   --v-fg: #18181b;
   --v-fg-2: #52525b;
   --v-fg-3: #6b6b74;
@@ -85,6 +88,7 @@
   --v-surface-3: #26262e;
   --v-line: #27272f;
   --v-line-strong: #393943;
+  --v-control-line: #666671;
   --v-fg: #f4f4f5;
   --v-fg-2: #b8b8c0;
   --v-fg-3: #8e8e98;
@@ -124,6 +128,7 @@
   --color-surface-3: var(--v-surface-3);
   --color-line: var(--v-line);
   --color-line-strong: var(--v-line-strong);
+  --color-control-line: var(--v-control-line);
   --color-fg: var(--v-fg);
   --color-fg-2: var(--v-fg-2);
   --color-fg-3: var(--v-fg-3);
@@ -294,7 +299,7 @@
   width: 16px;
   height: 16px;
   margin: 0;
-  border: 1px solid var(--v-line-strong);
+  border: 1px solid var(--v-control-line);
   border-radius: 4.5px;
   background: var(--v-surface);
   box-shadow: var(--v-shadow-sm);

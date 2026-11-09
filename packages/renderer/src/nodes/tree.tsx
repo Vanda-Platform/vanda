@@ -1,14 +1,14 @@
-import { router } from '@inertiajs/react';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Button as AriaButton, Dialog, DialogTrigger, Popover } from 'react-aria-components';
 import { t } from '../i18n';
-import { isInternal, nodeAttributes, useStore } from '../store';
+import { nodeAttributes, useStore } from '../store';
 import { applyMove, branch, dropMove, hasChildren, keyboardMove, type DropZone, type Move } from '../treeMove';
 import { buttonClass, controlClass, cx, Icon, invalidClass, Kbd } from '../ui';
 import type { ActionRef, FieldNode, UiNode } from '../types';
 import { DropDownView } from './actions';
 import { FieldFrame, useField } from './fields';
 import { NodeView } from './NodeView';
+import { cellText, openLink, rowClickHandlers, RowLinkCell } from './rows';
 
 interface Column {
   name: string;
@@ -50,7 +50,6 @@ function Guides({ depth }: { depth: number }) {
   ));
 }
 
-const cellText = (cell: UiNode | undefined) => String(cell?.text ?? cell?.label ?? cell?.name ?? '');
 
 function useOpenKeys(node: UiNode, rows: TreeRow[], expandDepth: number) {
   const storageKey = `vanda:tree:${window.location.pathname}:${node.id}`;
@@ -88,6 +87,9 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
   const tbody = useRef<HTMLTableSectionElement>(null);
   const hasActions = items.some((row) => row.actions);
   const move = node.move;
+  const hintId = useId();
+  // One Tab stop for the whole tree (the row last focused, else the first); arrows move between rows.
+  const [active, setActive] = useState<string | null>(null);
 
   // Fresh rows from the server (after a save, a refresh or a visit) replace the local order.
   useEffect(() => setItems(node.rows ?? []), [node.rows]);
@@ -112,6 +114,8 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
       return true;
     });
   }, [items, open, query, byKey, firstColumn]);
+
+  const tabbable = visible.some((row) => row.key === active) ? active : (visible[0]?.key ?? null);
 
   const toggle = (key: string, value?: boolean) => {
     const next = new Set(open);
@@ -167,11 +171,17 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
         if (branchRow && open.has(row.key)) toggle(row.key, false);
         else if (row.parent) focusRow(row.parent);
         break;
+      case 'Home':
+        event.preventDefault();
+        if (visible[0]) focusRow(visible[0].key);
+        break;
+      case 'End':
+        event.preventDefault();
+        if (visible.length > 0) focusRow(visible[visible.length - 1]!.key);
+        break;
       case 'Enter':
-        if (row.link) {
-          if (isInternal(row.link)) router.visit(row.link);
-          else window.location.assign(row.link);
-        }
+        // With Cmd/Ctrl or Shift the page opens in a new tab, as a link would.
+        if (row.link) openLink(row.link, event);
         break;
     }
   };
@@ -231,7 +241,10 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
 
       {/* relative: hidden helpers inside rows stay in this scroller instead of widening the page. */}
       <div className="relative overflow-x-auto">
-        <table role="treegrid" aria-label={columns[0]?.label} className="w-full border-separate border-spacing-0 text-[14px]">
+        <p id={hintId} hidden>
+          {t('treeKeys')} {move && t('treeKeysMove')}
+        </p>
+        <table role="treegrid" aria-label={columns[0]?.label} aria-describedby={hintId} className="w-full border-separate border-spacing-0 text-[14px]">
           <thead>
             <tr>
               {move && (
@@ -274,22 +287,21 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
                 <tr
                   key={row.key}
                   data-key={row.key}
-                  tabIndex={0}
+                  tabIndex={row.key === tabbable ? 0 : -1}
                   aria-level={row.depth + 1}
                   aria-expanded={branchRow ? isOpen : undefined}
                   onKeyDown={(event) => onRowKey(event, row)}
-                  onClick={(event) => {
-                    if (row.link && !(event.target as HTMLElement).closest('a,button,input,[role="menu"]')) {
-                      if (isInternal(row.link)) router.visit(row.link);
-                      else window.location.assign(row.link);
-                    }
-                  }}
-                  className={cx('group outline-none', row.link && 'cursor-pointer', dragging === row.key && 'opacity-40')}
+                  onFocus={() => setActive(row.key)}
+                  {...rowClickHandlers(row.link)}
+                  // A 2px ring inside the row: the tint alone is too faint to find the focus by.
+                  className={cx('group outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent focus-visible:outline-solid', row.link && 'cursor-pointer', dragging === row.key && 'opacity-40')}
                 >
                   {move && (
                     <td className={cx(cellClass, 'pl-5 text-fg-3')}>
+                      {/* Out of the Tab order: Alt + arrows move the focused row (the tree's description says so). */}
                       <button
                         type="button"
+                        tabIndex={-1}
                         aria-label={t('move', { label: cellText(row.cells[firstColumn ?? '']) })}
                         onPointerDown={(event) => startDrag(event, row)}
                         onPointerMove={dragMove}
@@ -303,7 +315,18 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
                   )}
                   {columns.map((column, index) => {
                     const cell = row.cells[column.name];
-                    const content = cell ? index === 0 && cell.type === 'text' ? <span className="font-medium whitespace-nowrap text-fg">{String(cell.text)}</span> : <NodeView node={cell} compact /> : null;
+                    // The name is a real link for the mouse (Cmd/Ctrl-click, «open in a new tab»); the keyboard opens the row with Enter.
+                    const content = cell ? (
+                      index === 0 && row.link ? (
+                        <span className="whitespace-nowrap">
+                          <RowLinkCell cell={cell} href={row.link} tabIndex={-1} openLabel={t('openRow')} />
+                        </span>
+                      ) : index === 0 && cell.type === 'text' ? (
+                        <span className="font-medium whitespace-nowrap text-fg">{String(cell.text)}</span>
+                      ) : (
+                        <NodeView node={cell} compact />
+                      )
+                    ) : null;
 
                     return (
                       <td
@@ -356,7 +379,11 @@ export function TreeTableView({ node }: { node: TreeTableNode }) {
                       </td>
                     );
                   })}
-                  {hasActions && <td className={cx(cellClass, 'pr-4 text-right')}>{row.actions && <DropDownView node={row.actions} compact />}</td>}
+                  {hasActions && (
+                    <td className={cx(cellClass, 'pr-4 text-right')}>
+                      {row.actions && <DropDownView node={row.actions} compact name={cellText(row.cells[firstColumn ?? '']) || undefined} tabbable={row.key === tabbable} />}
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -563,7 +590,7 @@ export function TreeSelectField({ node }: { node: FieldNode & { options?: TreeOp
                           )}
                         >
                           {multiple ? (
-                            <span aria-hidden="true" className={cx('grid size-4 shrink-0 place-items-center rounded border', checked === 'off' ? 'border-line-strong bg-surface' : 'border-accent bg-accent text-white')}>
+                            <span aria-hidden="true" className={cx('grid size-4 shrink-0 place-items-center rounded border', checked === 'off' ? 'border-control-line bg-surface' : 'border-accent bg-accent text-white')}>
                               {checked === 'on' && <Icon name="check" className="size-3" />}
                               {checked === 'mixed' && <span className="h-0.5 w-2 rounded bg-white" />}
                             </span>

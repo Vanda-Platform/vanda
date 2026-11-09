@@ -230,10 +230,14 @@ export function UploadField({ node }: { node: UploadNode }) {
   const hint = [node.accept?.split(',').map(typeLabel).join(', '), t('upTo', { size: formatSize(node.maxSize) })].filter(Boolean).join(' · ');
 
   const fileInput = (
+    // The visible button chooses the files (and the field's label still clicks through to it):
+    // this input is no stop of Tab and no unnamed field for a screen reader.
     <input
       ref={input}
       id={id}
       type="file"
+      tabIndex={-1}
+      aria-hidden="true"
       className="sr-only"
       accept={node.accept}
       onClick={(event) => {
@@ -273,7 +277,12 @@ export function UploadField({ node }: { node: UploadNode }) {
           <div className="flex flex-col gap-1.5">
             {!field.disabled && (
               <div className="flex gap-2">
-                <button type="button" onClick={() => choose(values[0])} className={cx(buttonClass('secondary', 'sm'), item && !item.error && 'pointer-events-none opacity-50')}>
+                <button
+                  type="button"
+                  onClick={() => choose(values[0])}
+                  aria-label={node.label && !(item && !item.error) ? `${t('uploadPhoto')}: ${node.label}` : undefined}
+                  className={cx(buttonClass('secondary', 'sm'), item && !item.error && 'pointer-events-none opacity-50')}
+                >
                   {item && !item.error ? `${Math.round(item.progress * 100)}%` : t('uploadPhoto')}
                 </button>
                 {values.length > 0 && (
@@ -317,7 +326,13 @@ export function UploadField({ node }: { node: UploadNode }) {
             <Icon name={cropping ? 'crop' : 'upload'} />
           </span>
           <span className="text-[14px] text-fg-2">
-            <button type="button" onClick={() => choose()} className="cursor-pointer font-medium text-accent-fg underline-offset-4 hover:underline">
+            {/* The field's name goes with the button: its label points at the hidden input. */}
+            <button
+              type="button"
+              onClick={() => choose()}
+              aria-label={node.label ? `${t(node.multiple ? 'chooseFiles' : 'chooseFile')}: ${node.label}` : undefined}
+              className="cursor-pointer font-medium text-accent-fg underline-offset-4 hover:underline"
+            >
               {t(node.multiple ? 'chooseFiles' : 'chooseFile')}
             </button>{' '}
             {t('orDrop')}

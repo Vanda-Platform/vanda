@@ -136,9 +136,9 @@ export function InputField({
       )}
       {node.prefix || node.suffix ? (
         <div className="flex">
-          {node.prefix && <span className="flex items-center rounded-l-lg border border-r-0 border-line-strong bg-surface-2 px-2.5 text-fg-2">{node.prefix}</span>}
+          {node.prefix && <span className="flex items-center rounded-l-lg border border-r-0 border-control-line bg-surface-2 px-2.5 text-fg-2">{node.prefix}</span>}
           {input}
-          {node.suffix && <span className="flex items-center rounded-r-lg border border-l-0 border-line-strong bg-surface-2 px-2.5 text-fg-2">{node.suffix}</span>}
+          {node.suffix && <span className="flex items-center rounded-r-lg border border-l-0 border-control-line bg-surface-2 px-2.5 text-fg-2">{node.suffix}</span>}
         </div>
       ) : (
         input
@@ -331,7 +331,7 @@ function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multipl
 }
 
 const box =
-  'grid size-4 shrink-0 place-items-center rounded-[4.5px] border border-line-strong bg-surface text-white shadow-sm transition group-data-[selected]:border-accent group-data-[selected]:bg-accent group-data-[focus-visible]:ring-3 group-data-[focus-visible]:ring-ring';
+  'grid size-4 shrink-0 place-items-center rounded-[4.5px] border border-control-line bg-surface text-white shadow-sm transition group-data-[selected]:border-accent group-data-[selected]:bg-accent group-data-[focus-visible]:ring-3 group-data-[focus-visible]:ring-ring';
 
 export function CheckboxField({ node }: { node: FieldNode }) {
   const field = useField(node);
@@ -399,7 +399,7 @@ export function RadioField({ node }: { node: FieldNode & { options?: Option[]; i
         <div className={cx('flex gap-2.5', node.inline ? 'flex-row flex-wrap gap-x-5' : 'flex-col')}>
           {options.map((option) => (
             <AriaRadio key={String(option.value)} value={String(option.value)} className="group flex cursor-pointer items-center gap-2.5 text-[14px]">
-              <span className="size-4 rounded-full border border-line-strong bg-surface shadow-sm transition group-data-[selected]:border-[5px] group-data-[selected]:border-accent group-data-[focus-visible]:ring-3 group-data-[focus-visible]:ring-ring" />
+              <span className="size-4 rounded-full border border-control-line bg-surface shadow-sm transition group-data-[selected]:border-[5px] group-data-[selected]:border-accent group-data-[focus-visible]:ring-3 group-data-[focus-visible]:ring-ring" />
               {option.label}
             </AriaRadio>
           ))}
@@ -484,7 +484,7 @@ export function NumberRangeField({ node }: { node: FieldNode & { suffix?: string
       <div className="grid grid-cols-2 gap-2">
         {(['from', 'to'] as const).map((key) => (
           <div key={key} className="flex">
-            <span className="flex items-center rounded-l-lg border border-r-0 border-line-strong bg-surface-2 px-2.5 text-fg-2">{t(key)}</span>
+            <span className="flex items-center rounded-l-lg border border-r-0 border-control-line bg-surface-2 px-2.5 text-fg-2">{t(key)}</span>
             <input
               id={key === 'from' ? id : undefined}
               type="number"
@@ -495,7 +495,7 @@ export function NumberRangeField({ node }: { node: FieldNode & { suffix?: string
               aria-label={`${node.label ?? ''} ${t(key)}`}
               className={cx(controlClass, 'rounded-l-none tabular-nums', node.suffix && 'rounded-r-none')}
             />
-            {node.suffix && <span className="flex items-center rounded-r-lg border border-l-0 border-line-strong bg-surface-2 px-2.5 text-fg-2">{node.suffix}</span>}
+            {node.suffix && <span className="flex items-center rounded-r-lg border border-l-0 border-control-line bg-surface-2 px-2.5 text-fg-2">{node.suffix}</span>}
           </div>
         ))}
       </div>
@@ -517,7 +517,7 @@ export function ColorField({ node }: { node: FieldNode & { presets?: string[] } 
           onChange={(event) => field.setValue(event.target.value.toUpperCase())}
           aria-label={node.label ?? node.path}
           disabled={field.disabled}
-          className="h-(--v-control) w-10 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-surface p-1"
+          className="h-(--v-control) w-10 shrink-0 cursor-pointer rounded-lg border border-control-line bg-surface p-1"
         />
         <input id={id} value={text(field.value)} onChange={(event) => field.setValue(event.target.value)} disabled={field.disabled} className={cx(controlClass, 'font-mono text-[13.5px]')} />
       </div>

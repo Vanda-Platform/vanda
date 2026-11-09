@@ -130,7 +130,7 @@ export function CodeEditor({ id, label, value, onChange, language, minHeight, li
 const frame = (error?: string) =>
   cx(
     'overflow-hidden rounded-lg border bg-surface shadow-sm transition focus-within:border-accent focus-within:ring-3 focus-within:ring-ring',
-    error ? invalidClass : 'border-line-strong',
+    error ? invalidClass : 'border-control-line',
   );
 
 const LANGUAGE_LABELS: Record<string, string> = { json: 'JSON', html: 'HTML', css: 'CSS', javascript: 'JavaScript', php: 'PHP', sql: 'SQL', markdown: 'Markdown', yaml: 'YAML' };

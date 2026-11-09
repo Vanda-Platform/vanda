@@ -42,6 +42,21 @@ export function App() {
     document.title = page.title ? `${page.title} — ${page.app.name}` : page.app.name;
   }, [page.title, page.app.name]);
 
+  // A new page (not a sort, a filter or a page of the same list): its title takes the focus, so a
+  // screen reader says where the user is and Tab goes on from the content, not from the old link.
+  // (Inertia mounts the page anew on a visit, so the last address is kept outside it.)
+  const path = new URL(page.url, window.location.href).pathname;
+  useEffect(() => {
+    const previous = lastPath;
+    lastPath = path;
+    if (previous === null || previous === path) return;
+    // After the overlay that led here (the palette, the menu) has given the focus back.
+    const timer = setTimeout(() => {
+      if (!document.activeElement?.closest('[role="dialog"],[role="alertdialog"]')) focusContent();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [path]);
+
   const brand = { '--v-accent': page.app.brand } as React.CSSProperties;
   const mobile = useMediaQuery(MOBILE_QUERY);
   const [density] = useDensity();
@@ -92,6 +107,17 @@ export function App() {
       )}
       style={brand}
     >
+      {/* The first stop of Tab: past the menu, straight to the page (WCAG 2.4.1). */}
+      <a
+        href="#vanda-content"
+        onClick={(event) => {
+          event.preventDefault();
+          focusContent();
+        }}
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-3.5 focus:py-2 focus:font-medium focus:text-fg focus:shadow-pop"
+      >
+        {t('skipToContent')}
+      </a>
       <AlertStrips />
       <div className={cx('flex flex-1 items-stretch', !mobile && 'min-h-0')}>
         {!mobile && <Sidebar rail={rail} />}
@@ -145,7 +171,12 @@ export function App() {
                   {page.avatar && <Avatar initials={page.avatar.initials} hue={page.avatar.hue} image={page.avatar.image} size="lg" />}
                   <div className="flex min-w-0 flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2.5">
-                      {page.title && <h1 className={cx('font-semibold tracking-[-0.015em]', mobile ? 'text-[20px] leading-7' : 'text-[24px] leading-8')}>{page.title}</h1>}
+                      {page.title && (
+                      // tabIndex -1: the target of «К содержимому» and of a new page; a heading needs no ring.
+                      <h1 id="vanda-title" tabIndex={-1} className={cx('font-semibold tracking-[-0.015em] outline-none', mobile ? 'text-[20px] leading-7' : 'text-[24px] leading-8')}>
+                        {page.title}
+                      </h1>
+                    )}
                       {page.badge && <NodeView node={page.badge} />}
                     </div>
                     {page.description && <p className="text-fg-2">{page.description}</p>}
@@ -156,7 +187,7 @@ export function App() {
             </section>
 
             <div className={cx(mobile ? 'px-4 pb-8' : 'px-8 pb-10 compact:px-6 compact:pb-8', page.avatar && (mobile ? 'pt-5' : 'pt-8 compact:pt-6'))}>
-              <div className={cx('flex flex-col gap-4', measure)}>
+              <div id="vanda-content" tabIndex={-1} className={cx('flex flex-col gap-4 outline-none', measure)}>
                 <BlockList nodes={page.layout} />
               </div>
             </div>
@@ -180,6 +211,14 @@ export function App() {
       <Inspector />
     </div>
   );
+}
+
+/** The address of the page shown last: a new one moves the focus to its title. */
+let lastPath: string | null = null;
+
+/** Focus the page's title (else its content): where «К содержимому» and a new page lead. */
+function focusContent() {
+  (document.getElementById('vanda-title') ?? document.getElementById('vanda-content'))?.focus({ preventScroll: true });
 }
 
 /** Sign-in style screens: a centred card; Enter runs the first primary button. */
@@ -396,10 +435,12 @@ function MenuLinks({ menu, large = false }: { menu: MenuItem[]; large?: boolean 
                         </span>
                       )}
                     </Link>
-                    {/* Phones have no hover: the star is always there, faint until it is on. */}
+                    {/* Phones have no hover: the star is always there, faint until it is on. Only the current
+                        page's star is a stop of Tab (one per item would double the menu's stops); a screen
+                        reader still finds every star, the keyboard stars the page that is open. */}
                     <button
                       type="button"
-                      aria-pressed={isFavorite}
+                      tabIndex={item.active ? undefined : -1}
                       aria-label={t(isFavorite ? 'removeFavorite' : 'addFavorite', { label: item.label })}
                       title={t(isFavorite ? 'removeFavorite' : 'addFavorite', { label: item.label })}
                       onClick={() => toggleFavorite(menuKey(item))}

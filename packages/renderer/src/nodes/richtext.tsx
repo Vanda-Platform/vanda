@@ -709,7 +709,7 @@ export function RichTextField({ node }: { node: RichTextNode }) {
         className={cx(
           'overflow-hidden border bg-surface shadow-sm transition',
           fullscreen ? 'fixed inset-0 z-40 flex flex-col rounded-none' : 'rounded-lg focus-within:border-accent focus-within:ring-3 focus-within:ring-ring',
-          field.error ? invalidClass : 'border-line-strong',
+          field.error ? invalidClass : 'border-control-line',
         )}
       >
         {!field.disabled && (

@@ -280,7 +280,7 @@ export const readonlyClass =
   'border-transparent bg-surface-2/70 shadow-none cursor-default focus:border-transparent focus:ring-0 disabled:bg-surface-2/70 disabled:text-fg disabled:cursor-default data-[disabled]:text-fg';
 
 export const controlClass = cx(
-  'h-(--v-control) w-full rounded-lg border border-line-strong bg-surface px-2.5 text-[14px] text-fg shadow-sm transition',
+  'h-(--v-control) w-full rounded-lg border border-control-line bg-surface px-2.5 text-[14px] text-fg shadow-sm transition',
   'placeholder:text-fg-3 focus:outline-none focus:border-accent focus:ring-3 focus:ring-ring',
   'disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-fg-3 disabled:shadow-none',
 );
@@ -383,7 +383,7 @@ export function useMediaQuery(query: string): boolean {
 /**
  * A horizontal scroller (tabs, a toolbar) that hides part of its row: data-fade="left", "right" or
  * "both" says on which side something waits, and the .vanda-fade-x class fades that edge, so the
- * row never looks complete when it is not. The selected item (aria-selected) is brought into view.
+ * row never looks complete when it is not. The selected item (aria-selected, or aria-current for links) is brought into view.
  *
  *     const ref = useOverflowFade<HTMLDivElement>();
  *     <div ref={ref} role="tablist" className="vanda-fade-x flex overflow-x-auto">…</div>
@@ -403,7 +403,7 @@ export function useOverflowFade<T extends HTMLElement>(): RefCallback<T> {
       if (fade) element.dataset.fade = fade;
       else delete element.dataset.fade;
     };
-    const selected = element.querySelector<HTMLElement>('[aria-selected="true"]');
+    const selected = element.querySelector<HTMLElement>('[aria-selected="true"], [aria-current="page"]');
     if (selected) {
       // By hand: scrollIntoView would also move the page's own scroll containers.
       const box = element.getBoundingClientRect();
