@@ -7,10 +7,13 @@ namespace Vanda\Testing;
 use Closure;
 use Illuminate\Support\Arr;
 use PHPUnit\Framework\Assert;
+use Vanda\Fields\Field;
 use Vanda\Schema\Expr;
 use Vanda\Screen\ActionCall;
 use Vanda\Screen\ScreenRuntime;
 use Vanda\Support\Patch;
+use Vanda\Support\Suggest;
+use Vanda\VandaException;
 
 /**
  * Drives a screen through the same pipeline as the browser, without HTTP or HTML.
@@ -41,15 +44,36 @@ final class ScreenTester
     }
 
     /**
-     * Change a field as the user would; runs the server reaction.
+     * Change a field as the user would; runs the server reaction. The path must be a field the
+     * user can edit on this screen (or a place inside one, a Repeater's row): a value the browser
+     * could never send fails here instead of being ignored by a test that then passes.
      */
     public function set(string $path, mixed $value): self
+    {
+        $runtime = $this->runtime();
+        $this->ensureEditable($runtime, $path);
+
+        return $this->send($runtime, $path, $value);
+    }
+
+    /**
+     * Send a value the screen does not offer to change (a read-only field, a locked or unknown
+     * path), as a tampered request would: for tests that prove the server ignores it.
+     *
+     *     ->tamper('number', 'hacked')->call('save')->assertToast('Saved A-1042');
+     */
+    public function tamper(string $path, mixed $value): self
+    {
+        return $this->send($this->runtime(), $path, $value);
+    }
+
+    private function send(ScreenRuntime $runtime, string $path, mixed $value): self
     {
         $state = $this->page['state'];
         Arr::set($state, $path, $value);
         $this->page['state'] = $state;
 
-        $response = $this->runtime()->react($state);
+        $response = $runtime->react($state);
         $this->page = Patch::apply($this->page, $response['patches']);
         $this->page['snapshot'] = $response['snapshot'];
         $this->errors = array_filter([...$this->errors, ...$response['errors']]);
@@ -236,6 +260,24 @@ final class ScreenTester
         }
 
         return $this;
+    }
+
+    private function ensureEditable(ScreenRuntime $runtime, string $path): void
+    {
+        $fields = $runtime->tree()->fields();
+
+        foreach ($fields as $field) {
+            if ($path === $field->path() || str_starts_with($path, $field->path().'.')) {
+                if (! $field->isEditable() || ! $field->isVisible()) {
+                    throw VandaException::testSetsReadonlyField($this->screen, $path, $field->path());
+                }
+
+                return;
+            }
+        }
+
+        $paths = array_values(array_unique(array_map(static fn (Field $field) => $field->path(), $fields)));
+        throw VandaException::testSetsUnknownPath($this->screen, $path, Suggest::closest($path, $paths), $paths);
     }
 
     private function runtime(): ScreenRuntime

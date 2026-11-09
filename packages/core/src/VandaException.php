@@ -91,6 +91,31 @@ final class VandaException extends RuntimeException
         ));
     }
 
+    /**
+     * @param list<string> $paths every field path of the screen
+     */
+    public static function testSetsUnknownPath(string $class, string $path, ?string $closest, array $paths): self
+    {
+        return new self(sprintf(
+            "Panel::test(%s::class)->set('%s', …): no field of the screen edits \"%s\", so the browser could never send it and the test would pass on a value that was ignored.%s Fields of the screen: %s. (To prove the server ignores such a value, send it with ->tamper().)",
+            class_basename($class),
+            $path,
+            $path,
+            $closest !== null ? sprintf(' Did you mean "%s"?', $closest) : '',
+            $paths === [] ? 'none' : implode(', ', $paths),
+        ));
+    }
+
+    public static function testSetsReadonlyField(string $class, string $path, string $field): self
+    {
+        return new self(sprintf(
+            "Panel::test(%s::class)->set('%s', …): the field \"%s\" is read-only, disabled or hidden on this screen, so the browser never sends it. Give the value through the screen's data (query() or the record) or make the field editable; to prove the server ignores it, send it with ->tamper().",
+            class_basename($class),
+            $path,
+            $field,
+        ));
+    }
+
     public static function duplicateNodeId(string $id, ?string $first, ?string $second): self
     {
         return new self(sprintf(

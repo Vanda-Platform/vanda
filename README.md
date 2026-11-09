@@ -3,10 +3,12 @@
 A screen-centric admin framework for Laravel — Orchid rethought for 2026:
 PHP-only screens, instant reactivity, and an API designed to be read and written by AI agents.
 
-> Status: phase 3. Everything from phase 2 (tables with filters and views, trees, `Select::tree()`,
-> uploads, editors, charts, ⌘K) plus record headers with avatar and status, an "unsaved changes" bar,
-> signing in as another user, the notification bell, empty states and action rows. Next: maps,
-> real-time updates, MCP for agents. See `vanda-analysis.md`.
+> Status: phase 4. Tables with filters and views, trees, uploads with cropping, rich text, maps, charts,
+> ⌘K, record headers, an "unsaved changes" bar with undo, signing in as another user, the notification
+> bell and the activity log; search that ignores case in every alphabet; compact and comfortable
+> density and a menu that folds into a rail; keyboard and screen-reader support; pages checked for
+> wrong paths, modals and icons, and `vanda:check` for the whole panel. Next: MCP for agents and a
+> screen generator. See `vanda-analysis.md`.
 
 ## Try it
 
@@ -67,7 +69,7 @@ final class UserEditScreen extends Screen
     {
         $this->user->fill($this->form->toArray())->save();   // already validated
 
-        return Result::toast('Saved')->redirect(UserListScreen::class);
+        return Result::toast('Saved');                         // saving stays on the screen
     }
 }
 ```
@@ -84,8 +86,8 @@ Panel::permissions(fn () => [PermissionGroup::make('Access')->add('platform.user
 // The bell: Laravel database notifications in Orchid's DashboardMessage shape
 $admin->notify(PanelMessage::make('Import finished')->message('18 products added')->tone(Tone::Success));
 
-// Records for the ⌘K palette
-Panel::search(fn (string $q) => User::where('name', 'like', "%{$q}%")->limit(5)->get()
+// Records for the ⌘K palette; Search::apply() ignores case in every alphabet («анна» finds «Анна»)
+Panel::search(fn (string $q) => Search::apply(User::query(), ['name', 'email'], $q)->limit(5)->get()
     ->map(fn (User $user) => SearchResult::make($user->name)->to(UserEditScreen::class, ['user' => $user])));
 ```
 
@@ -114,6 +116,10 @@ Layout::tree()->query(fn () => Page::query())->orderBy('position')
 4. A button posts an **action**: values → hooks → validation → the `#[Action]` method → `Result`.
 
 ## For agents
+
+Vanda ships its own rules for AI agents in `packages/core/resources/boost/`: `php artisan boost:install`
+([Laravel Boost](https://laravel.com/docs/boost)) adds the short guidelines to the project's agent
+files and installs the `vanda-screens` skill with the full guide to writing screens.
 
 ```bash
 php artisan vanda:screens                         # every screen, route and action

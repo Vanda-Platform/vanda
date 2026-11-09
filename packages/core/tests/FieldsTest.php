@@ -77,7 +77,7 @@ it('keeps a map point only with valid coordinates', function () {
 });
 
 it('never takes a label from the browser', function () {
-    Panel::test(FieldsScreen::class)->set('number', 'hacked')->call('save')->assertToast('Saved A-1042');
+    Panel::test(FieldsScreen::class)->tamper('number', 'hacked')->call('save')->assertToast('Saved A-1042');
 });
 
 it('renders a Blade view among the nodes, escaped by Blade', function () {

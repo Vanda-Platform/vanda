@@ -4,6 +4,13 @@ Vanda is a screen-centric admin framework for Laravel, a rethought Orchid. Scree
 classes; the server sends a typed page description (IR, `vanda/v1`) and a prebuilt React
 renderer draws it. Read `vanda-analysis.md` for the why; this file is the how.
 
+This file is about developing Vanda itself. How to write screens with it (what an app's developer
+and their agent need) ships with the package in `packages/core/resources/boost/`: the short rules in
+`guidelines/core.blade.php` (Laravel Boost loads them into every prompt) and the full guide in
+`skills/vanda-screens/SKILL.md` (loaded when a task touches screens). A change to how screens are
+written (a new field or option, a renamed method, a new convention) updates them in the same change,
+and every example there must work as written.
+
 ## Layout
 
 | Path | What |
@@ -73,5 +80,5 @@ php artisan vanda:check                              # build every screen; --jso
 - **Expressions** (`Expr`) are evaluated in PHP and TS. Change both evaluators and add a case to `packages/schema/fixtures/expressions.json`; both test suites read it.
 - **Errors explain the fix.** Throw `VandaException` with a message that says what is wrong, where, and what to write instead.
 - **Pages are checked** (`Vanda\Schema\SchemaCheck`) in development, in tests, always in `vanda:inspect`, and for every routed screen at once by `vanda:check` (built for someone who may do everything, `Authorizer::$allowAll`, so parts hidden from some roles are checked too; a model parameter gets the first record of its table, a screen without one is skipped with the reason; anything a screen throws is reported with the `file:line` of application code): a field path, an `Expr` field or a `dependsOn` that the screen's declared state does not have (`StatePaths`: public properties of the screen and of its Forms; arrays, models and Repeater rows are not checked), a `ModalToggle` for a modal the screen has not, an icon the renderer does not draw. One exception lists every problem with the node, its `file:line` and «Did you mean …?» (`Support\Suggest`). Production pages are not checked. Anything new a node points at by name (a path, another node's id, a name from a fixed list) gets its check there in the same change. Icons: a new one goes into the map in `ui.tsx` and into `packages/core/resources/icons.json`; `icons.test.ts` keeps the two in step.
-- **Tests first-class.** Screen behaviour is tested with `Panel::test(Screen::class, [...])->set(...)->call(...)` — no browser needed.
+- **Tests first-class.** Screen behaviour is tested with `Panel::test(Screen::class, [...])->set(...)->call(...)` — no browser needed. `set()` takes only paths the user can edit on that screen (or a place inside one) and fails with «Did you mean …?» otherwise; `tamper()` sends what a forged request would, for tests that prove the server ignores it.
 - PHP: `declare(strict_types=1)`, final classes unless meant for extension, docblocks on public API with a short example. TypeScript: strict mode, no `any` outside the node registry.
