@@ -3,6 +3,21 @@
     "description": "Vanda core: screens, typed UI schema, state snapshots, actions and reactions for Laravel back-offices.",
     "type": "library",
     "license": "MIT",
+    "keywords": [
+        "laravel",
+        "admin",
+        "admin-panel",
+        "back-office",
+        "orchid",
+        "inertia",
+        "react",
+        "screens"
+    ],
+    "homepage": "https://github.com/Vanda-Platform/vanda",
+    "support": {
+        "issues": "https://github.com/Vanda-Platform/vanda/issues",
+        "source": "https://github.com/Vanda-Platform/vanda"
+    },
     "require": {
         "php": "^8.3",
         "illuminate/console": "^12.0 || ^13.0",

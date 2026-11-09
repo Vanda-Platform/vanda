@@ -10,6 +10,11 @@ PHP-only screens, instant reactivity, and an API designed to be read and written
 > wrong paths, modals and icons, and `vanda:check` for the whole panel. Next: MCP for agents and a
 > screen generator. See `vanda-analysis.md`.
 
+## Install
+
+`composer require vanda/core` in a Laravel 12 or 13 app; the steps are in
+[packages/core/README.md](packages/core/README.md).
+
 ## Try it
 
 ```bash
