@@ -13,6 +13,7 @@ use Vanda\Activity\ActivityListScreen;
 use Vanda\Activity\ActivityScreen;
 use Vanda\Navigation\MenuItem;
 use Vanda\Schema\Node;
+use Vanda\Schema\SchemaCheck;
 use Vanda\Tests\Fixtures\SecuredScreen;
 use Vanda\Tests\Fixtures\ShowcaseScreen;
 use Vanda\Tests\Fixtures\User;
@@ -91,6 +92,7 @@ abstract class TestCase extends Orchestra
     {
         parent::setUp();
         Node::$captureSource = true;
+        SchemaCheck::$enabled = true;
 
         Panel::permissions(fn () => [
             PermissionGroup::make('System')

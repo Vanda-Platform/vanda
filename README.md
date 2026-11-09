@@ -120,6 +120,10 @@ php artisan vanda:screens                         # every screen, route and acti
 php artisan vanda:inspect /admin/users/1/edit     # node tree, rules, dependencies, PHP source lines
 ```
 
+In development, in tests and in `vanda:inspect`, every page is checked before it leaves the server: a field path,
+an `Expr` field or a `dependsOn` the screen's state does not have, a `ModalToggle` for a missing modal and an unknown
+icon fail with one message that names each node, its `file:line` and what was probably meant.
+
 In the browser, hold **Alt** and click any element to see the PHP line that created it and copy that context for an AI.
 
 ## Develop

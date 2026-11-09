@@ -34,6 +34,7 @@ use Vanda\Navigation\Crumb;
 use Vanda\Navigation\Shell;
 use Vanda\Schema\Get;
 use Vanda\Schema\Node;
+use Vanda\Schema\SchemaCheck;
 use Vanda\Schema\SchemaContext;
 use Vanda\Schema\Tree;
 use Vanda\State\ScreenState;
@@ -225,7 +226,7 @@ final class ScreenRuntime
             array_filter($nodes, static fn (Node $node) => $node->isVisible()),
         ));
 
-        return [
+        $ir = [
             'schema' => 'vanda/v1',
             'screen' => $this->screen::class,
             'url' => $this->scope,
@@ -244,6 +245,14 @@ final class ScreenRuntime
             'snapshot' => $this->snapshot(),
             'app' => app(Shell::class)->toArray($this->scope),
         ];
+
+        // Development and tests: a path, a modal or an icon that does not exist fails here, with
+        // its file:line, instead of quietly in the browser.
+        if (SchemaCheck::$enabled) {
+            SchemaCheck::assert($this->screen, $ir);
+        }
+
+        return $ir;
     }
 
     /**

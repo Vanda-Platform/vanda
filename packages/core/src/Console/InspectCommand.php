@@ -14,6 +14,8 @@ use Stringable;
 use Vanda\Attributes\Action;
 use Vanda\Attributes\Updated;
 use Vanda\Screen\ScreenRuntime;
+use Vanda\Schema\Node;
+use Vanda\Schema\SchemaCheck;
 
 /**
  * Shows a screen exactly as the browser receives it: nodes, ids, rules,
@@ -31,6 +33,10 @@ final class InspectCommand extends Command
 
     public function handle(): int
     {
+        // The agent's tool: always with source lines and the page checks, whatever the environment.
+        Node::$captureSource = true;
+        SchemaCheck::$enabled = true;
+
         if ($this->option('as') !== null) {
             Auth::onceUsingId($this->option('as'));
         }

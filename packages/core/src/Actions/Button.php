@@ -126,7 +126,7 @@ final class Button extends Node
         return $this;
     }
 
-    /** Icon name from the renderer's icon set, e.g. "save", "trash", "log-in". */
+    /** Icon name from the renderer's icon set (resources/icons.json), e.g. "save", "trash", "log-in"; another name fails the page check. */
     public function icon(string $icon): self
     {
         $this->icon = $icon;

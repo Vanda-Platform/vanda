@@ -255,6 +255,12 @@ const ICONS: Record<string, LucideIcon> = {
   'density-compact': Rows4,
 };
 
+/**
+ * The names an icon may be given (Button::icon(), MenuItem::icon(), …). PHP checks screens against
+ * the same list in packages/core/resources/icons.json; icons.test.ts keeps the two in step.
+ */
+export const ICON_NAMES: readonly string[] = Object.keys(ICONS).sort();
+
 export function Icon({ name, className = 'size-4' }: { name?: string | null; className?: string }) {
   const Component = name ? ICONS[name] : undefined;
   if (!Component) {

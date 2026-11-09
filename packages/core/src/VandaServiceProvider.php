@@ -29,6 +29,7 @@ use Vanda\Http\SearchController;
 use Vanda\Http\StopImpersonationController;
 use Vanda\Navigation\Shell;
 use Vanda\Schema\Node;
+use Vanda\Schema\SchemaCheck;
 use Vanda\Screen\Screen;
 use Vanda\Screen\ScreenRegistry;
 
@@ -46,6 +47,8 @@ final class VandaServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Node::$captureSource = (bool) (config('vanda.dev') ?? $this->app->isLocal());
+        // The same development mode checks every page for paths, modals and icons that do not exist.
+        SchemaCheck::$enabled = Node::$captureSource;
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'vanda');
         $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'vanda');
