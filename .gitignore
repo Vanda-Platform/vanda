@@ -12,3 +12,6 @@
 # Local tools: agents' settings, worktrees and preview servers, design-tool state.
 /.claude/
 /.impeccable/
+
+# The website is a repository of its own, cloned into apps/site (see its README).
+/apps/site/

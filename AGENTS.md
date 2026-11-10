@@ -19,6 +19,7 @@ and every example there must work as written.
 | `packages/renderer` | TypeScript package `@vanda/renderer`: React 19 + React Aria + Tailwind 4. Builds into `packages/core/resources/dist` |
 | `packages/schema/fixtures` | Data shared by PHP and TS tests (expression semantics) |
 | `apps/playground` | Laravel 13 app wired to `packages/core` through a path repository (users, roles, pages tree, dashboard, showcase) |
+| `apps/site` | The website, a repository of its own cloned here and ignored: product page, docs in English and Russian (Astro + Starlight), `llms.txt`; its screenshots come from the playground (`apps/site/README.md`) |
 
 ## Commands
 
@@ -37,6 +38,10 @@ php artisan vanda:screens
 php artisan vanda:inspect /admin/users/1/edit        # add --json for the raw IR
 php artisan vanda:check                              # build every screen; --json for agents, exit 1 on problems
 bin/release-core v0.2.0                              # publish packages/core to Vanda-Platform/core (Packagist reads it), tagged
+
+# Website (apps/site)
+cd apps/site && npm install && npm run dev       # http://localhost:4321
+npm run screenshots                              # re-captures the panel in en/ru, light/dark
 ```
 
 ## Rules
@@ -88,4 +93,5 @@ bin/release-core v0.2.0                              # publish packages/core to 
 - **Errors explain the fix.** Throw `VandaException` with a message that says what is wrong, where, and what to write instead.
 - **Pages are checked** (`Vanda\Schema\SchemaCheck`) in development, in tests, always in `vanda:inspect`, and for every routed screen at once by `vanda:check` (built for someone who may do everything, `Authorizer::$allowAll`, so parts hidden from some roles are checked too; a model parameter gets the first record of its table, a screen without one is skipped with the reason; anything a screen throws is reported with the `file:line` of application code): a field path, an `Expr` field or a `dependsOn` that the screen's declared state does not have (`StatePaths`: public properties of the screen and of its Forms; arrays, models and Repeater rows are not checked), a `ModalToggle` for a modal the screen has not, an icon the renderer does not draw. One exception lists every problem with the node, its `file:line` and «Did you mean …?» (`Support\Suggest`). Production pages are not checked. Anything new a node points at by name (a path, another node's id, a name from a fixed list) gets its check there in the same change. Icons: a new one goes into the map in `ui.tsx` and into `packages/core/resources/icons.json`; `icons.test.ts` keeps the two in step.
 - **Tests first-class.** Screen behaviour is tested with `Panel::test(Screen::class, [...])->set(...)->call(...)` — no browser needed. `set()` takes only paths the user can edit on that screen (or a place inside one) and fails with «Did you mean …?» otherwise; `tamper()` sends what a forged request would, for tests that prove the server ignores it. `call()` presses a node the page draws with that call (signed as a modal load when only a `ModalToggle` makes it) and fails like the server when there is none, so a test cannot pass on an action the user never sees.
+- **Docs** live in the site's repository, `apps/site/src/content/docs` (English) and `…/ru/docs` (Russian), one file per page in each. A change to the public API or to what the panel shows updates its page in both languages in the same change, and `npm run screenshots` in `apps/site` when the picture changed. `llms.txt` (`apps/site/src/pages/llms.txt.ts`) repeats these rules for agents writing apps: keep it in step.
 - PHP: `declare(strict_types=1)`, final classes unless meant for extension, docblocks on public API with a short example. TypeScript: strict mode, no `any` outside the node registry.
