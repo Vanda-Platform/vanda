@@ -15,7 +15,7 @@ use Vanda\Schema\ValidationScope;
  *         ->commands([ModalToggle::make('Add question')->icon('plus')->modal('question')])
  *         ->schema([$this->questionsTable()]),
  *
- * Unlike Layout::section() (title above the card, buttons at its bottom: forms) a card suits
+ * Unlike Layout::section() (buttons at its bottom, a page of them is a 1120px form) a card suits
  * tables, lists and anything wide. Buttons given to ->commands() sit in the card header,
  * next to what they act on, and validate only this card's fields.
  */

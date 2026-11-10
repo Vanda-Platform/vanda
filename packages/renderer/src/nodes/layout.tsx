@@ -24,8 +24,9 @@ const COLUMNS: Record<number, string> = {
 };
 
 /**
- * A titled block of a form. Blocks on a page sit 16px apart (cards, charts, alerts);
- * a section adds 24px above itself, so sections are 40px apart, as in the design.
+ * A titled block of a form: title and description at the top inside the frame, as in a card,
+ * the fields below, the block's own buttons at the bottom. Blocks on a page sit 16px apart
+ * (sections, cards, charts, alerts), so a page that mixes sections and cards reads as one.
  * A page made of such blocks stays within 1120px (formLayout.ts), tables and charts take the full width.
  */
 export function SectionView({ node }: { node: UiNode & { title: string; description?: string; commandIds?: string[] } }) {
@@ -33,25 +34,27 @@ export function SectionView({ node }: { node: UiNode & { title: string; descript
   const content = (node.children ?? []).filter((child) => !commands.has(child.id));
   const buttons = (node.children ?? []).filter((child) => commands.has(child.id));
 
-  // The title and description sit above the card with the fields, the card takes the full width.
+  const heading = Boolean(node.title || node.description);
+
+  // The title and description sit inside the frame on top, with the same insets as a card's header.
   return (
-    <section className="flex min-w-0 flex-col gap-3 not-first:mt-4" {...nodeAttributes(node)}>
-      <div className="flex max-w-[720px] flex-col gap-0.5">
-        <h2 className="text-[15px] leading-[22px] font-semibold">{node.title}</h2>
-        {node.description && <p className="text-[13.5px] text-fg-2">{node.description}</p>}
+    <section className="flex min-w-0 flex-col rounded-xl border border-line bg-surface" {...nodeAttributes(node)}>
+      {heading && (
+        <header className="flex max-w-[720px] flex-col gap-0.5 px-4 pt-4 md:px-(--v-block) md:pt-5 compact:pt-4">
+          {node.title && <h2 className="text-[15px] leading-[22px] font-semibold">{node.title}</h2>}
+          {node.description && <p className="text-[13.5px] text-fg-2">{node.description}</p>}
+        </header>
+      )}
+      <div className={cx('flex min-w-0 flex-col gap-(--v-stack) p-4 [--v-gutter:16px] md:p-(--v-block) md:[--v-gutter:var(--v-block)]', heading && 'md:pt-5 compact:pt-4')}>
+        <BlockTitleContext.Provider value={node.title}>
+          <NodeList nodes={content} />
+        </BlockTitleContext.Provider>
       </div>
-      <div className="min-w-0 rounded-xl border border-line bg-surface">
-        <div className="flex flex-col gap-(--v-stack) p-4 [--v-gutter:16px] md:p-(--v-block) md:[--v-gutter:var(--v-block)]">
-          <BlockTitleContext.Provider value={node.title}>
-            <NodeList nodes={content} />
-          </BlockTitleContext.Provider>
+      {buttons.length > 0 && (
+        <div className="flex flex-wrap justify-end gap-2 border-t border-line px-4 py-3 md:px-(--v-block) compact:py-2.5">
+          <NodeList nodes={buttons} />
         </div>
-        {buttons.length > 0 && (
-          <div className="flex flex-wrap justify-end gap-2 border-t border-line px-4 py-3 md:px-(--v-block) compact:py-2.5">
-            <NodeList nodes={buttons} />
-          </div>
-        )}
-      </div>
+      )}
     </section>
   );
 }

@@ -105,7 +105,7 @@ Every field takes a path and has `->label()`, `->help()` (an «i» by the label 
 
 ## Blocks of a page
 
-- `Layout::section($title, $description)->schema([...])` — a form block: title above, fields in a card, its own buttons at the bottom of the card via `->commands([...])`. Such buttons validate only that block.
+- `Layout::section($title, $description)->schema([...])` — a form block: a frame with the title on top inside it, the fields below, its own buttons at the bottom via `->commands([...])`. Such buttons validate only that block.
 - `Layout::card($title, $description)->schema([...])` — lists, tables, tabs: the title inside the card, buttons beside it.
 - `Layout::grid([...], columns: 2)` — fields side by side; columns follow the width of the block.
 - `Layout::tabs([__('Main') => [...], __('Advanced') => [...]])`.
