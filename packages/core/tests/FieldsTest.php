@@ -71,6 +71,10 @@ it('describes the fields that came from Orchid in the IR', function () {
         ->and($screen->node('timezone'))->toMatchArray(['type' => 'select', 'searchable' => true])
         ->and($screen->node('timezone')['options'])->toContain(['value' => 'Europe/Moscow', 'label' => 'Europe/Moscow', 'hint' => 'UTC+03:00'])
         ->and($screen->node('phone'))->toMatchArray(['type' => 'input', 'mask' => '+7 (999) 999-99-99', 'suggestions' => ['+7 (800) 555-35-35']])
+        // an empty list still marks a suggesting field; a plain input has neither
+        ->and($screen->node('address'))->toMatchArray(['suggests' => true])
+        ->and($screen->node('address'))->not->toHaveKey('suggestions')
+        ->and($screen->node('domain'))->not->toHaveKeys(['suggests', 'suggestions'])
         ->and($screen->node('opensAt'))->toMatchArray(['type' => 'date', 'timeOnly' => true]);
 });
 

@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   Button as AriaButton,
   Checkbox as AriaCheckbox,
@@ -22,6 +22,7 @@ import { controlClass, cx, Icon, invalidClass, readonlyClass, Spinner } from '..
 import type { FieldNode, Option } from '../types';
 import { ComboField } from './combo';
 import { maskedChange } from '../mask';
+import { nextSuggestion, offeredSuggestions } from '../suggestions';
 import { describedBy, helpPlace } from '../fieldHelp';
 import { HelpTip } from './help';
 
@@ -133,19 +134,26 @@ const text = (value: unknown) => (value === null || value === undefined ? '' : S
 export function InputField({
   node,
 }: {
-  node: FieldNode & { inputType?: string; prefix?: string; suffix?: string; maxLength?: number; mask?: string; suggestions?: string[]; min?: number; max?: number; step?: number };
+  node: FieldNode & { inputType?: string; prefix?: string; suffix?: string; maxLength?: number; mask?: string; suggests?: boolean; suggestions?: string[]; min?: number; max?: number; step?: number };
 }) {
   const id = useId();
   const field = useField(node);
+  const suggest = useSuggestions(id, node, field);
   const input = (
     <input
+      ref={suggest.inputRef}
       id={id}
       type={node.inputType ?? 'text'}
       value={text(field.value)}
-      onChange={(event) => field.setValue(node.mask ? maskedChange(node.mask, text(field.value), event.target.value) : event.target.value)}
+      onChange={(event) => {
+        field.setValue(node.mask ? maskedChange(node.mask, text(field.value), event.target.value) : event.target.value);
+        suggest.onType();
+      }}
+      onKeyDown={suggest.onKeyDown}
+      onBlur={suggest.close}
       placeholder={node.placeholder ?? (node.mask ? node.mask.replace(/[9a*]/g, '_') : undefined)}
       inputMode={node.mask && !/[a*]/.test(node.mask) ? 'numeric' : undefined}
-      list={node.suggestions ? `${id}-list` : undefined}
+      autoComplete={node.suggests || node.suggestions ? 'off' : undefined}
       min={node.min}
       max={node.max}
       step={node.step}
@@ -155,19 +163,13 @@ export function InputField({
       required={field.required}
       aria-invalid={field.error ? true : undefined}
       aria-describedby={describedBy(id, field.error, node.help)}
+      {...suggest.inputProps}
       className={cx(controlClass, field.error && invalidClass, field.readonly && readonlyClass, (node.prefix || node.suffix) && 'shadow-none', node.prefix && 'rounded-l-none', node.suffix && 'rounded-r-none')}
     />
   );
 
   return (
     <FieldFrame node={node} inputId={id} required={field.required} error={field.error}>
-      {node.suggestions && (
-        <datalist id={`${id}-list`}>
-          {node.suggestions.map((suggestion) => (
-            <option key={suggestion} value={suggestion} />
-          ))}
-        </datalist>
-      )}
       {node.prefix || node.suffix ? (
         <div className="flex">
           {node.prefix && <span className="flex items-center rounded-l-lg border border-r-0 border-control-line bg-surface-2 px-2.5 text-fg-2">{node.prefix}</span>}
@@ -177,8 +179,103 @@ export function InputField({
       ) : (
         input
       )}
+      {suggest.list}
     </FieldFrame>
   );
+}
+
+/**
+ * Input::suggestions(): the values as the server sent them, in a list under the field (a combobox).
+ * Not a <datalist>: the browser would hide every value that does not contain the typed text
+ * literally, and suggestions computed on the server (an address from DaData for «Москва Тверская 1»
+ * is «г Москва, ул Тверская, д 1») would not show at all. The input stays the same element while
+ * the list changes, so focus and the caret stay put as reactions bring new values.
+ * Typing opens the list; ↓ ↑ move, Enter takes the highlighted value, Esc closes it.
+ */
+function useSuggestions(id: string, node: FieldNode & { suggests?: boolean; suggestions?: string[] }, field: ReturnType<typeof useField>) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const enabled = Boolean(node.suggests || node.suggestions) && !field.readonly && !field.disabled;
+  const values = enabled ? offeredSuggestions(node.suggestions, text(field.value)) : [];
+  const shown = open && values.length > 0;
+  const listId = `${id}-suggestions`;
+
+  // new values from a reaction: nothing is highlighted until the arrows move
+  useEffect(() => setActive(-1), [node.suggestions]);
+
+  const close = () => {
+    setOpen(false);
+    setActive(-1);
+  };
+  const pick = (value: string) => {
+    field.setValue(value);
+    close();
+  };
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!enabled) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (values.length === 0) return;
+      event.preventDefault();
+      setOpen(true);
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      setActive((current) => nextSuggestion(current, step, values.length));
+    } else if (event.key === 'Enter' && shown && active >= 0 && values[active] !== undefined) {
+      event.preventDefault();
+      pick(values[active]);
+    } else if (event.key === 'Escape' && shown) {
+      // only the list closes, not the modal around the field
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    }
+  };
+
+  return {
+    inputRef,
+    close,
+    onKeyDown,
+    onType: () => enabled && setOpen(true),
+    inputProps: enabled
+      ? {
+          role: 'combobox',
+          'aria-autocomplete': 'list' as const,
+          'aria-expanded': shown,
+          'aria-controls': shown ? listId : undefined,
+          'aria-activedescendant': shown && active >= 0 ? `${listId}-${active}` : undefined,
+        }
+      : {},
+    list: enabled ? (
+      <Popover
+        triggerRef={inputRef}
+        isOpen={shown}
+        onOpenChange={(isOpen) => !isOpen && close()}
+        isNonModal
+        placement="bottom start"
+        offset={4}
+        className={cx(popoverClass, 'w-(--trigger-width) max-h-72')}
+      >
+        <ul id={listId} role="listbox" aria-label={node.label ?? node.path} className="outline-none">
+          {values.map((value, index) => (
+            <li
+              key={value}
+              id={`${listId}-${index}`}
+              role="option"
+              aria-selected={index === active}
+              // the input keeps the focus: a click must not blur it before the value is taken
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => pick(value)}
+              onMouseMove={() => index !== active && setActive(index)}
+              className={cx('flex min-h-8 cursor-pointer items-center rounded-md px-2 py-1 text-[14px] text-fg', index === active && 'bg-surface-2')}
+            >
+              {value}
+            </li>
+          ))}
+        </ul>
+      </Popover>
+    ) : null,
+  };
 }
 
 function strength(password: string): 0 | 1 | 2 | 3 | 4 {

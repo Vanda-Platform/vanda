@@ -18,8 +18,8 @@ final class Input extends Field
 
     private ?string $mask = null;
 
-    /** @var list<string> */
-    private array $suggestions = [];
+    /** @var list<string>|null null: the field offers no suggestions at all */
+    private ?array $suggestions = null;
 
     private int|float|null $min = null;
 
@@ -74,7 +74,14 @@ final class Input extends Field
     }
 
     /**
-     * Values offered while typing; any other value is still allowed (HTML datalist).
+     * Values offered in a list under the field while typing; any other value is still allowed.
+     * The list shows them as given, in this order, without matching them against the typed text,
+     * so values computed on the server from what was typed (addresses from DaData, say) all show:
+     *
+     *     Input::make('form.address')->live(400)->dependsOn('form.address')
+     *         ->suggestions($addresses->suggest($this->form->address))
+     *
+     * An empty list keeps the field a suggesting one: the next reaction can fill it.
      *
      * @param list<string> $values
      */
@@ -117,7 +124,9 @@ final class Input extends Field
             'suffix' => $this->suffix,
             'maxLength' => $this->maxLength,
             'mask' => $this->mask,
-            'suggestions' => $this->suggestions === [] ? null : $this->suggestions,
+            // a suggesting field even while its list is empty: the next reaction can fill it
+            'suggests' => $this->suggestions !== null,
+            'suggestions' => $this->suggestions,
             'min' => $this->min,
             'max' => $this->max,
             'step' => $this->step,

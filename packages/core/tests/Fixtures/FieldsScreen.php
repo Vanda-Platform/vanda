@@ -57,6 +57,8 @@ final class FieldsScreen extends Screen
 
     public ?string $phone = null;
 
+    public ?string $address = null;
+
     public ?string $opensAt = null;
 
     public function commandBar(): iterable
@@ -85,6 +87,8 @@ final class FieldsScreen extends Screen
             Label::make('number')->label('Number'),
             TimeZone::make('timezone', DateTimeZone::EUROPE),
             Input::make('phone')->mask('+7 (999) 999-99-99')->suggestions(['+7 (800) 555-35-35']),
+            // nothing to suggest yet: a reaction fills the list as the user types
+            Input::make('address')->suggestions([]),
             DateTimer::make('opensAt')->timeOnly(),
             Layout::view('island', fn () => ['number' => $this->number, 'customer' => '<Ivan & Co>'])->id('island'),
         ];
