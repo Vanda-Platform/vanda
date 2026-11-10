@@ -21,6 +21,7 @@ use Vanda\Console\AdminCommand;
 use Vanda\Console\CheckCommand;
 use Vanda\Console\InspectCommand;
 use Vanda\Console\ScreensCommand;
+use Vanda\Extensions\ExtensionRegistry;
 use Vanda\Http\AssetController;
 use Vanda\Http\Authenticate;
 use Vanda\Http\InertiaMiddleware;
@@ -45,6 +46,7 @@ final class VandaServiceProvider extends ServiceProvider
         $this->app->singleton(Shell::class);
         $this->app->singleton(PermissionRegistry::class);
         $this->app->singleton(ActivityLog::class);
+        $this->app->singleton(ExtensionRegistry::class);
     }
 
     /**
@@ -125,17 +127,30 @@ final class VandaServiceProvider extends ServiceProvider
          */
         Route::macro('vanda', function (string $prefix, Closure $routes) {
             Panel::registerPrefix($prefix);
-            Route::middleware(config('vanda.middleware', ['web']))->prefix($prefix)->group(function () use ($routes) {
+            Route::middleware(config('vanda.middleware', ['web']))->prefix($prefix)->group(function () use ($prefix, $routes) {
                 Route::screen('login', LoginScreen::class)->name('vanda.login')->middleware(RedirectIfAuthenticated::class);
                 Route::post('logout', LogoutController::class)->name('vanda.logout');
                 Route::post('vanda/impersonation/stop', StopImpersonationController::class)->name('vanda.impersonation.stop');
-                Route::middleware(Authenticate::class)->group(function () use ($routes): void {
+                Route::middleware(Authenticate::class)->group(function () use ($prefix, $routes): void {
                     Route::get('vanda/search', SearchController::class)->name('vanda.search');
                     Route::get('vanda/notifications', [NotificationsController::class, 'index'])->name('vanda.notifications');
                     Route::post('vanda/notifications/read', [NotificationsController::class, 'read'])->name('vanda.notifications.read');
-                    $routes();
+                    // Route::extension() inside $routes mounts screens in this panel.
+                    app(ExtensionRegistry::class)->within($prefix, $routes);
                 });
             });
+        });
+
+        /*
+         * An extension's screens under its name, inside Route::vanda():
+         *
+         *     Route::vanda('admin', function () {
+         *         Route::extension(SettingsExtension::class);            // /admin/settings/…, "admin.settings.*"
+         *         Route::extension(SettingsExtension::class, 'system');  // /admin/system/…, the same names
+         *     });
+         */
+        Route::macro('extension', function (string $extension, ?string $uri = null): void {
+            app(ExtensionRegistry::class)->mount($extension, $uri);
         });
 
         if ($this->app->runningInConsole()) {

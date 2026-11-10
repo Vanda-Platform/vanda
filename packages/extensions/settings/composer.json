@@ -1,0 +1,66 @@
+{
+    "name": "vanda/settings",
+    "description": "Settings for Vanda panels: typed values kept in the database and edited on settings pages.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "admin",
+        "admin-panel",
+        "vanda",
+        "settings"
+    ],
+    "homepage": "https://github.com/Vanda-Platform/vanda",
+    "support": {
+        "issues": "https://github.com/Vanda-Platform/vanda/issues",
+        "source": "https://github.com/Vanda-Platform/vanda"
+    },
+    "require": {
+        "php": "^8.3",
+        "vanda/core": "^0.4"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^10.0 || ^11.0",
+        "pestphp/pest": "^3.0 || ^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Vanda\\Settings\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Vanda\\Settings\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Vanda\\Settings\\SettingsServiceProvider"
+            ]
+        },
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    },
+    "scripts": {
+        "test": "pest"
+    },
+    "repositories": {
+        "vanda-core": {
+            "type": "path",
+            "url": "../../core",
+            "options": {
+                "symlink": true
+            }
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

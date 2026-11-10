@@ -8,6 +8,8 @@ use Closure;
 use Illuminate\Http\Request;
 use Vanda\Access\PermissionGroup;
 use Vanda\Access\PermissionRegistry;
+use Vanda\Extensions\Extension;
+use Vanda\Extensions\ExtensionRegistry;
 use Vanda\Http\AssetController;
 use Vanda\Navigation\MenuItem;
 use Vanda\Navigation\Shell;
@@ -41,6 +43,39 @@ final class Panel
     public static function permissions(Closure $groups): void
     {
         app(PermissionRegistry::class)->define($groups);
+    }
+
+    /**
+     * A package's screens, permissions and search in the panel (see Extension). The package calls
+     * it in the boot() of its service provider; the same class registered again replaces the first,
+     * so the application configures an extension in its own boot():
+     *
+     *     Panel::extension(SettingsExtension::make()->page('shop', ShopSettingsScreen::class));
+     *
+     * Its screens are mounted in a routes file with Route::extension(SettingsExtension::class) inside Route::vanda().
+     *
+     * @param Extension|class-string<Extension> $extension
+     */
+    public static function extension(Extension|string $extension): void
+    {
+        if (is_string($extension)) {
+            if (! is_subclass_of($extension, Extension::class)) {
+                throw VandaException::notAnExtension($extension);
+            }
+            $extension = app($extension);
+        }
+
+        app(ExtensionRegistry::class)->register($extension);
+    }
+
+    /**
+     * Extensions registered with Panel::extension(), in the order they came.
+     *
+     * @return list<Extension>
+     */
+    public static function extensions(): array
+    {
+        return app(ExtensionRegistry::class)->all();
     }
 
     /**

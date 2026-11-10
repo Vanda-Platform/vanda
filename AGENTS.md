@@ -17,6 +17,7 @@ and every example there must work as written.
 |---|---|
 | `packages/core` | PHP package `vanda/core`: Screen, nodes, IR, state snapshot, actions, reactions, validation, CLI, test helper |
 | `packages/renderer` | TypeScript package `@vanda/renderer`: React 19 + React Aria + Tailwind 4. Builds into `packages/core/resources/dist` |
+| `packages/extensions/*` | First-party extensions, each a Composer package of its own (`packages/extensions/settings` is `vanda/settings`): built on `Vanda\Extensions\Extension`, with its tests and `resources/boost` |
 | `packages/schema/fixtures` | Data shared by PHP and TS tests (expression semantics) |
 | `apps/playground` | Laravel 13 app wired to `packages/core` through a path repository (users, roles, pages tree, dashboard, showcase) |
 | `apps/site` | The website, a repository of its own cloned here and ignored: product page, docs in English and Russian (Astro + Starlight), `llms.txt`; its screenshots come from the playground (`apps/site/README.md`) |
@@ -26,6 +27,9 @@ and every example there must work as written.
 ```bash
 # PHP core
 cd packages/core && composer install && vendor/bin/pest
+
+# An extension (its composer.json takes packages/core through a path repository)
+cd packages/extensions/settings && composer install && vendor/bin/pest
 
 # Renderer (from the repo root)
 npm install
@@ -89,6 +93,7 @@ npm run screenshots                              # re-captures the panel in en/r
 - **Activity log** (`Vanda\Activity`, table `vanda_activity`): a model with `RecordsActivity` records who created, changed, deleted or restored it, with the screen, the button and the values before and after (`ActivityOptions`: type name, title, `->screen()` link, `except()`, `secret()`, `labels()`; attribute names come from the screen's field labels, enum values are kept by their labels). Only changes made by buttons of Vanda screens are recorded unless `->everywhere()`. A button that changed no recorded model is recorded by itself (`#[Action(activity: false)]` turns that off; modal loads never count); sign-in, sign-out and impersonation too. `ActivityLog::note()` adds a line of your own. Screens: `ActivityListScreen`/`ActivityScreen` behind `platform.activity`; a record's history is `Layout::activity($record)` (Vanda's own `Role` records its changes too). Passwords, tokens and `$hidden` attributes are stored without values. `vanda.activity.enabled` turns it off, `keep_days` with `model:prune` removes old entries.
 - **Notifications** for the bell are Laravel database notifications; send `Vanda\Notifications\PanelMessage` (Orchid's DashboardMessage data shape).
 - **Assets** are hashed files listed in `resources/dist/.vite/manifest.json`; `Panel::entry()` reads it. Never load the entry with a query string: chunks import it by its plain URL, and a second URL means a second copy of React.
+- **Extensions** (`Vanda\Extensions\Extension`) are packages that add screens, permissions and search. The package registers one in its service provider (`Panel::extension()`); registering the same class again replaces the instance, which is how the application configures it, and every provider reads the registered instance on each call. `Route::extension()` works only inside `Route::vanda()` (`ExtensionRegistry::within()`) and mounts `routes()` under the extension's `name()` with route names `<panel>.<name>.*`. An extension adds a ⌘K provider only when it overrides `search()` (an empty one would turn the search on). Anything an extension needs from the core is a public, documented API of the core (like `ActivityOptions::expand()`), never a reach into its internals; a first-party extension lives in `packages/extensions/<name>` and is tested against the core of the same commit.
 - **A new node type** needs three things in one change: the PHP class (extends `Vanda\Schema\Node`), a renderer component registered in `packages/renderer/src/nodes/NodeView.tsx`, and a test that checks its IR.
 - **Expressions** (`Expr`) are evaluated in PHP and TS. Change both evaluators and add a case to `packages/schema/fixtures/expressions.json`; both test suites read it.
 - **Errors explain the fix.** Throw `VandaException` with a message that says what is wrong, where, and what to write instead.

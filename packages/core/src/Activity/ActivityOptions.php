@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vanda\Activity;
 
+use BackedEnum;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -42,6 +43,9 @@ final class ActivityOptions
 
     /** @var array<string, string> */
     private array $labels = [];
+
+    /** @var array<string, array<string, class-string<BackedEnum>>> attribute => key => enum of its values */
+    private array $expand = [];
 
     /** @var class-string<Screen>|null */
     private ?string $screen = null;
@@ -102,6 +106,36 @@ final class ActivityOptions
         $this->secret = array_values(array_merge($this->secret, $attributes));
 
         return $this;
+    }
+
+    /**
+     * A JSON attribute recorded key by key: a column of settings or meta values shows «Название:
+     * A → B» for each key that changed, not two copies of the whole JSON. The attribute itself
+     * follows only() and except(); its keys take labels and secret() as attributes do, and keys
+     * named in $enums keep their values by the enum's label(), as an attribute cast to it does.
+     *
+     *     ActivityOptions::make('Настройки')->only('values')->expand('values', ['encryption' => MailEncryption::class]);
+     *
+     * @param array<string, class-string<BackedEnum>> $enums key => enum of its values
+     */
+    public function expand(string $attribute, array $enums = []): self
+    {
+        $this->expand[$attribute] = $enums;
+
+        return $this;
+    }
+
+    public function expands(string $attribute): bool
+    {
+        return array_key_exists($attribute, $this->expand);
+    }
+
+    /**
+     * @return class-string<BackedEnum>|null
+     */
+    public function enumOf(string $attribute, string $key): ?string
+    {
+        return $this->expand[$attribute][$key] ?? null;
     }
 
     /**

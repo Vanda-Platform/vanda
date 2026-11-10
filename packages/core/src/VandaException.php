@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vanda;
 
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -184,6 +185,57 @@ final class VandaException extends RuntimeException
             'Two schema nodes share the id "%s"%s. Give one of them an explicit ->id(\'...\').',
             $id,
             $first && $second ? " ({$first} and {$second})" : '',
+        ));
+    }
+
+    public static function notAnExtension(string $class): self
+    {
+        return new self(sprintf(
+            '%s does not extend Vanda\Extensions\Extension. Pass the class of an extension, e.g. Route::extension(SettingsExtension::class), or make %s extend it.',
+            $class,
+            class_basename($class),
+        ));
+    }
+
+    public static function invalidExtensionName(string $class, string $name): self
+    {
+        return new self(sprintf(
+            '%s::name() returns "%s", but an extension\'s name goes into URLs and route names: lowercase latin letters, digits and dashes, e.g. "%s".',
+            $class,
+            $name,
+            Str::kebab((string) preg_replace('/Extension$/', '', class_basename($class))) ?: 'my-extension',
+        ));
+    }
+
+    public static function duplicateExtensionName(string $name, string $first, string $second): self
+    {
+        return new self(sprintf(
+            '%s and %s are both named "%s". An extension\'s name is its prefix in URLs and route names, so give one of them another name() '
+            .'(to configure an extension, register the same class %s again with Panel::extension(): the last instance stays).',
+            $first,
+            $second,
+            $name,
+            class_basename($first),
+        ));
+    }
+
+    public static function extensionNotRegistered(string $class): self
+    {
+        return new self(sprintf(
+            '%s is not registered. Its package does it in its service provider; if the package is not installed through Composer\'s discovery, '
+            .'add Panel::extension(%s::class) to the boot() of a service provider.',
+            $class,
+            class_basename($class),
+        ));
+    }
+
+    public static function extensionOutsidePanel(string $class): self
+    {
+        return new self(sprintf(
+            'Route::extension(%s::class) is called outside of Route::vanda(), so its screens would have no sign-in. Move it inside: '
+            .'Route::vanda(\'admin\', function () { Route::extension(%s::class); });',
+            class_basename($class),
+            class_basename($class),
         ));
     }
 }

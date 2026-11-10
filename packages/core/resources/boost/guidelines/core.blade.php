@@ -12,6 +12,7 @@ Vanda (`vanda/core`) is an admin panel for Laravel built from screens. Every pag
 - Guard screens and actions with `#[Can('platform.users')]`; buttons, links and menu items that lead to forbidden things disappear by themselves (`->visible(true)` does not bring them back), and the server checks again.
 - Search text a user typed with `Vanda\Support\Search::apply($query, ['name', 'email'], $text)`, never `where($column, 'like', …)`: it ignores case in every alphabet.
 - Icons are names from the renderer's set (`'save'`, `'trash'`, `'users'`, `'plus'`); an unknown one fails the page check with the list.
+- Extensions (`vanda/settings` and others) bring screens, permissions and search; mount their screens inside `Route::vanda()` with `Route::extension(SettingsExtension::class)` and configure them by registering them again in a service provider: `Panel::extension(SettingsExtension::make()->…)`. An extension's own rules come with its package.
 
 ### Check your work
 

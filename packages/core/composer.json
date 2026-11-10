@@ -49,6 +49,9 @@
             "providers": [
                 "Vanda\\VandaServiceProvider"
             ]
+        },
+        "branch-alias": {
+            "dev-main": "0.4.x-dev"
         }
     },
     "scripts": {

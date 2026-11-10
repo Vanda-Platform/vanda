@@ -6,10 +6,12 @@ use App\Models\Page;
 use App\Models\User;
 use App\Vanda\Screens\DashboardScreen;
 use App\Vanda\Screens\FileBrowserScreen;
+use App\Vanda\Screens\MailSettingsScreen;
 use App\Vanda\Screens\PageEditScreen;
 use App\Vanda\Screens\PageListScreen;
 use App\Vanda\Screens\RoleListScreen;
 use App\Vanda\Screens\ShowcaseScreen;
+use App\Vanda\Screens\SiteSettingsScreen;
 use App\Vanda\Screens\UserEditScreen;
 use App\Vanda\Screens\UserListScreen;
 use Illuminate\Auth\Events\Login;
@@ -22,6 +24,8 @@ use Vanda\Activity\ActivityListScreen;
 use Vanda\Navigation\MenuItem;
 use Vanda\Navigation\SearchResult;
 use Vanda\Panel;
+use Vanda\Settings\SettingsExtension;
+use Vanda\Settings\SettingsIndexScreen;
 use Vanda\Support\Search;
 
 class AppServiceProvider extends ServiceProvider
@@ -51,6 +55,11 @@ class AppServiceProvider extends ServiceProvider
                 ->add('platform.pages', 'Страницы'),
         ]);
 
+        // Settings pages at /admin/settings; their #[Can] abilities appear in the role form under «Настройки».
+        Panel::extension(SettingsExtension::make()
+            ->page('site', SiteSettingsScreen::class)
+            ->page('mail', MailSettingsScreen::class));
+
         // Signing in as someone else from the user card is not their own visit.
         Event::listen(Login::class, function (Login $event): void {
             if ($event->user instanceof User && ! Impersonation::isActive()) {
@@ -78,6 +87,7 @@ class AppServiceProvider extends ServiceProvider
             MenuItem::make('Роли')->icon('shield')->group('Доступ')->to(RoleListScreen::class),
             MenuItem::make('Активность')->icon('activity')->group('Доступ')->to(ActivityListScreen::class),
             MenuItem::make('Страницы')->icon('file')->group('Сайт')->to(PageListScreen::class),
+            MenuItem::make('Настройки')->icon('settings')->group('Сайт')->to(SettingsIndexScreen::class),
             MenuItem::make('Витрина компонентов')->icon('grid')->group('Разработка')->to(ShowcaseScreen::class),
             MenuItem::make('Файлы')->icon('files')->group('Разработка')->to(FileBrowserScreen::class),
         ]);

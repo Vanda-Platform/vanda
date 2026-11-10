@@ -19,6 +19,14 @@ PHP-only screens, instant reactivity, and an API designed to be read and written
 `composer require vanda/core` in a Laravel 12 or 13 app; the steps are in
 [packages/core/README.md](packages/core/README.md).
 
+## Extensions
+
+Packages that add screens, permissions and ⌘K search to the panel, mounted with
+`Route::extension(SettingsExtension::class)` inside `Route::vanda()`. Vanda's own live in
+`packages/extensions`: [`vanda/settings`](packages/extensions/settings) keeps typed settings in the
+database and gives the panel a «Settings» page with a page for each group. Your own extends
+`Vanda\Extensions\Extension`.
+
 ## Try it
 
 ```bash

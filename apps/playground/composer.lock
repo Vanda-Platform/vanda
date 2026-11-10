@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e265ae6afa0a03190ed99196f75653f9",
+    "content-hash": "71d749096b93a6456c97485d392b0266",
     "packages": [
         {
             "name": "brick/math",
@@ -6152,11 +6152,11 @@
         },
         {
             "name": "vanda/core",
-            "version": "dev-phase-1",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "../../packages/core",
-                "reference": "0ca1cbbce8bcdc6c33406993ef30a895231cffcf"
+                "reference": "31f1d2da7ab0cd20cb1e761c75c0412ed7d2f15f"
             },
             "require": {
                 "illuminate/console": "^12.0 || ^13.0",
@@ -6180,6 +6180,9 @@
                     "providers": [
                         "Vanda\\VandaServiceProvider"
                     ]
+                },
+                "branch-alias": {
+                    "dev-main": "0.4.x-dev"
                 }
             },
             "autoload": {
@@ -6201,6 +6204,84 @@
                 "MIT"
             ],
             "description": "Vanda core: screens, typed UI schema, state snapshots, actions and reactions for Laravel back-offices.",
+            "homepage": "https://github.com/Vanda-Platform/vanda",
+            "keywords": [
+                "admin",
+                "admin-panel",
+                "back-office",
+                "inertia",
+                "laravel",
+                "orchid",
+                "react",
+                "screens"
+            ],
+            "support": {
+                "issues": "https://github.com/Vanda-Platform/vanda/issues",
+                "source": "https://github.com/Vanda-Platform/vanda"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "vanda/settings",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/extensions/settings",
+                "reference": "857abd5a68c78ff4e2b9192b32535079c2eb9c53"
+            },
+            "require": {
+                "php": "^8.3",
+                "vanda/core": "^0.4"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^10.0 || ^11.0",
+                "pestphp/pest": "^3.0 || ^4.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Vanda\\Settings\\SettingsServiceProvider"
+                    ]
+                },
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Vanda\\Settings\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Vanda\\Settings\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Settings for Vanda panels: typed values kept in the database and edited on settings pages.",
+            "homepage": "https://github.com/Vanda-Platform/vanda",
+            "keywords": [
+                "admin",
+                "admin-panel",
+                "laravel",
+                "settings",
+                "vanda"
+            ],
+            "support": {
+                "issues": "https://github.com/Vanda-Platform/vanda/issues",
+                "source": "https://github.com/Vanda-Platform/vanda"
+            },
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -8694,7 +8775,8 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "vanda/core": 20
+        "vanda/core": 20,
+        "vanda/settings": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

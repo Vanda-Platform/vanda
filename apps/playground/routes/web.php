@@ -12,6 +12,7 @@ use App\Vanda\Screens\UserListScreen;
 use Illuminate\Support\Facades\Route;
 use Vanda\Activity\ActivityListScreen;
 use Vanda\Activity\ActivityScreen;
+use Vanda\Settings\SettingsExtension;
 
 Route::redirect('/', '/admin');
 
@@ -31,4 +32,5 @@ Route::vanda('admin', function () {
     Route::screen('files/{folder}', FileBrowserScreen::class)->name('admin.files.folder');
     Route::screen('activity', ActivityListScreen::class)->name('admin.activity');
     Route::screen('activity/{activity}', ActivityScreen::class)->name('admin.activity.show');
+    Route::extension(SettingsExtension::class);   // /admin/settings, /admin/settings/site, /admin/settings/mail
 });

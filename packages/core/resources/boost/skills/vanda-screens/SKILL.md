@@ -218,6 +218,21 @@ Panel::search(fn (string $query) => Search::apply(User::query(), ['name', 'email
 
 Menu items, search results and `Link::make(…)->to(…)` that lead to screens the user may not open are hidden, and so are buttons and modal toggles whose `#[Action]` is forbidden, whatever `->visible()` says. The server checks `#[Can]` of an action before anything else in the request, then refuses a call that no button on the page makes: `->visible($user->isNot(auth()->user()))` on a «Delete» button really stops the call on that record. Notifications for the bell are Laravel database notifications with `Vanda\Notifications\PanelMessage`. Signing in as another user goes only through `Vanda\Access\Impersonation::loginAs()` inside an `#[Action]` guarded by `#[Can]`.
 
+## Extensions
+
+An extension is a package that adds screens, permissions and ⌘K search to the panel (`vanda/settings`). Its service provider registers it; the application mounts its screens inside `Route::vanda()` and may register it again with its own configuration (the same class registered twice keeps the last one):
+
+```php
+Panel::extension(SettingsExtension::make()->page('shop', ShopSettingsScreen::class));   // a service provider's boot()
+
+Route::vanda('admin', function () {
+    Route::extension(SettingsExtension::class);             // /admin/settings/…, route names "admin.settings.*"
+    Route::extension(SettingsExtension::class, 'system');   // or at /admin/system/…
+});
+```
+
+To make one for several applications, extend `Vanda\Extensions\Extension` in a package: `name()` (lowercase latin letters, digits and dashes) is its prefix in URLs and route names, `routes()` declares its screens with `Route::screen()` as a routes file does, `permissions()` returns `PermissionGroup`s for the role form, `search(string $query)` returns `SearchResult`s. Register it in the package's service provider with `Panel::extension(new MyExtension)`; its screens read their configuration from `MyExtension::registered()`. Screens of an extension are ordinary screens: `vanda:check` checks them and `Panel::test()` drives them.
+
 ## Check your work
 
 - `php artisan vanda:check --json` builds every routed screen (as someone who may do everything) and reports, with `file:line` and "Did you mean …?": field paths, `Expr` fields and `dependsOn` the state does not have, modals that do not exist, unknown icons, and anything a screen throws. Exit code 1 when anything is wrong. `vanda:check users` checks only matching screens.

@@ -186,6 +186,21 @@ final class ActivityLog
             $old = $event === ActivityEvent::Created ? null : $model->getRawOriginal($attribute);
             $new = $event === ActivityEvent::Deleted ? null : $model->getAttributes()[$attribute] ?? null;
 
+            if ($options->expands($attribute)) {
+                foreach (self::keyChanges(self::decoded($old), self::decoded($new)) as $key => [$before, $after]) {
+                    if ($options->isSecret($model, $key)) {
+                        $changes[$key] = [null, null];
+                        $secret[] = $key;
+
+                        continue;
+                    }
+                    $enum = $options->enumOf($attribute, $key);
+                    $changes[$key] = [self::value(self::labelOfCase($enum, $before), false), self::value(self::labelOfCase($enum, $after), false)];
+                }
+
+                continue;
+            }
+
             // A new or deleted record lists its filled values only; an empty text that became
             // null (or back) is no change for a person.
             if (($old ?? '') === '' && ($new ?? '') === '') {
@@ -210,13 +225,62 @@ final class ActivityLog
     }
 
     /**
+     * Keys of two JSON objects whose values differ; an empty text, an empty list and null are the same.
+     *
+     * @param array<array-key, mixed> $old
+     * @param array<array-key, mixed> $new
+     * @return array<string, array{mixed, mixed}>
+     */
+    private static function keyChanges(array $old, array $new): array
+    {
+        $changes = [];
+
+        foreach (array_unique([...array_keys($old), ...array_keys($new)]) as $key) {
+            $before = $old[$key] ?? null;
+            $after = $new[$key] ?? null;
+
+            if (in_array($before, [null, '', []], true) && in_array($after, [null, '', []], true)) {
+                continue;
+            }
+            if (json_encode($before) !== json_encode($after)) {
+                // An empty list reads as nothing, like an empty text.
+                $changes[(string) $key] = [$before === [] ? null : $before, $after === [] ? null : $after];
+            }
+        }
+
+        return $changes;
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     */
+    private static function decoded(mixed $raw): array
+    {
+        if (is_array($raw)) {
+            return $raw;
+        }
+
+        $value = is_string($raw) && $raw !== '' ? json_decode($raw, true) : null;
+
+        return is_array($value) ? $value : [];
+    }
+
+    /**
      * An attribute cast to an enum with label() is kept by its label: «Опубликована», not "published".
      */
     private static function enumLabel(Model $model, string $attribute, mixed $raw): mixed
     {
         $cast = $model->getCasts()[$attribute] ?? null;
 
-        if (! is_string($cast) || ! enum_exists($cast) || ! is_subclass_of($cast, BackedEnum::class) || ! method_exists($cast, 'label') || ! (is_int($raw) || is_string($raw))) {
+        return self::labelOfCase(is_string($cast) ? $cast : null, $raw);
+    }
+
+    /**
+     * The label() of the case of $cast that $raw stores, or $raw itself.
+     */
+    private static function labelOfCase(?string $cast, mixed $raw): mixed
+    {
+        if ($cast === null || ! enum_exists($cast) || ! is_subclass_of($cast, BackedEnum::class) || ! method_exists($cast, 'label') || ! (is_int($raw) || is_string($raw))) {
             return $raw;
         }
 
