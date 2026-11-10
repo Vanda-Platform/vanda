@@ -6,6 +6,7 @@ import { isInternal, nodeAttributes, useSnapshot } from '../store';
 import { cx, Icon, Spinner } from '../ui';
 import type { UiNode } from '../types';
 import { useActivate, type ActivatableNode } from './actions';
+import { NodeView } from './NodeView';
 
 interface Folder {
   name: string;
@@ -266,27 +267,43 @@ export function FilesView({ node }: { node: FilesNode }) {
   // At least two tiles across, even in a narrow block or on a phone.
   const gridClass = 'grid grid-cols-[repeat(auto-fill,minmax(min(150px,calc(50%_-_6px)),1fr))] gap-3';
 
+  // Files::toolbar(): fields on the line of the view switch; a field's label is for screen readers there.
+  const toolbar = node.children ?? [];
+
   return (
     <div className="@container flex min-w-0 flex-col gap-3" {...nodeAttributes(node)}>
-      {!empty && (
-        <div role="group" aria-label={t('filesView')} className="inline-flex gap-0.5 self-end rounded-lg border border-line bg-surface-2 p-0.5">
-          {(['grid', 'list'] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={layout === option}
-              aria-label={t(option === 'grid' ? 'filesGrid' : 'filesList')}
-              title={t(option === 'grid' ? 'filesGrid' : 'filesList')}
-              onClick={() => choose(option)}
-              className={cx(
-                'grid size-7 place-items-center rounded-md text-fg-3 hover:text-fg',
-                focusRing,
-                layout === option && 'bg-surface text-fg shadow-sm ring-1 ring-line',
-              )}
-            >
-              <Icon name={option === 'grid' ? 'grid' : 'list'} />
-            </button>
-          ))}
+      {(toolbar.length > 0 || !empty) && (
+        <div className="flex items-start gap-2">
+          {toolbar.length > 0 && (
+            <div className="flex min-w-0 flex-1 flex-wrap items-start gap-2">
+              {toolbar.map((child) => (
+                <div key={child.id} className="min-w-0 flex-1 basis-56 @2xl:max-w-md">
+                  <NodeView node={{ ...child, labelHidden: true }} />
+                </div>
+              ))}
+            </div>
+          )}
+          {!empty && (
+            <div role="group" aria-label={t('filesView')} className="ml-auto inline-flex h-(--v-control) shrink-0 gap-0.5 rounded-lg border border-line bg-surface-2 p-0.5">
+              {(['grid', 'list'] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={layout === option}
+                  aria-label={t(option === 'grid' ? 'filesGrid' : 'filesList')}
+                  title={t(option === 'grid' ? 'filesGrid' : 'filesList')}
+                  onClick={() => choose(option)}
+                  className={cx(
+                    'grid w-8 place-items-center rounded-md text-fg-3 hover:text-fg',
+                    focusRing,
+                    layout === option && 'bg-surface text-fg shadow-sm ring-1 ring-line',
+                  )}
+                >
+                  <Icon name={option === 'grid' ? 'grid' : 'list'} />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

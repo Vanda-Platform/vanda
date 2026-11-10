@@ -78,7 +78,6 @@ final class FileBrowserScreen extends Screen
 
         return [
             Layout::card($this->folder === '' ? 'Все папки' : 'Содержимое папки')->schema([
-                Input::make('q')->label('Поиск')->inputType(InputType::Search)->placeholder('Название папки или файла — по всем папкам'),
                 $this->browser(),
             ]),
 
@@ -144,6 +143,7 @@ final class FileBrowserScreen extends Screen
     private function browser(): Files
     {
         $browser = Layout::files()->id('files')
+            ->toolbar([Input::make('q')->label('Поиск')->inputType(InputType::Search)->placeholder('Название папки или файла — по всем папкам')])
             ->selected($this->fileKey)
             ->fileAction(fn (string $key) => ModalToggle::make('Открыть')->modal('file')->load($this->loadFile(...), ['key' => $key]))
             ->dependsOn('q');

@@ -134,7 +134,7 @@
     "src": "src/assets/auth-background.webp"
   },
   "src/main.tsx": {
-    "file": "vanda-zzFfcfpj.js",
+    "file": "vanda-B-p7jTjL.js",
     "name": "main",
     "src": "src/main.tsx",
     "isEntry": true,
@@ -192,7 +192,7 @@
     ]
   },
   "src/nodes/cropper.tsx": {
-    "file": "vanda-cropper-CHxToWUc.js",
+    "file": "vanda-cropper-JjhhUX4o.js",
     "name": "cropper",
     "src": "src/nodes/cropper.tsx",
     "isDynamicEntry": true,
@@ -224,7 +224,7 @@
     ]
   },
   "src/nodes/richtext.tsx": {
-    "file": "vanda-richtext-CXZUU6cF.js",
+    "file": "vanda-richtext-YgaOoUzC.js",
     "name": "richtext",
     "src": "src/nodes/richtext.tsx",
     "isDynamicEntry": true,
@@ -257,7 +257,7 @@
     "isDynamicEntry": true
   },
   "src/nodes/tinymce.tsx": {
-    "file": "vanda-tinymce-CezwxQP_.js",
+    "file": "vanda-tinymce-rIJp9Euk.js",
     "name": "tinymce",
     "src": "src/nodes/tinymce.tsx",
     "isDynamicEntry": true,
@@ -278,7 +278,7 @@
     ]
   },
   "src/nodes/tree.tsx": {
-    "file": "vanda-tree-DwAxiy1u.js",
+    "file": "vanda-tree-Bk2OXgsV.js",
     "name": "tree",
     "src": "src/nodes/tree.tsx",
     "isDynamicEntry": true,
@@ -290,7 +290,7 @@
     ]
   },
   "style.css": {
-    "file": "vanda-B3PNwZ_R.css",
+    "file": "vanda-Bg2boBH_.css",
     "src": "style.css"
   }
 }

@@ -24,6 +24,7 @@ use Vanda\VandaException;
  *         ->fileAction(fn (string $key) => ModalToggle::make('Open')->modal('file')->load($this->loadFile(...), ['id' => (int) $key]))
  *         ->selected($this->fileId !== null ? (string) $this->fileId : null)
  *         ->emptyText('The folder is empty')
+ *         ->toolbar([Input::make('browser.q')->label('Search')->inputType(InputType::Search)->placeholder('Folder or file name')])
  *         ->dependsOn('browser.q'),
  *
  * A click on a folder opens its address (through Inertia for a panel page; Cmd/Ctrl-click in a new
@@ -31,6 +32,7 @@ use Vanda\VandaException;
  * Table::rowAction() does for a row: a ModalToggle, a Button or a Link, its arguments signed for that
  * file. A file without one (or whose node the user may not use) is shown but opens nothing.
  * The toolbar switches between tiles and a list; the browser remembers the choice per node id.
+ * ->toolbar([...]) puts fields on its line, a search box among them.
  */
 final class Files extends Node
 {
@@ -47,6 +49,9 @@ final class Files extends Node
     private FilesLayout $layout = FilesLayout::Grid;
 
     private ?string $emptyText = null;
+
+    /** @var list<Node> */
+    private array $toolbar = [];
 
     public static function make(): self
     {
@@ -131,6 +136,30 @@ final class Files extends Node
         $this->layout = $layout;
 
         return $this;
+    }
+
+    /**
+     * Fields on the line of the view switch, before it: a search box, a sort. They stay fields of the
+     * screen like any other (its state, its rules, ->dependsOn() of the browser); their labels are
+     * for screen readers only, so give each a placeholder. The line is there even when nothing is
+     * found, so the search can be changed.
+     *
+     *     Layout::files()->id('files')
+     *         ->toolbar([Input::make('q')->label('Search')->inputType(InputType::Search)->placeholder('Folder or file name')])
+     *         ->dependsOn('q')
+     *
+     * @param list<Node> $nodes
+     */
+    public function toolbar(array $nodes): self
+    {
+        $this->toolbar = array_values($nodes);
+
+        return $this;
+    }
+
+    public function children(): array
+    {
+        return $this->toolbar;
     }
 
     /**

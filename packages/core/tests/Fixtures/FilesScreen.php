@@ -28,8 +28,8 @@ final class FilesScreen extends Screen
     public function layout(): iterable
     {
         return [
-            Input::make('q')->label('Search'),
             Layout::files()->id('files')
+                ->toolbar([Input::make('q')->label('Search')->placeholder('Folder or file name')])
                 ->folder('Certificates', '/admin/files/3', meta: '12 files')
                 ->folder('Old', '/admin/files/4', hint: 'in «Archive»')
                 ->file('7', 'Price list.PDF', url: '/storage/price.pdf', mime: 'application/pdf', size: 52_000, date: new DateTimeImmutable('2026-03-12'))

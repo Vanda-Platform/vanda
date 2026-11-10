@@ -77,3 +77,12 @@ it('writes sizes for people in the language of the application', function () {
     app()->setLocale('ru');
     expect(Files::size(3_565_158))->toBe('3,4 МБ')->and(Files::size(1_536))->toBe('1,5 КБ');
 });
+
+it('puts fields on the line of the view switch, where they stay fields of the screen', function () {
+    $screen = Panel::test(FilesScreen::class);
+
+    expect($screen->node('files')['children'])->toHaveCount(1)
+        ->and($screen->node('files')['children'][0])->toMatchArray(['type' => 'input', 'path' => 'q', 'label' => 'Search', 'placeholder' => 'Folder or file name']);
+
+    $screen->set('q', 'price')->assertSet('q', 'price');
+});
