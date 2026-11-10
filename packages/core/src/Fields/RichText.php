@@ -36,6 +36,9 @@ final class RichText extends Field implements StoresImages
     /** Megabytes per image uploaded into the text; null when uploads are off. */
     private ?float $uploads = null;
 
+    /** WebP quality pictures are re-encoded at before they go up; null keeps their format. */
+    private ?int $uploadsWebp = Upload::WEBP_QUALITY;
+
     public function type(): string
     {
         return 'richtext';
@@ -92,11 +95,13 @@ final class RichText extends Field implements StoresImages
     /**
      * Images can be uploaded into the text (pasted, dropped or chosen in the image dialog).
      * They are stored like Upload files, through the screen's own URL, and the text keeps
-     * their address ("/storage/2026/01/15/abc.jpg").
+     * their address ("/storage/2026/01/15/abc.jpg"). JPEG and PNG go up as WebP at this quality
+     * (see Upload::webp()); `webp: null` keeps them as they are.
      */
-    public function uploads(float $maxMegabytes = 5): static
+    public function uploads(float $maxMegabytes = 5, ?int $webp = Upload::WEBP_QUALITY): static
     {
         $this->uploads = $maxMegabytes;
+        $this->uploadsWebp = $webp;
 
         return $this;
     }
@@ -108,7 +113,8 @@ final class RichText extends Field implements StoresImages
     {
         return $this->uploads === null
             ? null
-            : Upload::make($this->path())->image()->maxSize($this->uploads)->group('richtext')->target(UploadTarget::RelativeUrl);
+            : tap(Upload::make($this->path())->image()->maxSize($this->uploads)->group('richtext')->target(UploadTarget::RelativeUrl),
+                fn (Upload $upload) => $this->uploadsWebp === null ? $upload->keepFormat() : $upload->webp($this->uploadsWebp));
     }
 
     public function sanitize(mixed $value, mixed $current = null): string
@@ -136,6 +142,7 @@ final class RichText extends Field implements StoresImages
             'elements' => $elements,
             'styles' => array_keys(Html::STYLES),
             'uploads' => $this->uploads === null ? null : $this->uploads * 1024 * 1024,
+            'webp' => $this->uploads === null ? null : $this->uploader()?->webpQuality(),
         ];
     }
 }

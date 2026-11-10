@@ -839,8 +839,8 @@ const isPrimary = (node: UiNode) => ['button', 'link', 'modaltoggle'].includes(n
 
 /**
  * The command bar with its secondary buttons in a «⋯» menu. Phones always show it so, the primary
- * buttons taking the width. On a desktop a button with a hotkey stays out too: inside the menu
- * its key would do nothing.
+ * buttons taking the width. On a desktop a button with a hotkey stays out too, with its key beside
+ * it (inside the menu the key works as well, but nobody would learn it).
  */
 function FoldedCommandBar({ nodes, phone = false }: { nodes: UiNode[]; phone?: boolean }) {
   const kept = nodes.filter((node) => isPrimary(node) || (!phone && Boolean(node.hotkey)));

@@ -89,3 +89,15 @@ it('validates only the section or card whose command button was pressed', functi
     $card = Vanda\Panel::test(Vanda\Tests\Fixtures\ProfileFormsScreen::class)->node('layout.1');
     expect($card)->toMatchArray(['type' => 'card', 'title' => 'Password', 'commandIds' => ['action.savePassword']]);
 });
+
+it('keeps hotkeys in one spelling and refuses ones that cannot work', function () {
+    expect(Vanda\Support\Hotkey::normalize('Mod+Shift+S'))->toBe('mod+shift+s')
+        ->and(Vanda\Support\Hotkey::normalize('shift+mod+esc'))->toBe('mod+shift+escape')
+        ->and(Vanda\Support\Hotkey::normalize('alt+/'))->toBe('alt+/')
+        ->and(Vanda\Support\Hotkey::normalize('mod++'))->toBe('mod++')
+        ->and(fn () => Vanda\Actions\Button::make('Save')->hotkey('cmd+s'))->toThrow(Vanda\VandaException::class, 'Write "mod+s"')
+        ->and(fn () => Vanda\Support\Hotkey::normalize('mod+w'))->toThrow(Vanda\VandaException::class, 'closes the tab')
+        ->and(fn () => Vanda\Support\Hotkey::normalize('mod+n'))->toThrow(Vanda\VandaException::class, '"mod+alt+n" or "alt+n"')
+        ->and(fn () => Vanda\Support\Hotkey::normalize('mod+enterr'))->toThrow(Vanda\VandaException::class, 'Did you mean "enter"?')
+        ->and(fn () => Vanda\Support\Hotkey::normalize('hyper+s'))->toThrow(Vanda\VandaException::class, 'has the modifier "hyper"');
+});

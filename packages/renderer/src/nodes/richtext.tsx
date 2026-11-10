@@ -15,6 +15,7 @@ import { useStore } from '../store';
 import { upload } from '../transport';
 import { buttonClass, controlClass, cx, Icon, invalidClass, MOBILE_QUERY, useMediaQuery } from '../ui';
 import type { FieldNode } from '../types';
+import { toWebp } from '../webp';
 import { CodeEditor } from './code';
 import { FieldFrame, useField } from './fields';
 import {
@@ -47,6 +48,8 @@ type RichTextNode = FieldNode & {
   styles?: string[];
   /** Bytes per image uploaded into the text (RichText::uploads()); missing when off. */
   uploads?: number | null;
+  /** WebP quality pictures go up at (RichText::uploads(webp: …)); missing: as they are. */
+  webp?: number | null;
 };
 
 /** The editor keeps an empty paragraph at the end so there is a place to type after a table or a list. */
@@ -517,7 +520,9 @@ export function RichTextField({ node }: { node: RichTextNode }) {
 
   const uploadImages = async (files: File[], at?: number) => {
     setNotice(null);
-    for (const file of files) {
+    for (const chosen of files) {
+      // JPEG and PNG go into the text as WebP (RichText::uploads(webp: …)); the size counts after that.
+      const file = node.webp ? await toWebp(chosen, node.webp) : chosen;
       if (node.uploads && file.size > node.uploads) {
         setNotice(t('imageTooLarge', { max: formatSize(node.uploads) }));
         continue;
@@ -529,7 +534,7 @@ export function RichTextField({ node }: { node: RichTextNode }) {
           setNotice(data.errors?.[node.path]?.[0] ?? t('uploadFailed'));
           continue;
         }
-        const image = { type: 'image', attrs: { src: String(data.value), alt: file.name.replace(/\.[^.]+$/, '') } };
+        const image = { type: 'image', attrs: { src: String(data.value), alt: chosen.name.replace(/\.[^.]+$/, '') } };
         (at === undefined ? editor.chain().focus().insertContent(image) : editor.chain().focus().insertContentAt(at, image)).run();
       } catch {
         setNotice(t('uploadFailed'));

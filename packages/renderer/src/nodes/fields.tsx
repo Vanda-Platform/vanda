@@ -14,7 +14,7 @@ import {
   SliderTrack,
   Switch as AriaSwitch,
 } from 'react-aria-components';
-import { optionClass, popoverClass } from '../choice';
+import { OptionText, optionClass, popoverClass } from '../choice';
 import { getPath, isTrue } from '../expr';
 import { t } from '../i18n';
 import { nodeAttributes, useSnapshot, useStore } from '../store';
@@ -262,6 +262,22 @@ export function TextAreaField({ node }: { node: FieldNode & { rows?: number; max
 }
 
 
+/**
+ * The chosen option in a closed field: its label, then its hint and description muted on the same line
+ * (the description gives way first when the field is narrow).
+ */
+export function ChosenText({ option }: { option: Pick<Option, 'label' | 'hint' | 'description'> }) {
+  return (
+    <span className="flex min-w-0 flex-1 items-baseline gap-2">
+      <span className="truncate">
+        {option.label}
+        {option.hint && <span className="ml-2 text-fg-3">{option.hint}</span>}
+      </span>
+      {option.description && <span className="min-w-0 flex-1 truncate text-[13px] text-fg-3">{option.description}</span>}
+    </span>
+  );
+}
+
 export function SelectField({ node }: { node: FieldNode & { options?: Option[]; multiple?: boolean; searchable?: boolean; allowCustom?: boolean } }) {
   // Long lists and custom values need a text box to type into.
   if (node.searchable || node.allowCustom) return <ComboField node={node} />;
@@ -287,11 +303,8 @@ function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multipl
           <ListBoxItem id={option.id} textValue={option.label} className={optionClass}>
             {({ isSelected }) => (
               <>
-                <span className="truncate">
-                  {option.label}
-                  {option.hint && <span className="ml-2 text-fg-3">{option.hint}</span>}
-                </span>
-                {isSelected && <Icon name="check" />}
+                <OptionText option={option} />
+                {isSelected && <Icon name="check" className="shrink-0" />}
               </>
             )}
           </ListBoxItem>
@@ -318,7 +331,7 @@ function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multipl
             <span className="flex flex-wrap gap-1.5">
               {selected.length === 0 && <span className="text-fg-3">{node.placeholder ?? t('choose')}</span>}
               {selected.map((key) => (
-                <span key={key} className="inline-flex h-6 items-center rounded-md border border-line bg-surface-2 px-2 text-[13px] font-medium">
+                <span key={key} title={byKey(key)?.description} className="inline-flex h-6 items-center rounded-md border border-line bg-surface-2 px-2 text-[13px] font-medium">
                   {byKey(key)?.label ?? key}
                 </span>
               ))}
@@ -347,10 +360,7 @@ function PlainSelect({ node }: { node: FieldNode & { options?: Option[]; multipl
       >
         <AriaButton className={trigger}>
           {current ? (
-            <span className="truncate">
-              {current.label}
-              {current.hint && <span className="ml-2 text-fg-3">{current.hint}</span>}
-            </span>
+            <ChosenText option={current} />
           ) : (
             <SelectValue className="truncate data-[placeholder]:text-fg-3" />
           )}
@@ -468,6 +478,7 @@ export function SwitchField({ node }: { node: FieldNode }) {
 export function RadioField({ node }: { node: FieldNode & { options?: Option[]; inline?: boolean } }) {
   const field = useField(node);
   const hint = useHint(node);
+  const radioIds = useId();
   const options = node.options ?? [];
 
   return (
@@ -485,9 +496,23 @@ export function RadioField({ node }: { node: FieldNode & { options?: Option[]; i
       >
         <div className={cx('flex gap-2.5', node.inline ? 'flex-row flex-wrap gap-x-5' : 'flex-col')}>
           {options.map((option) => (
-            <AriaRadio key={String(option.value)} value={String(option.value)} className="group flex cursor-pointer items-center gap-2.5 text-[14px]">
-              <span className="size-4 rounded-full border border-control-line bg-surface shadow-sm transition group-data-[selected]:border-[5px] group-data-[selected]:border-accent group-data-[focus-visible]:ring-3 group-data-[focus-visible]:ring-ring" />
-              {option.label}
+            <AriaRadio
+              key={String(option.value)}
+              value={String(option.value)}
+              aria-describedby={option.description ? `${radioIds}-${String(option.value)}` : undefined}
+              className={cx('group flex cursor-pointer gap-2.5 text-[14px]', option.description ? 'items-start' : 'items-center')}
+            >
+              <span className={cx('size-4 shrink-0 rounded-full border border-control-line bg-surface shadow-sm transition group-data-[selected]:border-[5px] group-data-[selected]:border-accent group-data-[focus-visible]:ring-3 group-data-[focus-visible]:ring-ring', option.description && 'mt-[3px]')} />
+              {option.description ? (
+                <span className="flex min-w-0 flex-col">
+                  {option.label}
+                  <span id={`${radioIds}-${String(option.value)}`} className="text-[12.5px] leading-[1.35] text-fg-3">
+                    {option.description}
+                  </span>
+                </span>
+              ) : (
+                option.label
+              )}
             </AriaRadio>
           ))}
         </div>

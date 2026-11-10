@@ -4,6 +4,7 @@ import { lang, t } from '../i18n';
 import { useStore } from '../store';
 import { upload, type UploadResult } from '../transport';
 import { Avatar, buttonClass, cx, Icon } from '../ui';
+import { convertible, toWebp } from '../webp';
 import type { FieldNode } from '../types';
 import type { CropPreset } from './cropper';
 import { FieldFrame, useField } from './fields';
@@ -23,6 +24,8 @@ type UploadNode = FieldNode & {
   /** Upload::crop(): images are cropped before they are sent. */
   crop?: CropPreset[];
   customCrop?: boolean;
+  /** Upload::webp(): pictures are re-encoded as WebP at this quality before they are sent. */
+  webp?: number | null;
 };
 
 /** An attachment id, or its URL with Upload::target(). */
@@ -37,6 +40,8 @@ interface Pending {
   error?: string;
   /** The error is about the file itself, so trying again will not help. */
   final?: boolean;
+  /** Being re-encoded as WebP before it goes up. */
+  compressing?: boolean;
   abort?: () => void;
 }
 
@@ -110,6 +115,8 @@ export function UploadField({ node }: { node: UploadNode }) {
   /** The value the next chosen file replaces ("Replace" on a picture, a new avatar). */
   const replacing = useRef<Value | undefined>(undefined);
   const counter = useRef(0);
+  /** Files the user took back while they were being compressed. */
+  const cancelled = useRef(new Set<number>());
   const [known, setKnown] = useState<Record<string, UploadResult>>({});
   const [pending, setPending] = useState<Pending[]>([]);
   const [crops, setCrops] = useState<Crop[]>([]);
@@ -158,21 +165,36 @@ export function UploadField({ node }: { node: UploadNode }) {
   };
 
   /** Checks a file in the browser (the server checks again) and sends it. */
+  const check = (item: Pending): Pending => ({
+    ...item,
+    ...(item.file.size > node.maxSize
+      ? { error: t('tooLarge', { size: formatSize(item.file.size), max: formatSize(node.maxSize) }), final: true }
+      : !accepts(node.accept, item.file)
+        ? { error: t('wrongType'), final: true }
+        : {}),
+  });
+
+  /**
+   * Sends a file; a picture goes up as WebP when the field asks for it (Upload::webp()). The size is
+   * checked after that: a 12 MB photo may well fit a 5 MB field as WebP.
+   */
   const enqueue = (file: File, replace?: Value) => {
-    const item: Pending = {
-      key: ++counter.current,
-      file,
-      progress: 0,
-      replace,
-      ...(file.size > node.maxSize
-        ? { error: t('tooLarge', { size: formatSize(file.size), max: formatSize(node.maxSize) }), final: true }
-        : !accepts(node.accept, file)
-          ? { error: t('wrongType'), final: true }
-          : {}),
-    };
-    setPending((current) => [...current, item]);
-    if (!item.error) send(item);
+    const key = ++counter.current;
+    if (!node.webp || !convertible(file.type) || !accepts(node.accept, file)) {
+      const item = check({ key, file, progress: 0, replace });
+      setPending((current) => [...current, item]);
+      if (!item.error) send(item);
+      return;
+    }
+    setPending((current) => [...current, { key, file, progress: 0, replace, compressing: true }]);
+    void toWebp(file, node.webp).then((ready) => {
+      if (cancelled.current.delete(key)) return;
+      const item = check({ key, file: ready, progress: 0, replace });
+      setPending((current) => current.map((entry) => (entry.key === key ? item : entry)));
+      if (!item.error) send(item);
+    });
   };
+
 
   const start = (files: FileList | null, replace?: Value) => {
     if (!files) return;
@@ -260,6 +282,7 @@ export function UploadField({ node }: { node: UploadNode }) {
         mime={crops[0].mime}
         presets={node.crop ?? []}
         custom={node.customCrop === true}
+        webp={node.webp ?? null}
         storageKey={`vanda.crop.${node.path.replace(/\.\d+\./g, '.*.')}`}
         onDone={finishCrop}
         onCancel={() => finishCrop(null)}
@@ -283,7 +306,7 @@ export function UploadField({ node }: { node: UploadNode }) {
                   aria-label={node.label && !(item && !item.error) ? `${t('uploadPhoto')}: ${node.label}` : undefined}
                   className={cx(buttonClass('secondary', 'sm'), item && !item.error && 'pointer-events-none opacity-50')}
                 >
-                  {item && !item.error ? `${Math.round(item.progress * 100)}%` : t('uploadPhoto')}
+                  {item && !item.error ? (item.compressing ? t('compressing') : `${Math.round(item.progress * 100)}%`) : t('uploadPhoto')}
                 </button>
                 {values.length > 0 && (
                   <button type="button" className={buttonClass('ghost', 'sm')} onClick={() => remove(values[0]!)}>
@@ -354,7 +377,7 @@ export function UploadField({ node }: { node: UploadNode }) {
               <span className="truncate text-[13.5px] font-medium">{picture.name}</span>
               {replacingPicture ? (
                 <span className={cx('text-[12.5px]', replacingPicture.error ? 'text-danger-fg' : 'text-fg-3 tabular-nums')}>
-                  {replacingPicture.error ?? `${Math.round(replacingPicture.progress * 100)}%`}
+                  {replacingPicture.error ?? (replacingPicture.compressing ? t('compressing') : `${Math.round(replacingPicture.progress * 100)}%`)}
                 </span>
               ) : (
                 picture.size != null && <span className="text-[12.5px] text-fg-3">{formatSize(picture.size)}</span>
@@ -430,13 +453,16 @@ export function UploadField({ node }: { node: UploadNode }) {
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className="flex items-center gap-2 truncate text-[14px] font-medium">
                       {item.file.name}
-                      {!item.error && <span className="text-[12.5px] font-normal text-fg-3 tabular-nums">{Math.round(item.progress * 100)}%</span>}
+                      {!item.error && <span className="text-[12.5px] font-normal text-fg-3 tabular-nums">{item.compressing ? t('compressing') : `${Math.round(item.progress * 100)}%`}</span>}
                     </span>
                     {item.error ? (
                       <span className="text-[12.5px] text-danger-fg">{item.error}</span>
                     ) : (
                       <span className="h-1 overflow-hidden rounded-full bg-surface-2">
-                        <span className="block h-full rounded-full bg-accent transition-[width]" style={{ width: `${Math.max(4, item.progress * 100)}%` }} />
+                        <span
+                          className={cx('block h-full rounded-full bg-accent transition-[width]', item.compressing && 'animate-pulse motion-reduce:animate-none')}
+                          style={{ width: `${item.compressing ? 100 : Math.max(4, item.progress * 100)}%`, opacity: item.compressing ? 0.35 : undefined }}
+                        />
                       </span>
                     )}
                   </div>
@@ -448,7 +474,11 @@ export function UploadField({ node }: { node: UploadNode }) {
                   <button
                     type="button"
                     aria-label={item.error ? t('removeFile', { name: item.file.name }) : t('cancelUpload')}
-                    onClick={() => (item.error ? setPending((current) => current.filter((entry) => entry.key !== item.key)) : item.abort?.())}
+                    onClick={() => {
+                      if (item.compressing) cancelled.current.add(item.key);
+                      if (item.error || item.compressing) setPending((current) => current.filter((entry) => entry.key !== item.key));
+                      else item.abort?.();
+                    }}
                     className={iconButton}
                   >
                     <Icon name="x" />

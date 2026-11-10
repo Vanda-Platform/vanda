@@ -12,6 +12,7 @@ use Vanda\Fields\Input;
 use Vanda\Fields\Label;
 use Vanda\Fields\Map;
 use Vanda\Fields\Matrix;
+use Vanda\Fields\Option;
 use Vanda\Fields\Relation;
 use Vanda\Fields\Select;
 use Vanda\Fields\TimeZone;
@@ -36,6 +37,8 @@ final class FieldsScreen extends Screen
     public ?int $colleague = null;
 
     public ?string $size = null;
+
+    public ?string $roast = null;
 
     /** @var list<string> */
     public array $tags = [];
@@ -67,8 +70,14 @@ final class FieldsScreen extends Screen
             Relation::make('owner')->label('Owner')->model(User::class, 'name')->searchColumns('name', 'email'),
             Relation::make('watchers')->model(User::class, 'name')->multiple()->display(fn (User $user) => "{$user->name} <{$user->email}>"),
             Input::make('domain'),
-            Relation::make('colleague')->query(fn (Get $get) => User::query()->where('email', 'like', '%@'.$get('domain'))),
+            Relation::make('colleague')->query(fn (Get $get) => User::query()->where('email', 'like', '%@'.$get('domain')))
+                ->description(fn (User $user) => $user->email),
             Select::make('size')->options(['s' => 'Small', 'm' => 'Medium']),
+            Select::make('roast')->searchable()->options(fn () => collect([
+                Option::make('light', 'Light')->description('Fruity, for filter'),
+                Option::make('dark', 'Dark')->description(''),
+                ['value' => 'espresso', 'label' => 'Espresso', 'description' => 'For milk drinks', 'hint' => 'new'],
+            ])),
             Select::make('tags')->multiple()->options(['new' => 'New'])->allowCustom(),
             Matrix::make('prices', ['Volume' => 'volume', 'Price' => 'price'])->addLabel('Add a price'),
             Map::make('location')->zoom(15)->center(59.93, 30.31),

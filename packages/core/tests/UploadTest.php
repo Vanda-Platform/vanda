@@ -153,3 +153,30 @@ it('uploads images into a rich text that allows it, and only images', function (
 
     expect(Panel::test(UploadScreen::class)->node('body'))->toMatchArray(['type' => 'richtext', 'uploads' => 1048576]);
 });
+
+it('asks the browser for WebP pictures in picture fields only', function () {
+    $screen = Panel::test(UploadScreen::class);
+
+    expect($screen->node('photo')['webp'])->toBe(Vanda\Fields\Upload::WEBP_QUALITY)
+        ->and(Vanda\Fields\Upload::make('a')->image()->webpQuality())->toBe(85)
+        ->and(Vanda\Fields\Upload::make('a')->avatar('Ivan')->webpQuality())->toBe(85)
+        ->and(Vanda\Fields\Upload::make('a')->accept('image/jpeg,image/png,image/webp')->webpQuality())->toBe(85)
+        ->and(Vanda\Fields\Upload::make('a')->image()->webp(92)->webpQuality())->toBe(92)
+        ->and(Vanda\Fields\Upload::make('a')->image()->keepFormat()->webpQuality())->toBeNull()
+        // Documents keep their files; a field without accept() converts only when asked.
+        ->and(Vanda\Fields\Upload::make('a')->accept('image/*,.pdf')->webpQuality())->toBeNull()
+        ->and(Vanda\Fields\Upload::make('a')->webpQuality())->toBeNull()
+        ->and(Vanda\Fields\Upload::make('a')->webp()->webpQuality())->toBe(85)
+        // A field that refuses WebP never gets it.
+        ->and(Vanda\Fields\Upload::make('a')->accept('image/jpeg,image/png')->webpQuality())->toBeNull()
+        ->and(fn () => Vanda\Fields\Upload::make('a')->accept('image/png')->webp()->webpQuality())->toThrow(Vanda\VandaException::class, 'Add "image/webp" to accept()')
+        ->and(fn () => Vanda\Fields\Upload::make('a')->webp(0))->toThrow(Vanda\VandaException::class, 'from 1 to 100')
+        ->and(Vanda\Fields\RichText::make('a')->uploads()->toSchema(new Vanda\Schema\SchemaContext(new Vanda\Tests\Fixtures\UploadScreen, []))['webp'])->toBe(85)
+        ->and(Vanda\Fields\TinyMce::make('a')->uploads(5, webp: null)->toSchema(new Vanda\Schema\SchemaContext(new Vanda\Tests\Fixtures\UploadScreen, [])))->not->toHaveKey('webp');
+});
+
+it('stores a WebP picture the browser made under its own extension', function () {
+    $value = upload('photo', UploadedFile::fake()->createWithContent('photo.webp', base64_decode('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA')))->assertOk()->json('value');
+
+    expect($value)->toEndWith('.webp');
+});

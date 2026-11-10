@@ -12,6 +12,7 @@ use Vanda\Attachments\Attachment;
 use Vanda\Layouts\Avatar;
 use Symfony\Component\Mime\MimeTypes;
 use Vanda\Schema\SchemaContext;
+use Vanda\VandaException;
 
 /**
  * File upload into Orchid's `attachments` table. The value is an attachment id,
@@ -59,6 +60,12 @@ final class Upload extends Field
     private bool $customCrop = false;
 
     private ?string $directory = null;
+
+    /** WebP quality (1–100) set with ->webp(), false after ->keepFormat(), null: the default (see webpQuality()). */
+    private int|false|null $webp = null;
+
+    /** The quality images are re-encoded at by default: hardly visible, and several times lighter than a camera's JPEG. */
+    public const WEBP_QUALITY = 85;
 
     public function type(): string
     {
@@ -168,6 +175,66 @@ final class Upload extends Field
         $this->customCrop = $allowed;
 
         return $this;
+    }
+
+    /**
+     * JPEG, PNG and BMP pictures are re-encoded as WebP in the browser before they are sent: a photo
+     * from a phone weighs several times less, and the eye hardly sees a difference at quality 85.
+     * A picture that would not get lighter, GIFs (animation) and SVGs stay as they are, and so does
+     * everything in a browser that cannot write WebP. The cropper writes its result as WebP too.
+     *
+     * On by default for picture fields (->image(), ->avatar(), ->crop()); a field that also takes
+     * documents keeps its files unless this is called:
+     *
+     *     Upload::make('form.photo')->image()                     // WebP at 85
+     *     Upload::make('form.photo')->image()->webp(quality: 92)  // finer
+     *     Upload::make('form.logo')->image()->keepFormat()        // PNG stays PNG
+     */
+    public function webp(int $quality = self::WEBP_QUALITY): static
+    {
+        if ($quality < 1 || $quality > 100) {
+            throw new VandaException("Upload [{$this->path()}]->webp({$quality}): the quality is a number from 1 to 100, e.g. ->webp(85).");
+        }
+        $this->webp = $quality;
+
+        return $this;
+    }
+
+    /**
+     * Pictures are sent as they are, never re-encoded as WebP (see webp()).
+     */
+    public function keepFormat(): static
+    {
+        $this->webp = false;
+
+        return $this;
+    }
+
+    /**
+     * The WebP quality the browser re-encodes pictures at, or null when they keep their format:
+     * the one set with webp(), else 85 for a field that takes only pictures (and WebP among them).
+     */
+    public function webpQuality(): ?int
+    {
+        if ($this->webp === false) {
+            return null;
+        }
+
+        $types = array_filter(array_map('trim', explode(',', strtolower((string) $this->accept))));
+        $takesWebp = $types === [] || array_intersect($types, ['image/*', 'image/webp', '.webp']) !== [];
+
+        if (is_int($this->webp)) {
+            if (! $takesWebp) {
+                throw new VandaException("Upload [{$this->path()}] converts pictures to WebP (->webp()), but ->accept('{$this->accept}') refuses WebP files. Add \"image/webp\" to accept(), or remove ->webp().");
+            }
+
+            return $this->webp;
+        }
+
+        $pictures = $types !== [] && array_filter($types, static fn (string $type) => ! str_starts_with($type, 'image/')
+            && ! in_array($type, ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.avif'], true)) === [];
+
+        return ($pictures || $this->avatar !== null || $this->crops !== []) && $takesWebp ? self::WEBP_QUALITY : null;
     }
 
     /**
@@ -309,6 +376,7 @@ final class Upload extends Field
             'files' => $this->describe((array) data_get($context->state, $this->path())),
             'crop' => $this->crops === [] ? null : array_map(static fn (Crop $crop) => $crop->toSchema(), $this->crops),
             'customCrop' => $this->customCrop,
+            'webp' => $this->webpQuality(),
         ];
     }
 

@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Button as AriaButton, ComboBox, Group, Input, ListBox, ListBoxItem, Popover, type Key } from 'react-aria-components';
+import { OptionText, optionClass, popoverClass } from '../choice';
 import { t } from '../i18n';
 import { useStore } from '../store';
 import { options as fetchOptions } from '../transport';
@@ -19,9 +20,6 @@ type ComboNode = FieldNode & {
 /** The extra row that adds what the user typed (Select::allowCustom()). */
 const CUSTOM = '\u0000custom';
 
-const popoverClass = 'min-w-(--trigger-width) overflow-auto rounded-xl border border-line bg-surface p-1 shadow-pop outline-none';
-const optionClass =
-  'flex min-h-8 cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-1 text-[14px] text-fg outline-none data-[focused]:bg-surface-2 data-[selected]:font-medium data-[selected]:text-accent-fg';
 
 const toList = (value: unknown): (string | number)[] =>
   (Array.isArray(value) ? value : value === null || value === undefined || value === '' ? [] : [value]).filter((item): item is string | number => typeof item === 'string' || typeof item === 'number');
@@ -78,7 +76,7 @@ export function ComboField({ node, remote = false }: { node: ComboNode; remote?:
 
   const term = typed.current ? query.trim().toLowerCase() : '';
   const items = useMemo(() => {
-    const source = remote ? found : (node.options ?? []).filter((option) => !term || `${option.label} ${option.hint ?? ''}`.toLowerCase().includes(term));
+    const source = remote ? found : (node.options ?? []).filter((option) => !term || `${option.label} ${option.hint ?? ''} ${option.description ?? ''}`.toLowerCase().includes(term));
     const list = source.filter((option) => !node.multiple || !values.some((value) => String(value) === String(option.value))).map((option) => ({ id: String(option.value), ...option }));
     const exact = (node.options ?? []).some((option) => option.label.toLowerCase() === term || String(option.value).toLowerCase() === term);
     return node.allowCustom && term && !exact ? [{ id: CUSTOM, value: query.trim(), label: t('addCustom', { value: query.trim() }) }, ...list] : list;
@@ -134,7 +132,7 @@ export function ComboField({ node, remote = false }: { node: ComboNode; remote?:
         <Group className={cx(controlClass, 'flex h-auto min-h-(--v-control) flex-wrap items-center gap-1.5 py-1 pr-1 focus-within:border-accent focus-within:ring-3 focus-within:ring-ring', field.error && invalidClass, field.readonly && readonlyClass)}>
           {node.multiple &&
             values.map((value) => (
-              <span key={String(value)} className="inline-flex h-6 items-center gap-1 rounded-md border border-line bg-surface-2 pr-0.5 pl-2 text-[13px] font-medium">
+              <span key={String(value)} title={labels[String(value)]?.description} className="inline-flex h-6 items-center gap-1 rounded-md border border-line bg-surface-2 pr-0.5 pl-2 text-[13px] font-medium">
                 {labelOf(value)}
                 {!field.disabled && (
                   <button type="button" aria-label={t('removeFile', { name: labelOf(value) })} onClick={() => remove(value)} className="grid size-5 place-items-center rounded text-fg-3 hover:bg-surface hover:text-fg">
@@ -149,6 +147,11 @@ export function ComboField({ node, remote = false }: { node: ComboNode; remote?:
             placeholder={values.length > 0 && node.multiple ? undefined : (node.placeholder ?? t(remote ? 'typeToFind' : 'choose'))}
             className="h-7 min-w-[8ch] flex-1 bg-transparent text-[14px] outline-none placeholder:text-fg-3"
           />
+          {!node.multiple && single !== undefined && !typed.current && labels[String(single)]?.description && (
+            <span aria-hidden="true" className="max-w-[45%] min-w-0 truncate text-[13px] text-fg-3">
+              {labels[String(single)]!.description}
+            </span>
+          )}
           <span className="ml-auto flex items-center gap-0.5 text-fg-3">
             {(loading || field.pending) && <Spinner className="size-3" />}
             {!node.multiple && single !== undefined && !field.required && !field.disabled && (
@@ -173,11 +176,10 @@ export function ComboField({ node, remote = false }: { node: ComboNode; remote?:
                 {({ isSelected }) => (
                   <>
                     <span className="flex min-w-0 items-center gap-2">
-                      {item.id === CUSTOM && <Icon name="plus" className="size-3.5" />}
-                      <span className="truncate">{item.label}</span>
-                      {item.hint && <span className="shrink-0 text-fg-3">{item.hint}</span>}
+                      {item.id === CUSTOM && <Icon name="plus" className="size-3.5 shrink-0" />}
+                      <OptionText option={item} />
                     </span>
-                    {isSelected && <Icon name="check" />}
+                    {isSelected && <Icon name="check" className="shrink-0" />}
                   </>
                 )}
               </ListBoxItem>

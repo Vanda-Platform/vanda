@@ -1,11 +1,32 @@
 import type { ReactNode } from 'react';
-import { Button, Label, ListBox, ListBoxItem, Popover, Select, SelectValue, type PopoverProps } from 'react-aria-components';
+import { Button, Label, ListBox, ListBoxItem, Popover, Select, SelectValue, Text, type PopoverProps } from 'react-aria-components';
+import type { Option } from './types';
 import { Icon } from './ui';
 
 /** The list under a select: Select fields and the small selects below share it. */
-export const popoverClass = 'min-w-(--trigger-width) overflow-auto rounded-xl border border-line bg-surface p-1 shadow-pop outline-none';
+export const popoverClass = 'min-w-(--trigger-width) max-w-[min(36rem,calc(100vw-2rem))] overflow-auto rounded-xl border border-line bg-surface p-1 shadow-pop outline-none';
 export const optionClass =
-  'flex h-8 cursor-pointer items-center justify-between gap-3 rounded-md px-2 text-[14px] text-fg outline-none data-[focused]:bg-surface-2 data-[selected]:font-medium data-[selected]:text-accent-fg';
+  'flex min-h-8 cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-1 text-[14px] text-fg outline-none data-[focused]:bg-surface-2 data-[selected]:font-medium data-[selected]:text-accent-fg';
+
+/**
+ * The text of an option in a list: its label (with the hint beside it) and the description as a second,
+ * smaller grey line. Inside a ListBoxItem the two are its name and its description for screen readers.
+ */
+export function OptionText({ option }: { option: Pick<Option, 'label' | 'hint' | 'description'> }) {
+  return (
+    <span className="flex min-w-0 flex-col">
+      <Text slot="label" className="truncate">
+        {option.label}
+        {option.hint && <span className="ml-2 font-normal text-fg-3">{option.hint}</span>}
+      </Text>
+      {option.description && (
+        <Text slot="description" className="truncate text-[12.5px] leading-[1.35] font-normal text-fg-3">
+          {option.description}
+        </Text>
+      )}
+    </span>
+  );
+}
 
 /** Focus ring of a select trigger drawn as a control (the frame of a text input). */
 export const triggerFocusClass = 'outline-none data-[focus-visible]:border-accent data-[focus-visible]:ring-3 data-[focus-visible]:ring-ring';

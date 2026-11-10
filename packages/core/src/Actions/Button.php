@@ -9,6 +9,7 @@ use Vanda\Access\Authorizer;
 use Vanda\Schema\Node;
 use Vanda\Schema\SchemaContext;
 use Vanda\Screen\ActionCall;
+use Vanda\Support\Hotkey;
 
 /**
  * Calls a screen method marked with #[Action]:
@@ -133,10 +134,16 @@ final class Button extends Node
         return $this;
     }
 
-    /** Keyboard shortcut, e.g. "mod+s" (⌘S on macOS, Ctrl+S elsewhere). */
+    /**
+     * Keyboard shortcut: modifiers (mod, ctrl, alt, shift) and one key, e.g. "mod+s" (⌘S on macOS,
+     * Ctrl+S elsewhere), "mod+shift+p", "alt+n", "mod+enter". It works on any keyboard layout and in
+     * every field, the browser's own shortcut never runs instead; inside a modal the modal's button
+     * wins. A key without a modifier ("n") does not fire while the user types. Shortcuts the browser
+     * keeps (mod+n, mod+t, mod+w…) or a misspelt one ("cmd+s") fail with what to write instead.
+     */
     public function hotkey(string $hotkey): self
     {
-        $this->hotkey = $hotkey;
+        $this->hotkey = Hotkey::normalize($hotkey, "Button [{$this->label}]->hotkey()");
 
         return $this;
     }

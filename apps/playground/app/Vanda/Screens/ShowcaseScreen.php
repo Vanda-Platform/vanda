@@ -24,6 +24,7 @@ use Vanda\Fields\Map;
 use Vanda\Fields\Markdown;
 use Vanda\Fields\Matrix;
 use Vanda\Fields\NumberRange;
+use Vanda\Fields\Option;
 use Vanda\Fields\Password;
 use Vanda\Fields\Radio;
 use Vanda\Fields\RadioButtons;
@@ -54,6 +55,16 @@ use Vanda\Screen\Screen;
  */
 final class ShowcaseScreen extends Screen
 {
+    /** Товары для выбора похожих: название и категория (её показывает подпись под названием). */
+    private const PRODUCTS = [
+        1 => ['Бразилия Сантос', 'Кофе в зёрнах · 250 г'],
+        2 => ['Бразилия Сантос', 'Молотый кофе · 250 г'],
+        3 => ['Эфиопия Иргачеффе', 'Кофе в зёрнах · 1 кг'],
+        4 => ['Колумбия Супремо', 'Кофе в капсулах · 10 шт.'],
+        5 => ['Кения АА', 'Кофе в зёрнах · 250 г'],
+        6 => ['Гватемала Антигуа', 'Дрип-пакеты · 8 шт.'],
+    ];
+
     public ShowcaseForm $form;
 
     /** The page whose SEO the modal shows (opened by a click on a row of the pages table). */
@@ -102,11 +113,22 @@ final class ShowcaseScreen extends Screen
                         ], columns: 2),
                         TextArea::make('form.description')->label('Описание')->maxLength(500),
                     ]),
-                    Layout::section('Выбор', 'Select (один и несколько), Radio, RadioButtons, CheckBox, Switcher.')->schema([
+                    Layout::section('Выбор', 'Select (один и несколько), Radio, RadioButtons, CheckBox, Switcher. Option::make()->description() — вторая строка под названием.')->schema([
                         Layout::grid([
-                            Select::make('form.category')->label('Категория')->options(['beans' => 'Кофе в зёрнах', 'ground' => 'Молотый кофе', 'capsules' => 'Кофе в капсулах']),
+                            Select::make('form.category')->label('Категория')->options([
+                                Option::make('beans', 'Кофе в зёрнах')->description('Дольше всех хранит аромат'),
+                                Option::make('ground', 'Молотый кофе')->description('Для турки, гейзера и фильтра'),
+                                Option::make('capsules', 'Кофе в капсулах')->description('Совместимы с Nespresso'),
+                            ]),
                             Select::make('form.tags')->label('Метки')->multiple()->options(['new' => 'Новинка', 'hit' => 'Хит продаж', 'sale' => 'Скидка', 'eco' => 'Эко']),
-                            Radio::make('form.delivery')->label('Доставка')->options(['courier' => 'Курьером', 'pickup' => 'Самовывоз', 'post' => 'Почтой']),
+                            Select::make('form.related')->label('Похожие товары')->multiple()->searchable()->options(fn () => collect(self::PRODUCTS)
+                                ->map(fn (array $product, int $id) => Option::make($id, $product[0])->description($product[1]))->values())
+                                ->help('Ищет и по категории в подписи: попробуйте «зёрна»'),
+                            Radio::make('form.delivery')->label('Доставка')->options([
+                                Option::make('courier', 'Курьером')->description('Завтра, 300 ₽'),
+                                Option::make('pickup', 'Самовывоз')->description('Сегодня, бесплатно'),
+                                Option::make('post', 'Почтой')->description('5–7 дней'),
+                            ]),
                             RadioButtons::make('form.state')->label('Статус')->options(['draft' => 'Черновик', 'review' => 'На проверке', 'published' => 'Опубликован']),
                         ], columns: 2),
                         CheckBox::make('form.featured')->label('Показывать на главной'),
@@ -134,6 +156,9 @@ final class ShowcaseScreen extends Screen
                             Input::make('name')->label('Название')->rules('required')->help('Как на упаковке: «Вес», «Обжарка»'),
                             Input::make('value')->label('Значение'),
                         ])->addLabel('Добавить характеристику')->max(6),
+                        Repeater::make('form.features')->label('Преимущества')->fields([
+                            Input::make('text')->label('Преимущество')->placeholder('Например, «Обжарка под заказ»'),
+                        ])->addLabel('Добавить преимущество')->help('Enter — следующая строка, Backspace в пустой — удалить её', inline: true),
                     ]),
                     Layout::section('Ключ — значение', 'Пары для UTM-меток, заголовков, настроек.')->schema([
                         KeyValue::make('form.utm')->label('UTM-метки')->labels('Ключ', 'Значение', 'Добавить пару'),
@@ -151,7 +176,8 @@ final class ShowcaseScreen extends Screen
                         Markdown::make('form.notes')->label('Заметки'),
                         Code::make('form.config')->label('settings.json')->language(CodeLanguage::Json),
                     ]),
-                    Layout::section('Загрузка файлов', 'Файлы ложатся в таблицу attachments, как в Orchid.')->schema([
+                    Layout::section('Загрузка файлов', 'Файлы ложатся в таблицу attachments, как в Orchid. Фото в поле картинок браузер пережимает в WebP до отправки; документы остаются как есть.')->schema([
+                        Upload::make('form.gallery')->label('Фотографии')->image()->multiple()->maxFiles(6),
                         Upload::make('form.attachments')->label('Вложения')->multiple()->maxFiles(5)->accept('image/*,.pdf,.xlsx'),
                     ]),
                     Layout::section('Картинка с обрезкой', 'Размеры заданы в коде; свои размеры пользователь вводит в окне обрезки, браузер их запоминает. В поле хранится URL, как Cropper ->targetRelativeUrl().')->schema([
@@ -163,7 +189,7 @@ final class ShowcaseScreen extends Screen
                                 Crop::ratio(1, 1)->label('Квадрат')->maxWidth(1200),
                             )
                             ->customCrop(),
-                        Repeater::make('form.slides')->label('Слайды')->addLabel('Добавить слайд')->fields([
+                        Repeater::make('form.slides')->label('Слайды')->addLabel('Добавить слайд')->itemLabel('Слайд')->fields([
                             Input::make('title')->label('Подпись'),
                             Upload::make('image')->label('Картинка')->image()->crop(Crop::size(1200, 400)->label('Слайд')),
                         ]),
@@ -172,7 +198,7 @@ final class ShowcaseScreen extends Screen
                 'Из Orchid' => [
                     Layout::section('Выбор записей', 'Relation ищет по таблице на сервере, пока пользователь печатает: годится для тысяч записей.')->schema([
                         Relation::make('form.manager')->label('Менеджер')->model(User::class, 'name')->searchColumns('name', 'email')
-                            ->display(fn (User $user) => "{$user->name} · {$user->email}"),
+                            ->description(fn (User $user) => $user->email),
                         Relation::make('form.watchers')->label('Наблюдатели')->model(User::class, 'name')->multiple(),
                         Select::make('form.labels')->label('Метки')->multiple()->allowCustom()
                             ->options(['кофе' => 'кофе', 'чай' => 'чай', 'десерты' => 'десерты'])
@@ -188,7 +214,7 @@ final class ShowcaseScreen extends Screen
                     Layout::section('HTML-редактор TinyMCE', 'TinyMce — для текстов, написанных в TinyMCE в Orchid: классы, стили, таблицы и data-атрибуты не теряются. Ссылку на страницу можно выбрать из списка.')->schema([
                         TinyMce::make('form.html')->label('Описание товара')->uploads(5)->height(420)
                             ->linkList(fn () => Page::query()->orderBy('title')->get()->map(fn (Page $page) => ['title' => $page->title, 'value' => '/'.$page->slug])->all()),
-                        Repeater::make('form.blocks')->label('Блоки')->addLabel('Добавить блок')->fields([
+                        Repeater::make('form.blocks')->label('Блоки')->addLabel('Добавить блок')->itemLabel('Блок')->fields([
                             Input::make('title')->label('Заголовок'),
                             TinyMce::make('text')->label('Текст')->height(260)->menubar(false)->uploads(5),
                         ]),

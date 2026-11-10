@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Dialog, Modal, ModalOverlay } from 'react-aria-components';
 import { t } from './i18n';
 import { isInternal, useSnapshot, useStore } from './store';
+import { useHotkey } from './hotkeys';
 import { Avatar, cx, formatHotkey, Icon, Kbd, Spinner } from './ui';
 import type { ActionRef } from './types';
 
@@ -60,20 +61,12 @@ export function Palette() {
   const [active, setActive] = useState(0);
   const list = useRef<HTMLDivElement>(null);
 
+  useHotkey('mod+k', () => setOpen((current) => !current));
+
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setOpen((current) => !current);
-      }
-    };
     const onOpen = () => setOpen(true);
-    window.addEventListener('keydown', onKey);
     window.addEventListener('vanda:palette', onOpen);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('vanda:palette', onOpen);
-    };
+    return () => window.removeEventListener('vanda:palette', onOpen);
   }, []);
 
   useEffect(() => {

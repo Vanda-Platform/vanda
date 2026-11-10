@@ -7,12 +7,14 @@ namespace Vanda\Fields\Concerns;
 use BackedEnum;
 use Closure;
 use Illuminate\Contracts\Support\Arrayable;
+use Vanda\Fields\Option;
 use Vanda\Schema\Get;
 
 /**
- * Options as [value => label], a list of ['value' => …, 'label' => …, 'hint' => …], a BackedEnum
- * class (labels from its label() method) or a closure receiving the state.
- * A hint is shown muted after the label: "Europe/Berlin  UTC+01:00".
+ * Options as [value => label], a list of Option::make($value, $label) (with a description under the
+ * label or a hint beside it), a list of ['value' => …, 'label' => …, 'description' => …, 'hint' => …],
+ * a BackedEnum class (labels from its label() method, descriptions from description() when it has one)
+ * or a closure receiving the state.
  */
 trait HasOptions
 {
@@ -30,7 +32,7 @@ trait HasOptions
     }
 
     /**
-     * @return list<array{value: int|string, label: string, hint?: string}>
+     * @return list<array{value: int|string, label: string, hint?: string, description?: string}>
      */
     public function resolveOptions(Get $get): array
     {
@@ -38,23 +40,31 @@ trait HasOptions
 
         if (is_string($options) && enum_exists($options)) {
             return array_map(
-                static fn (BackedEnum $case) => [
-                    'value' => $case->value,
-                    'label' => method_exists($case, 'label') ? $case->label() : $case->name,
-                ],
+                static fn (BackedEnum $case) => Option::make(
+                    $case->value,
+                    method_exists($case, 'label') ? (string) $case->label() : $case->name,
+                )->description(method_exists($case, 'description') ? $case->description() : null)->toArray(),
                 $options::cases(),
             );
         }
 
-        if ($options instanceof Arrayable) {
+        // A collection of Option objects stays as it is: toArray() would turn them into arrays of their own.
+        if ($options instanceof Arrayable && ! $options instanceof \Traversable) {
             $options = $options->toArray();
         }
 
         $resolved = [];
         foreach ($options as $value => $label) {
-            $resolved[] = is_array($label) && array_key_exists('value', $label)
-                ? array_filter(['value' => $label['value'], 'label' => (string) ($label['label'] ?? $label['value']), 'hint' => isset($label['hint']) ? (string) $label['hint'] : null], static fn ($item) => $item !== null)
-                : ['value' => $value, 'label' => (string) $label];
+            $resolved[] = match (true) {
+                $label instanceof Option => $label->toArray(),
+                is_array($label) && array_key_exists('value', $label) => array_filter([
+                    'value' => $label['value'],
+                    'label' => (string) ($label['label'] ?? $label['value']),
+                    'hint' => isset($label['hint']) && $label['hint'] !== '' ? (string) $label['hint'] : null,
+                    'description' => isset($label['description']) && $label['description'] !== '' ? (string) $label['description'] : null,
+                ], static fn ($item, string $key) => $key === 'value' || $item !== null, ARRAY_FILTER_USE_BOTH),
+                default => ['value' => $value, 'label' => (string) $label],
+            };
         }
 
         return $resolved;

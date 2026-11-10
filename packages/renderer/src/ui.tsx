@@ -352,22 +352,8 @@ export function Kbd({ children, inverted = false }: { children: string; inverted
   );
 }
 
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
-
-/** "mod+s" → "⌘S" on macOS, "Ctrl+S" elsewhere. */
-export function formatHotkey(hotkey: string): string {
-  return hotkey
-    .split('+')
-    .map((part) => (part === 'mod' ? (isMac ? '⌘' : 'Ctrl+') : part.toUpperCase()))
-    .join('');
-}
-
-export function matchesHotkey(event: KeyboardEvent, hotkey: string): boolean {
-  const parts = hotkey.toLowerCase().split('+');
-  const key = parts[parts.length - 1];
-  const mod = parts.includes('mod');
-  return event.key.toLowerCase() === key && (!mod || (isMac ? event.metaKey : event.ctrlKey)) && event.shiftKey === parts.includes('shift');
-}
+/** "mod+s" → "⌘S" on macOS, "Ctrl+S" elsewhere (hotkeys.ts). */
+export { formatHotkey } from './hotkeys';
 
 /** Phones and narrow windows: below Tailwind's md breakpoint (768px). */
 export const MOBILE_QUERY = '(max-width: 767.98px)';

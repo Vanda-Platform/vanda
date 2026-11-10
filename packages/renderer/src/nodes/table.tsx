@@ -5,6 +5,7 @@ import { ChoiceSelect, triggerFocusClass } from '../choice';
 import { t } from '../i18n';
 import { initialHidden, localColumnsKey, readLocalColumns, writeLocalColumns, type ColumnChoice } from '../tableColumns';
 import { TABLE_VISIT_HEADERS, urlWith, visitWith, type FilterValue } from '../tableVisit';
+import { useHotkey } from '../hotkeys';
 import { saveColumns } from '../transport';
 import { nodeAttributes, useStore } from '../store';
 import { buttonClass, controlClass, cx, Icon, Kbd, MOBILE_QUERY, useMediaQuery, useOverflowFade } from '../ui';
@@ -210,19 +211,8 @@ export function TableView({ node }: { node: TableNode }) {
   // A new page of rows (search, sort, after an action) drops selections that are gone.
   useEffect(() => setSelected((current) => current.filter((key) => rows.some((row) => row.key === key))), [rows]);
 
-  // "/" focuses the search, as in the design.
-  useEffect(() => {
-    if (!node.search) return;
-    const onKey = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-      if (event.key === '/' && !target.closest('input, textarea, [contenteditable="true"]')) {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [node.search]);
+  // "/" focuses the search, as in the design (not while the user types somewhere).
+  useHotkey(node.search ? '/' : null, () => searchRef.current?.focus(), searchRef);
 
   const scroller = useRef<HTMLDivElement>(null);
   const checkCell = useRef<HTMLTableCellElement>(null);

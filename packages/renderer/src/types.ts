@@ -41,6 +41,8 @@ export interface Option {
   label: string;
   /** Muted text after the label, e.g. "UTC+01:00". */
   hint?: string;
+  /** A second, smaller grey line under the label in the list (Option::description()): a category, a date. */
+  description?: string;
 }
 
 export interface ActionRef {

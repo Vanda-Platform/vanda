@@ -13,6 +13,11 @@ use Vanda\Schema\SchemaContext;
  *         ->fields([Input::make('name')->label('Name')->rules('required'), Input::make('value')->label('Value')])
  *         ->addLabel('Add a spec')
  *
+ * How rows are drawn follows from the fields (see resolvedLayout()). In a List, Enter adds the next row
+ * and Backspace in an empty one removes it. A Block's header names it by its first text field, folds it
+ * (->collapsed() starts folded), and its «⋯» duplicates it, adds a row below or moves it. Rows move by
+ * their grip too (mouse, finger, arrow keys); a removed filled row comes back with «Вернуть».
+ *
  * The value is a list: [['name' => 'Weight', 'value' => '1 kg'], ...]. Child rules
  * are validated for every row ("form.specs.*.name"), and every child cleans its own value
  * (RichText, Upload, Select), so an Upload works inside a row too.
@@ -29,6 +34,8 @@ final class Repeater extends Field
     private ?RepeaterLayout $layout = null;
 
     private ?string $itemLabel = null;
+
+    private bool $collapsed = false;
 
     public function type(): string
     {
@@ -96,6 +103,20 @@ final class Repeater extends Field
     public function itemLabel(string $label): static
     {
         $this->itemLabel = $label;
+
+        return $this;
+    }
+
+    /**
+     * Blocks open folded, each a line with its name and the value of its first text field
+     * ("День 2 · Практика"), for long rows in long lists. A block with an error and a new one open
+     * by themselves; the user folds and unfolds any of them, or all at once.
+     *
+     *     Repeater::make('form.program')->itemLabel('День')->collapsed()->fields([...])
+     */
+    public function collapsed(bool $collapsed = true): static
+    {
+        $this->collapsed = $collapsed;
 
         return $this;
     }
@@ -177,6 +198,7 @@ final class Repeater extends Field
             'max' => $this->max,
             'layout' => $this->resolvedLayout()->value,
             'itemLabel' => $this->itemLabel,
+            'collapsed' => $this->collapsed,
         ];
     }
 

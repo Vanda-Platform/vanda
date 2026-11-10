@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { t } from '../i18n';
 import { buttonClass, cx, Icon } from '../ui';
+import { canvasToFile, canWriteWebp } from '../webp';
 
 /** One of Upload::crop() from the code (Vanda\Fields\Crop). */
 export interface CropPreset {
@@ -24,6 +25,8 @@ interface Props {
   presets: CropPreset[];
   /** Upload::customCrop(): free crop, the user's own sizes and "upload as it is". */
   custom: boolean;
+  /** Upload::webp(): the result is WebP at this quality (1–100) when the browser can write it. */
+  webp: number | null;
   /** Where the user's own sizes are remembered (per field). */
   storageKey: string;
   /** The cropped file, or the original when the user chose not to crop. */
@@ -58,7 +61,7 @@ const sizeLabel = ({ width, height }: Size) => `${width}×${height}`;
  * Crops an image in the browser before it is uploaded: presets from the code, and with
  * customCrop() also a free frame and sizes the user types (kept in their browser).
  */
-export function CropDialog({ src, name, mime, presets, custom, storageKey, onDone, onCancel }: Props) {
+export function CropDialog({ src, name, mime, presets, custom, webp, storageKey, onDone, onCancel }: Props) {
   const image = useRef<HTMLImageElement>(null);
   const cropper = useRef<Cropper | null>(null);
   const [saved, setSaved] = useState<Size[]>(() => loadSizes(storageKey));
@@ -118,7 +121,8 @@ export function CropDialog({ src, name, mime, presets, custom, storageKey, onDon
   const apply = () => {
     const instance = cropper.current;
     if (!instance || output.width < 1 || output.height < 1 || area.width < 1 || area.height < 1) return;
-    const type = OUTPUT_TYPES.includes(mime) ? mime : 'image/png';
+    // WebP when the field asks for it (a GIF's first frame too: the crop has no animation anyway).
+    const type = webp && canWriteWebp() ? 'image/webp' : OUTPUT_TYPES.includes(mime) ? mime : 'image/png';
     setBusy(true);
     setError(null);
     try {
@@ -129,16 +133,12 @@ export function CropDialog({ src, name, mime, presets, custom, storageKey, onDon
         imageSmoothingQuality: 'high',
         fillColor: type === 'image/jpeg' ? '#fff' : 'transparent',
       });
-      canvas.toBlob(
-        (blob) => {
-          setBusy(false);
-          if (!blob) return setError(t('cropFailed'));
-          const base = name.replace(/\.[^.]+$/, '') || 'image';
-          onDone(new File([blob], `${base}.${type.split('/')[1]!.replace('jpeg', 'jpg')}`, { type }));
-        },
-        type,
-        0.9,
-      );
+      const base = name.replace(/\.[^.]+$/, '') || 'image';
+      void canvasToFile(canvas, type, type === 'image/webp' ? webp! / 100 : 0.9, `${base}.${type.split('/')[1]!.replace('jpeg', 'jpg')}`).then((file) => {
+        setBusy(false);
+        if (!file) return setError(t('cropFailed'));
+        onDone(file);
+      });
     } catch {
       // A picture from another site without CORS headers cannot be read back from a canvas.
       setBusy(false);

@@ -12,6 +12,8 @@ import { upload } from '../transport';
 import type { FieldNode } from '../types';
 import { FieldFrame, useField } from './fields';
 import { formatSize } from './upload';
+import { vandaContent, VANDA_UI } from './tinymce-vanda';
+import { toWebp } from '../webp';
 
 // TinyMCE 6 lives in its own chunk, loaded only by screens with a TinyMce field. Nothing is fetched
 // from a CDN: the editor, its plugins, icons, skins and the Russian pack are in the bundle; the skin
@@ -29,6 +31,8 @@ type TinyMceNode = FieldNode & {
   linkList?: LinkItem[];
   /** Bytes per image uploaded into the text (TinyMce::uploads()); missing when off. */
   uploads?: number | null;
+  /** WebP quality pictures go up at (TinyMce::uploads(webp: …)); missing: as they are. */
+  webp?: number | null;
 };
 
 /**
@@ -40,15 +44,13 @@ const LINK_ELEMENT =
   '-a[href|target|rel|media|hreflang|type|charset|name|rev|shape|coords|download|referrerpolicy' +
   '|id|accesskey|class|dir|lang|style|tabindex|title|role|contenteditable|draggable|hidden|spellcheck|translate|data-*|aria-*]';
 
-/** Vanda's look around TinyMCE's own: the border of a field, the accent on focus, red when invalid. */
-const VANDA_SKIN = `
-.vanda-tinymce .tox.tox-tinymce { border: 1px solid var(--v-control-line); border-radius: 8px; }
-.vanda-tinymce[data-invalid] .tox.tox-tinymce { border-color: var(--v-danger); box-shadow: 0 0 0 3px color-mix(in oklch, var(--v-danger) 16%, transparent); }
-.vanda-tinymce .tox .tox-edit-area::before { border-color: var(--v-accent); }
-.tox .tox-dialog-wrap__backdrop { background-color: var(--v-scrim, rgba(0, 0, 0, .4)); }
-`;
-
 type Skin = { ui: string; content: string };
+
+/** The panel's font stylesheets (<link data-vanda-fonts> in the layout), for the editor's frame; false when there are none. */
+function fontStylesheets(): string[] | false {
+  const links = [...document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][data-vanda-fonts]')].map((link) => link.href);
+  return links.length > 0 ? links : false;
+}
 
 const skins: Partial<Record<'light' | 'dark', Promise<Skin>>> = {};
 
@@ -67,7 +69,7 @@ function applySkin(skin: Skin) {
     style.id = 'vanda-tinymce-skin';
     document.head.append(style);
   }
-  const css = skin.ui + VANDA_SKIN;
+  const css = skin.ui + VANDA_UI;
   if (style.textContent !== css) style.textContent = css;
 }
 
@@ -167,8 +169,10 @@ export function TinyMceField({ node }: { node: TinyMceNode }) {
     const uploadImage: NonNullable<RawEditorOptions['images_upload_handler']> = async (blobInfo, progress) => {
       const { node: current } = latest.current;
       const blob = blobInfo.blob();
-      if (current.uploads && blob.size > current.uploads) throw { message: t('imageTooLarge', { max: formatSize(current.uploads) }), remove: true };
-      const file = new File([blob], blobInfo.filename(), { type: blob.type });
+      const original = new File([blob], blobInfo.filename(), { type: blob.type });
+      // JPEG and PNG go into the text as WebP (TinyMce::uploads(webp: …)); the size counts after that.
+      const file = current.webp ? await toWebp(original, current.webp) : original;
+      if (current.uploads && file.size > current.uploads) throw { message: t('imageTooLarge', { max: formatSize(current.uploads) }), remove: true };
       try {
         const { status, data } = await upload(store.get().page, current.path, file, (fraction) => progress(Math.round(fraction * 100))).promise;
         if (status === 200) return String(data.value);
@@ -185,9 +189,10 @@ export function TinyMceField({ node }: { node: TinyMceNode }) {
       toolbar: node.toolbar === '' ? false : (node.toolbar ?? false),
       menubar: node.menubar === undefined ? true : node.menubar === '' ? false : node.menubar,
       language: lang() === 'ru' ? 'ru' : undefined,
-      // The skin is ours (applySkin), the text's CSS goes inside the editor's frame (content_style below).
+      // The skin is ours (applySkin), the text's CSS goes inside the editor's frame (content_style below),
+      // with the panel's fonts: the frame is a document of its own and loads them again (from the cache).
       skin: false,
-      content_css: false,
+      content_css: fontStylesheets(),
       // Nothing should load from there (every part is in the bundle); a part that did would come from Vanda's files.
       base_url: import.meta.url.replace(/\/[^/]*$/, ''),
       suffix: '.min',
@@ -237,7 +242,7 @@ export function TinyMceField({ node }: { node: TinyMceNode }) {
         initial = latest.current.value;
         target.value = initial;
         // TinyMCE checks every option it is given: one left undefined is left out.
-        const given = Object.fromEntries(Object.entries({ ...options, content_style: skin.content }).filter(([, option]) => option !== undefined));
+        const given = Object.fromEntries(Object.entries({ ...options, content_style: skin.content + vandaContent(dark) }).filter(([, option]) => option !== undefined));
         return tinymce.init(given as RawEditorOptions);
       })
       .then((editors) => {

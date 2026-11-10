@@ -39,6 +39,8 @@ final class Relation extends Field
 
     private ?Closure $display = null;
 
+    private ?Closure $description = null;
+
     private bool $multiple = false;
 
     private int $limit = 20;
@@ -90,6 +92,23 @@ final class Relation extends Field
     public function display(Closure $label): static
     {
         $this->display = $label;
+
+        return $this;
+    }
+
+    /**
+     * A second, smaller grey line under each option, to tell records with the same name apart:
+     *
+     *     Relation::make('form.event_id')->model(Event::class, 'name')
+     *         ->description(fn (Event $event) => $event->category?->name.' · '.$event->starts_at->format('d.m.Y'))
+     *
+     * Eager-load what it reads with ->query(fn () => Event::with('category')).
+     *
+     * @param Closure(Model): ?string $text
+     */
+    public function description(Closure $text): static
+    {
+        $this->description = $text;
 
         return $this;
     }
@@ -198,13 +217,13 @@ final class Relation extends Field
     }
 
     /**
-     * @return array{value: int|string, label: string}
+     * @return array{value: int|string, label: string, description?: string}
      */
     private function option(Model $record): array
     {
-        return [
-            'value' => $record->getKey(),
-            'label' => (string) ($this->display !== null ? ($this->display)($record) : data_get($record, $this->labelColumn)),
-        ];
+        return Option::make(
+            $record->getKey(),
+            (string) ($this->display !== null ? ($this->display)($record) : data_get($record, $this->labelColumn)),
+        )->description($this->description === null ? null : ($this->description)($record))->toArray();
     }
 }

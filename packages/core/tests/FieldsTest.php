@@ -106,6 +106,11 @@ it('picks how a repeater draws its rows from its fields', function () {
         ->and($layout([$input('title'), Vanda\Fields\Select::make('tags')->multiple()]))->toBe(Vanda\Fields\RepeaterLayout::Blocks)
         ->and($layout([Vanda\Fields\TextArea::make('text')]))->toBe(Vanda\Fields\RepeaterLayout::Blocks)
         ->and(Repeater::make('rows')->fields([$input('name')])->layout(Vanda\Fields\RepeaterLayout::Blocks)->resolvedLayout())->toBe(Vanda\Fields\RepeaterLayout::Blocks);
+
+    $context = new SchemaContext(new TinyMceScreen, []);
+    expect(Repeater::make('rows')->fields([$input('title'), Vanda\Fields\TextArea::make('text')])->itemLabel('День')->collapsed()->toSchema($context))
+        ->toMatchArray(['layout' => 'blocks', 'itemLabel' => 'День', 'collapsed' => true])
+        ->and(Repeater::make('rows')->fields([$input('title')])->toSchema($context))->not->toHaveKey('collapsed');
 });
 
 it('sends a hint as an icon by default and as text under the field when asked', function () {
@@ -117,4 +122,17 @@ it('sends a hint as an icon by default and as text under the field when asked', 
         ->toMatchArray(['help' => '10 or 12 digits', 'helpInline' => true])
         ->and(Repeater::make('specs')->fields([Input::make('name')->help('As on the pack', inline: true)])->toSchema($context)['fields'][0])
         ->toMatchArray(['help' => 'As on the pack', 'helpInline' => true]);
+});
+
+it('sends a description under an option of a select and of a relation', function () {
+    Panel::test(FieldsScreen::class)
+        ->assertNode('roast', fn (array $node) => expect($node['options'])->toBe([
+            ['value' => 'light', 'label' => 'Light', 'description' => 'Fruity, for filter'],
+            ['value' => 'dark', 'label' => 'Dark'],
+            ['value' => 'espresso', 'label' => 'Espresso', 'hint' => 'new', 'description' => 'For milk drinks'],
+        ]))
+        ->set('roast', 'espresso')->call('save')->assertHasNoErrors('roast')
+        ->set('roast', 'medium')->call('save')->assertHasErrors('roast');
+
+    expect(Panel::test(FieldsScreen::class)->options('colleague')[0])->toBe(['value' => $this->ivan->id, 'label' => 'Ivan Petrov', 'description' => 'ivan@example.com']);
 });

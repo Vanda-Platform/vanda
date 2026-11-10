@@ -1,9 +1,10 @@
 import { Link, router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import { Button as AriaButton, Dialog, Heading, Menu, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover, Separator } from 'react-aria-components';
 import { t } from '../i18n';
 import { isInternal, nodeAttributes, useSnapshot, useStore } from '../store';
-import { buttonClass, cx, formatHotkey, Icon, Kbd, matchesHotkey, Spinner } from '../ui';
+import { useHotkey } from '../hotkeys';
+import { buttonClass, cx, formatHotkey, Icon, Kbd, Spinner } from '../ui';
 import type { ActionRef, UiNode } from '../types';
 
 export type ButtonNode = UiNode & {
@@ -98,21 +99,13 @@ export function ButtonView({ node, size = 'md', ids }: { node: ButtonNode; size?
     else fire();
   };
 
-  useEffect(() => {
-    if (!node.hotkey) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (matchesHotkey(event, node.hotkey!)) {
-        event.preventDefault();
-        run();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  });
+  const button = useRef<HTMLButtonElement>(null);
+  useHotkey(node.hotkey, run, button);
 
   return (
     <>
       <button
+        ref={button}
         type="button"
         onClick={run}
         disabled={busy && !running}
@@ -147,6 +140,11 @@ export function openLink(href: string, event?: LinkEvent) {
 
 /** A link, a modal toggle or a button, as a menu or a table row holds them. */
 export type ActivatableNode = ButtonNode & { href?: string; external?: boolean; modal?: string };
+
+function MenuHotkey({ hotkey, run, trigger }: { hotkey: string; run: () => void; trigger: RefObject<HTMLButtonElement | null> }) {
+  useHotkey(hotkey, run, trigger);
+  return null;
+}
 
 /**
  * Does what a click on a link, a modal toggle or a button does: a link opens its page, a modal toggle
@@ -237,11 +235,15 @@ export function DropDownView({ node, compact, name, tabbable = true }: { node: U
   const { activate, dialog } = useActivate();
   const items = (node.children ?? []) as ActivatableNode[];
   const iconOnly = !node.label;
+  const trigger = useRef<HTMLButtonElement>(null);
 
   return (
     <>
+      {/* An item's shortcut works with the menu closed, while the menu's button is in reach. */}
+      {items.map((item) => item.hotkey && <MenuHotkey key={item.id} hotkey={item.hotkey} run={() => activate(item)} trigger={trigger} />)}
       <MenuTrigger>
         <AriaButton
+          ref={trigger}
           aria-label={iconOnly ? (name ? t('actionsFor', { label: name }) : t('actions')) : undefined}
           excludeFromTabOrder={!tabbable}
           className={cx(buttonClass(node.variant, compact ? 'sm' : 'md'), iconOnly && (compact ? 'w-7 px-0' : 'w-9 px-0'))}

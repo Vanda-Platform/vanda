@@ -26,6 +26,9 @@ final class ShowcaseForm extends Form
 
     public string $category = 'beans';
 
+    /** @var list<int> */
+    public array $related = [1, 3];
+
     public bool $featured = true;
 
     public bool $published = true;
@@ -49,6 +52,9 @@ final class ShowcaseForm extends Form
     /** @var list<array{name?: string, value?: string}> */
     public array $specs = [['name' => 'Вес', 'value' => '1 кг'], ['name' => 'Обжарка', 'value' => 'Средняя']];
 
+    /** @var list<array{text: string}> */
+    public array $features = [['text' => 'Свежая обжарка каждую неделю'], ['text' => 'Доставка за один день']];
+
     /** @var list<array{key: string, value: string}> */
     public array $utm = [['key' => 'utm_source', 'value' => 'newsletter'], ['key' => 'utm_medium', 'value' => 'email']];
 
@@ -63,6 +69,9 @@ final class ShowcaseForm extends Form
 
     /** @var list<int> */
     public array $attachments = [];
+
+    /** @var list<int> */
+    public array $gallery = [];
 
     /** The cover's address, as a model column keeps it (Upload::target(UploadTarget::RelativeUrl)). */
     public ?string $cover = null;
@@ -98,5 +107,8 @@ final class ShowcaseForm extends Form
     public string $html = '<h2>Эспрессо-смесь «Бразилия»</h2><p class="lead">Плотное тело, ноты <span style="color: #b96ad9;">какао</span> и ореха. Подходит для <a href="/catalog/milk" data-product-id="7">напитков с молоком</a>.</p><table style="border-collapse: collapse; width: 100%;" border="1"><tbody><tr><td style="width: 50%;">Обжарка</td><td style="width: 50%;">Средняя</td></tr></tbody></table>';
 
     /** @var list<array{title?: string, text?: string}> */
-    public array $blocks = [['title' => 'Доставка', 'text' => '<p>Бесплатно от <strong>3 000 ₽</strong>.</p>']];
+    public array $blocks = [
+        ['title' => 'Доставка', 'text' => '<p>Бесплатно от <strong>3 000 ₽</strong>.</p>'],
+        ['title' => 'Возврат', 'text' => '<p>В течение 14 дней, если пачка не вскрыта.</p>'],
+    ];
 }
