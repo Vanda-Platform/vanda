@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Vanda\Access\Role;
+use Vanda\Panel;
 use Vanda\Tests\Fixtures\User;
 
 beforeEach(function () {
@@ -30,6 +31,16 @@ it('closes a #[Can] screen to users without the permission', function () {
 
     $this->user->replaceRoles([$this->manager->id]);
     $this->actingAs($this->user->fresh())->get('/panel/secured')->assertOk();
+});
+
+it('shows the panel\'s error page with cached routes, when Route::vanda() never ran', function () {
+    // route:cache loads the routes without running the route files, so nothing called registerPrefix().
+    (new ReflectionProperty(Panel::class, 'prefixes'))->setValue(null, []);
+
+    expect(Panel::prefixes())->toContain('panel')
+        ->and(route('vanda.login'))->not->toContain('_vanda_panel');
+    $this->get('/panel/login')->assertOk();
+    $this->actingAs($this->user)->get('/panel/missing')->assertNotFound()->assertSee('Page not found');
 });
 
 it('hides forbidden actions and rejects them even with a valid token', function () {

@@ -198,11 +198,22 @@ final class Panel
 
     /**
      * URL prefixes of the panels registered with Route::vanda(), e.g. ['admin'].
+     * With `php artisan route:cache` the route files do not run, so they are read from the
+     * routes themselves: each panel's sign-in route carries its prefix.
      *
      * @return list<string>
      */
     public static function prefixes(): array
     {
+        if (self::$prefixes === []) {
+            foreach (app('router')->getRoutes()->getRoutes() as $route) {
+                $prefix = $route->defaults['_vanda_panel'] ?? null;
+                if (is_string($prefix)) {
+                    self::$prefixes[] = $prefix;
+                }
+            }
+        }
+
         return array_values(array_unique(self::$prefixes));
     }
 
@@ -216,7 +227,7 @@ final class Panel
             return true;
         }
 
-        foreach (self::$prefixes as $prefix) {
+        foreach (self::prefixes() as $prefix) {
             if ($prefix === '' || $request->is($prefix, $prefix.'/*')) {
                 return true;
             }

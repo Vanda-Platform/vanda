@@ -128,7 +128,9 @@ final class VandaServiceProvider extends ServiceProvider
         Route::macro('vanda', function (string $prefix, Closure $routes) {
             Panel::registerPrefix($prefix);
             Route::middleware(config('vanda.middleware', ['web']))->prefix($prefix)->group(function () use ($prefix, $routes) {
-                Route::screen('login', LoginScreen::class)->name('vanda.login')->middleware(RedirectIfAuthenticated::class);
+                // _vanda_panel names the panel's prefix when the routes are cached and this closure does not run.
+                Route::screen('login', LoginScreen::class)->name('vanda.login')->defaults('_vanda_panel', trim($prefix, '/'))
+                    ->middleware(RedirectIfAuthenticated::class);
                 Route::post('logout', LogoutController::class)->name('vanda.logout');
                 Route::post('vanda/impersonation/stop', StopImpersonationController::class)->name('vanda.impersonation.stop');
                 Route::middleware(Authenticate::class)->group(function () use ($prefix, $routes): void {

@@ -23,7 +23,7 @@ final class ScreenController
     {
         $route = $request->route();
         $screen = $route->defaults['_vanda_screen'];
-        $parameters = Arr::except($route->parameters(), ['_vanda_screen']);
+        $parameters = Arr::except($route->parameters(), ['_vanda_screen', '_vanda_panel']);
         $runtime = ScreenRuntime::boot($screen, $parameters, '/'.ltrim($request->path(), '/'));
 
         if (! $request->isMethod('POST')) {

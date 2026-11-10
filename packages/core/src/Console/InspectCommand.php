@@ -102,7 +102,7 @@ final class InspectCommand extends Command
 
         $class = $route->defaults['_vanda_screen'] ?? null;
 
-        return [$class, Arr::except($route->parameters(), ['_vanda_screen']), '/'.ltrim($request->path(), '/')];
+        return [$class, Arr::except($route->parameters(), ['_vanda_screen', '_vanda_panel']), '/'.ltrim($request->path(), '/')];
     }
 
     /**
