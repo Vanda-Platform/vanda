@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Publishes one package of this repository as the root of a repository of its own, the one
+# Packagist reads for it. Run it from a clean checkout of main after the release commit:
+#
+#   bin/release core                # brings main of Vanda-Platform/core up to HEAD
+#   bin/release core v0.4.0         # and tags that version there (tag the monorepo v0.4.0 too)
+#   bin/release settings v0.1.0     # packages/extensions/settings → Vanda-Platform/settings
+#                                   # (tag the monorepo settings-v0.1.0)
+#
+# The split keeps the history of the package's folder only; Packagist picks up the new tag by
+# itself once the repository is connected to it. VANDA_RELEASE_REMOTE sends it somewhere else.
+set -euo pipefail
+
+package="${1:-}"
+version="${2:-}"
+
+cd "$(git rev-parse --show-toplevel)"
+extensions="$(ls packages/extensions 2>/dev/null | tr '\n' ' ')"
+
+case "$package" in
+    "")
+        echo "Name the package: bin/release core v1.2.3, or an extension (${extensions% }): bin/release settings v1.2.3." >&2
+        exit 1
+        ;;
+    core) prefix="packages/core" ;;
+    *) prefix="packages/extensions/$package" ;;
+esac
+if [ ! -f "$prefix/composer.json" ]; then
+    echo "There is no package \"$package\" ($prefix/composer.json): write core or one of: ${extensions% }." >&2
+    exit 1
+fi
+if [ -n "$(git status --porcelain -- "$prefix")" ]; then
+    echo "$prefix has uncommitted changes; commit them first." >&2
+    exit 1
+fi
+if [ -n "$version" ]; then
+    if ! [[ "$version" =~ ^v([0-9]+)\.([0-9]+)\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+        echo "\"$version\" is not a version tag; write it as v1.2.3 (or v1.2.3-beta.1)." >&2
+        exit 1
+    fi
+    # dev-main must read as the line being released, or `^x.y` of other packages will not take main.
+    line="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.x-dev"
+    alias="$(php -r 'echo json_decode(file_get_contents($argv[1]), true)["extra"]["branch-alias"]["dev-main"] ?? "";' "$prefix/composer.json")"
+    if [ "$alias" != "$line" ]; then
+        echo "$prefix/composer.json reads main as \"${alias:-nothing}\"; set extra.branch-alias.dev-main to \"$line\" and commit it before tagging $version." >&2
+        exit 1
+    fi
+fi
+
+remote="${VANDA_RELEASE_REMOTE:-git@github.com:Vanda-Platform/$package.git}"
+sha="$(git subtree split --prefix="$prefix" HEAD)"
+git push "$remote" "$sha:refs/heads/main"
+if [ -n "$version" ]; then
+    git push "$remote" "$sha:refs/tags/$version"
+fi
+
+echo "$prefix at ${sha:0:7} → $remote${version:+ ($version)}"
