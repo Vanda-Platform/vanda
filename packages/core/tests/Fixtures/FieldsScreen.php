@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vanda\Tests\Fixtures;
 
 use DateTimeZone;
+use Vanda\Actions\Button;
 use Vanda\Attributes\Action;
 use Vanda\Fields\DateTimer;
 use Vanda\Fields\Input;
@@ -54,6 +55,11 @@ final class FieldsScreen extends Screen
     public ?string $phone = null;
 
     public ?string $opensAt = null;
+
+    public function commandBar(): iterable
+    {
+        return [Button::make('Save')->primary()->action($this->save(...))];
+    }
 
     public function layout(): iterable
     {

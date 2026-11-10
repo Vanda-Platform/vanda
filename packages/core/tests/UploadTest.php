@@ -42,6 +42,32 @@ it('checks size and type against the field', function () {
     expect(Attachment::query()->count())->toBe(1);
 });
 
+it('never stores a file a browser would open as a page on the panel\'s domain', function () {
+    $script = '<script>alert(document.cookie)</script>';
+    $gif = "GIF89a\x01\x00\x01\x00\x00\xff\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x00;".$script;
+
+    // A field that takes any file still refuses pages, scripts and names a server would run.
+    foreach (['page.html', 'page.HTM', 'page.xhtml', 'page.shtml', 'icon.svg', 'feed.xml', 'app.js', 'shell.pHp ', 'shell.php.', 'shell.php7', 'shell.phtm'] as $name) {
+        expect([$name, upload('any', UploadedFile::fake()->createWithContent($name, $script))->status()])->toBe([$name, 422]);
+    }
+
+    // An image field checks the content and the name: GIF bytes do not make page.html an image,
+    // and a PNG is not stored as .txt.
+    upload('cover', UploadedFile::fake()->createWithContent('page.html', $gif))->assertStatus(422);
+    upload('cover', UploadedFile::fake()->image('picture.txt'))->assertStatus(422);
+    upload('body', UploadedFile::fake()->createWithContent('page.html', $gif))->assertStatus(422);
+    expect(Attachment::query()->count())->toBe(0);
+
+    $notes = upload('any', UploadedFile::fake()->createWithContent('notes.txt', '<html>not a page here</html>'))->assertOk();
+    $picture = upload('cover', UploadedFile::fake()->image('Photo.JPG'))->assertOk();
+    expect($notes->json('extension'))->toBe('txt')
+        ->and($picture->json('extension'))->toBe('jpg');
+
+    // Named by the field, an SVG is accepted (serve such a disk from another domain).
+    upload('logo', UploadedFile::fake()->createWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>'))->assertOk();
+    upload('logo', UploadedFile::fake()->createWithContent('logo.html', '<svg xmlns="http://www.w3.org/2000/svg"/>'))->assertStatus(422);
+});
+
 it('refuses uploads to fields that are not Upload fields of the screen', function () {
     upload('missing', UploadedFile::fake()->image('a.jpg'))->assertNotFound();
 });

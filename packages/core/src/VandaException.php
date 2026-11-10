@@ -45,6 +45,19 @@ final class VandaException extends RuntimeException
         ));
     }
 
+    public static function actionNotRendered(string $class, string $method, ?string $node): self
+    {
+        return new self(sprintf(
+            'The call to %s::%s() was rejected: %s. A call is accepted only from a button (menu item, row action, '
+            .'modal toggle) that this page draws for the current user and record; ->visible(false) and #[Can] remove it. '
+            .'In a test, call an action the page shows: Panel::test(...)->call(\'%s\', [...]) with the arguments its button has.',
+            $class,
+            $method,
+            $node === null ? 'no button on this page makes this call' : sprintf('the node "%s" does not make this call on this page', $node),
+            $method,
+        ));
+    }
+
     public static function unsupportedStateType(string $class, string $property, string $type): self
     {
         return new self(sprintf(

@@ -74,6 +74,10 @@ final class Upload extends Field
 
     /**
      * Allowed types as in the HTML accept attribute: "image/*", ".pdf,.xlsx", "application/pdf".
+     *
+     * HTML, SVG, XML and JavaScript files are refused unless named here by extension or exact type
+     * (".svg", "image/svg+xml"): served from the panel's own domain, they run scripts as its users.
+     * Accept them only on a disk served from another domain.
      */
     public function accept(string $accept): static
     {
@@ -176,11 +180,19 @@ final class Upload extends Field
         return $this;
     }
 
-    /** Never stored: a web server could run them, or they rewrite its rules. */
-    private const FORBIDDEN = ['php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phtml', 'phar', 'pht', 'phps', 'cgi', 'pl', 'asp', 'aspx', 'jsp', 'htaccess', 'htpasswd'];
+    /** Never stored: a web server could run them, or they rewrite its rules (any "php" with digits too). */
+    private const FORBIDDEN = ['php', 'phtml', 'phtm', 'phar', 'pht', 'phps', 'cgi', 'pl', 'py', 'rb', 'sh', 'asp', 'aspx', 'jsp', 'jspx', 'htaccess', 'htpasswd'];
 
     /**
-     * Checks the file against this field and stores it.
+     * Served as a page or a script (web servers pick the type by extension): stored only when
+     * ->accept() names them. A file without an extension gets one from its content first.
+     */
+    private const ACTIVE = ['html', 'htm', 'xhtml', 'xht', 'shtml', 'shtm', 'svg', 'svgz', 'xml', 'xsl', 'xslt', 'js', 'mjs', 'swf', 'hta', 'mht', 'mhtml'];
+
+    /**
+     * Checks the file against this field and stores it. The file is kept under its own extension
+     * only when that extension is safe: a name the web server would run, or one a browser would
+     * open as a page on the panel's domain, is refused (see ->accept()).
      *
      * @throws ValidationException
      */
@@ -188,18 +200,29 @@ final class Upload extends Field
     {
         Validator::make(['file' => $file], ['file' => ['required', 'file', 'max:'.(int) round($this->maxSize * 1024)]])->validate();
 
-        $extension = strtolower($file->getClientOriginalExtension());
-        if (in_array($extension, self::FORBIDDEN, true) || str_starts_with(strtolower($file->getClientOriginalName()), '.ht')) {
+        // "x.pHp " and "x.php." end up as .php on some systems: compare what a disk would keep.
+        $extension = strtolower(pathinfo(rtrim($file->getClientOriginalName(), " .\t\n\r\0\x0B"), PATHINFO_EXTENSION));
+        $extension = $extension === '' ? strtolower((string) $file->guessExtension()) : $extension;
+        $mime = strtolower((string) $file->getMimeType());
+        $types = array_filter(array_map('trim', explode(',', strtolower((string) $this->accept))));
+
+        $forbidden = preg_match('/^[a-z0-9]{0,16}$/', $extension) !== 1
+            || in_array($extension, self::FORBIDDEN, true)
+            || preg_match('/^php\d+$/', $extension) === 1
+            || str_starts_with(strtolower($file->getClientOriginalName()), '.ht');
+        $active = in_array($extension, self::ACTIVE, true);
+        $named = in_array('.'.$extension, $types, true) || in_array($mime, $types, true);
+
+        if ($forbidden || ($active && ! $named)) {
             throw ValidationException::withMessages(['file' => [__('vanda::upload.forbidden')]]);
         }
 
         // Several accepted types mean "any of them".
-        $types = array_filter(array_map('trim', explode(',', (string) $this->accept)));
-        if ($types !== [] && array_filter($types, fn (string $type) => $this->matchesType($file, $type)) === []) {
+        if ($types !== [] && array_filter($types, fn (string $type) => $this->matchesType($extension, $mime, $type)) === []) {
             throw ValidationException::withMessages(['file' => [__('vanda::upload.type', ['types' => $this->accept])]]);
         }
 
-        return Attachment::store($file, $this->disk ?? (string) config('vanda.attachments.disk', 'public'), $this->group, Auth::id() === null ? null : (int) Auth::id(), $this->directory);
+        return Attachment::store($file, $this->disk ?? (string) config('vanda.attachments.disk', 'public'), $this->group, Auth::id() === null ? null : (int) Auth::id(), $this->directory, $extension);
     }
 
     /**
@@ -330,16 +353,17 @@ final class Upload extends Field
 
     /**
      * "image/*" does not let SVG in: an SVG opened from the same site can run scripts.
-     * Accept it explicitly with ".svg" or "image/svg+xml".
+     * Accept it explicitly with ".svg" or "image/svg+xml". A wildcard type also needs the file's
+     * extension to be one of the type's own ("photo.jpg" with JPEG inside), so an image is never
+     * stored under a name a browser reads as something else.
      */
-    private function matchesType(UploadedFile $file, string $type): bool
+    private function matchesType(string $extension, string $mime, string $type): bool
     {
-        $mime = strtolower((string) $file->getMimeType());
-        $type = strtolower($type);
-
         return match (true) {
-            str_starts_with($type, '.') => strtolower($file->getClientOriginalExtension()) === substr($type, 1),
-            str_ends_with($type, '/*') => str_starts_with($mime, substr($type, 0, -1)) && $mime !== 'image/svg+xml',
+            str_starts_with($type, '.') => $extension === substr($type, 1),
+            str_ends_with($type, '/*') => str_starts_with($mime, substr($type, 0, -1))
+                && $mime !== 'image/svg+xml'
+                && in_array($extension, MimeTypes::getDefault()->getExtensions($mime), true),
             default => $mime === $type,
         };
     }

@@ -55,9 +55,11 @@ it('leaves the loading of a modal from a row out of the activity log', function 
 
     expect(Activity::query()->count())->toBe(0);
 
-    // The same call from a button (not a modal toggle) is a press worth recording.
-    Panel::test(RowActionScreen::class)->call('loadSeo', ['id' => 1]);
-    expect(Activity::query()->pluck('action')->all())->toBe(['loadSeo']);
+    // The page draws the call only as a modal load: the same call signed as a button press is refused.
+    $press = Vanda\Screen\ActionCall::sign(RowActionScreen::class, 'loadSeo', ['id' => 1]);
+    expect(fn () => ScreenRuntime::boot(RowActionScreen::class, [], '/admin/rows')->act('loadSeo', ['id' => 1], $press, [], $action['id']))
+        ->toThrow(HttpException::class);
+    expect(Activity::query()->count())->toBe(0);
 });
 
 it('makes rows of a tree run their button and leaves rows without one or with a forbidden one alone', function () {

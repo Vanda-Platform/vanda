@@ -94,8 +94,10 @@ final class ScreenTester
     }
 
     /**
-     * Call an #[Action] method as a button would. Pass the button id as $from
-     * to validate the way that button does (e.g. only its modal's fields).
+     * Call an #[Action] method as a button would. The page must draw a button (row action, menu
+     * item, modal toggle) with this action and these arguments for the signed-in user, as the
+     * server checks for a browser too; the call validates the way that button does (only its
+     * modal's or block's fields). Pass the button id as $from when the page has several.
      *
      * @param array<string, mixed> $arguments
      */
@@ -103,6 +105,11 @@ final class ScreenTester
     {
         $arguments = ActionCall::normalizeArguments($arguments);
         $token = ActionCall::sign($this->screen, $action, $arguments);
+        // A ModalToggle's ->load() is signed as a load: call it the way the page draws it.
+        $load = ActionCall::sign($this->screen, $action, [...$arguments, ...ActionCall::LOAD]);
+        if (! $this->runtime()->rendersCall($token) && $this->runtime()->rendersCall($load)) {
+            $token = $load;
+        }
 
         return $this->apply($this->runtime()->act($action, $arguments, $token, $this->page['state'], $from));
     }

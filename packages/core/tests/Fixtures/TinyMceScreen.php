@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vanda\Tests\Fixtures;
 
+use Vanda\Actions\Button;
 use Vanda\Attributes\Action;
 use Vanda\Fields\Input;
 use Vanda\Fields\Repeater;
@@ -22,6 +23,11 @@ final class TinyMceScreen extends Screen
     public array $blocks = [];
 
     public string $quick = '';
+
+    public function commandBar(): iterable
+    {
+        return [Button::make('Save')->primary()->action($this->save(...))];
+    }
 
     public function layout(): iterable
     {

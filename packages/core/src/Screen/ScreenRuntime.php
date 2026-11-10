@@ -449,6 +449,16 @@ final class ScreenRuntime
         $bound = ActionCall::bind($this->screen, $name, $arguments);
         Authorizer::authorizeAction($this->screen, $name, $bound);
 
+        // The token says which call; the page says whether it can be made here. A button hidden
+        // for this record (->visible()) is not on the page, so its token, taken from another
+        // page, is refused. The button that was pressed decides what is validated, never the
+        // browser: a node that does not make this call is refused too.
+        $triggers = $this->renderedTriggers($token);
+        if ($triggers === [] || ($trigger !== null && ! in_array($trigger, $triggers, true))) {
+            throw new HttpException(403, VandaException::actionNotRendered($this->screen::class, $name, $trigger)->getMessage());
+        }
+        $trigger ??= $triggers[0];
+
         $this->runUpdatedHooks($this->applyClientState($client));
 
         $scope = array_map(static fn (Field $field) => $field->path(), $this->tree()->fieldsInScope($trigger));
@@ -484,6 +494,60 @@ final class ScreenRuntime
         }
 
         return [200, $body];
+    }
+
+    /**
+     * Whether this page draws a button (or a row, menu item, modal toggle, tree move) that makes
+     * the call this token signs.
+     */
+    public function rendersCall(string $token): bool
+    {
+        return $this->renderedTriggers($token) !== [];
+    }
+
+    /**
+     * Ids of the nodes this page draws with exactly this call, the page built again from the state
+     * the browser was given (the snapshot) and the request's table view (?page=2&sort=…). The id
+     * is the node's for its `action`, `<node id>.<key>` for a call under another key (a tree's
+     * `move`), which is what the renderer sends as `node`.
+     *
+     * @return list<string>
+     */
+    private function renderedTriggers(string $token): array
+    {
+        $tree = $this->tree();
+        $context = new SchemaContext($this->screen, $this->state());
+        $found = [];
+
+        $walk = static function (array $value, ?string $node) use (&$walk, &$found, $token): void {
+            if (is_string($value['type'] ?? null) && is_string($value['id'] ?? null)) {
+                $node = $value['id'];
+            }
+
+            foreach ($value as $key => $child) {
+                if (! is_array($child)) {
+                    continue;
+                }
+
+                if (is_string($child['name'] ?? null) && is_string($child['token'] ?? null)) {
+                    if ($node !== null && hash_equals($child['token'], $token)) {
+                        $found[] = $key === 'action' ? $node : $node.'.'.$key;
+                    }
+
+                    continue;
+                }
+
+                $walk($child, $node);
+            }
+        };
+
+        foreach ([...$tree->commandBar, ...$tree->layout] as $node) {
+            if ($node->isVisible()) {
+                $walk($node->toSchema($context), null);
+            }
+        }
+
+        return array_values(array_unique($found));
     }
 
     /**

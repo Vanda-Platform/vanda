@@ -34,10 +34,11 @@ class Attachment extends Model
 
     /**
      * Stores the file under a random name in a dated folder (or in $directory) and records it.
+     * $extension is the one Upload::store() checked; without it the client's name decides.
      */
-    public static function store(UploadedFile $file, string $disk, ?string $group = null, ?int $userId = null, ?string $directory = null): self
+    public static function store(UploadedFile $file, string $disk, ?string $group = null, ?int $userId = null, ?string $directory = null, ?string $extension = null): self
     {
-        $extension = strtolower($file->getClientOriginalExtension() ?: (string) $file->guessExtension());
+        $extension ??= strtolower($file->getClientOriginalExtension() ?: (string) $file->guessExtension());
         $path = $directory === null ? date('Y/m/d').'/' : trim($directory, '/').'/';
         $name = Str::random(40);
 
